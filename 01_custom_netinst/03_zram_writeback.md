@@ -8,7 +8,7 @@
 
 The source design describes setting up an existing system. The custom Debian installer must integrate it without silently making destructive choices:
 
-1. **Explicit opt-in.** The ZRAM profile is initially **unchecked**, independently of **Debian tweaks**, **OMV** and **Docker**. No ZRAM setup is part of Debian tweaks. The user must select and confirm the ZRAM profile.
+1. **Explicit opt-in with an explicit prerequisite.** The ZRAM profile starts **unchecked** and is a separate option from **Debian tweaks**, **OMV** and **Docker**. ZRAM implementation remains entirely in this profile, but the user **must also explicitly select Debian tweaks**. If ZRAM is selected while Debian tweaks is unchecked, ask the user to **select Debian tweaks as well** or **deselect ZRAM**. Never silently enable Debian tweaks, never install ZRAM alone and require confirmation of the final selection.
 2. **Ordinary interactive disk partitioning.** The user manually selects an OS disk and may create a **Linux swap partition** in the standard Debian partitioning screens. The example suggested size is **16 GB**, but the user may choose another and confirm it. The installer must never automatically select, create or resize the backing partition.
 3. **One partition, two roles.** With the ZRAM profile **unchecked**, any user-created swap partition stays **conventional swap**. With ZRAM **selected**, the **same user-created partition** is re-purposed as **exclusive raw ZRAM compressed-writeback backing**; it must not be mounted, enabled by `swapon`, or listed for conventional swap activation in the installed system's `/etc/fstab`. The installer records the confirmed **PARTUUID** and the exact measured byte capacity.
 4. **ZRAM selected, no swap partition.** The ZRAM profile must interrupt configuration and ask the user to choose **return to manual partitioning and create a swap partition**, or **deselect ZRAM**. Do not silently continue with no backing partition or add a swapfile/another device. Debian Installer's own warning about having no swap does not replace this profile-specific check.
@@ -32,6 +32,7 @@ Ensure the intended target system loads this setting on first boot. Confirm with
 
 ## Deployment checklist specific to the customized installer
 
+- [ ] Validate the ZRAM prerequisite selection: with Debian tweaks unchecked, prompt to **select Debian tweaks** or **deselect ZRAM**, without implicit selection. Test independently from the missing-swap-partition warning.
 - [ ] Detect and confirm the chosen disk/partition **before** any destructive conversion; display its device identity, capacity, FSTYPE and PARTUUID.
 - [ ] Verify the partition will not be used as ordinary swap when ZRAM is selected; ensure **no fstab, initramfs, systemd or installer-generated swap activation** re-enables it.
 - [ ] Verify the backing path `/dev/disk/by-partuuid/<confirmed-PARTUUID>` exists at device setup time, and that `blockdev --getsize64` yields its actual byte capacity.
