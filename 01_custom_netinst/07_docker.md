@@ -31,7 +31,7 @@ Docker may start during package configuration or through socket activation unles
 
 ## Compatibility gate
 
-Simulate Docker install alongside selected OMV and global priority-900 backports before making changes. Preserve OMV, networking and SSH settings; do not override pinned package selections without consultation. Verify repository signature and dependency graph.
+Simulate Docker install alongside any selected OMV profile and, **only when the Backports profile was explicitly selected**, its global priority-900 backports policy before making changes. Preserve OMV, networking and SSH settings; do not override pinned package selections without consultation. Verify repository signature and dependency graph.
 
 ## Acceptance after first boot
 
