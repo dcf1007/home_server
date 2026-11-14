@@ -1,7 +1,8 @@
 # my-cdd source file manifest and provenance
 
 **Created:** 2026-11-14 (Europe/Berlin).  
-**Nearest user prompt:** “proceed” — author the actual project files after the user's prior request to create `my-cdd/` and move the existing configuration inside.  
+**Nearest user prompt for this revision:** “continue the implementation. remember not to decide anything without asking.” The initial file set was created in response to “proceed”, after the preceding request to create `my-cdd/` and relocate the existing configuration.
+**Last revised:** 2026-11-14 (Europe/Berlin).  
 **Repository:** `dcf1007/home_server`, `01_custom_netinst/my-cdd/`.
 
 ## Provenance categories
@@ -11,6 +12,8 @@
 - **Extracted unchanged from approved original ZRAM source blocks:** `scripts/zram-pressure.sh`, `scripts/zram-generator.conf.template`, `scripts/10-compressed-writeback.conf` and `scripts/zram-pressure.service`, sourced from [03 ZRAM writeback](../03_zram_writeback.md#original-design--complete-source).
 - **Generated non-destructive inspection/test helpers:** `scripts/apt-simulate.sh`, `scripts/inspect-zram-backing.sh`, `scripts/verify-source-layout.sh`, and `installer/ordered-selection.sh`, `installer/test-ordered-selection.sh`, etc.
 - **Generated design/validation documents:** all other `README.md`, `IMPLEMENTATION_GATES.md`, Debconf templates, and metadata entries.
+- **Generated in the current continuation (source-only, no installer actions):** `scripts/plan-firmware.py` (strict read-only APT policy + joint simulation), `tests/test_plan_firmware.py` and `tests/README.md` (mocked offline tests), `scripts/debian-backports.sources` (selected-only signed repository template), `scripts/90-zram-swappiness.conf` (ZRAM-selected-only setting). The `installer/profile-confirm.sh` and `installer/profile-confirm.templates` were revised to use one status field per optional profile and explicit reselection on No; build/source checks and related documentation were updated. These changes implement **existing approved policy only**.
+- **Remaining user decision:** selection of a supported **early installer integration strategy**, before any build hook, udeb replacement or upstream modification is adopted; no method was silently chosen.
 
 ## Current implementation status
 
@@ -18,9 +21,11 @@
 
 No installer media/source-image hashes or USB read-back checks have been added. Package repository signing checks are independent and remain mandatory.
 
-## Files at manifest creation
+## Tracked files as of this revision (53)
 
+- `.gitignore`
 - `README.md`
+- `SOURCE_MANIFEST.md`
 - `build.sh`
 - `installer/IMPLEMENTATION_GATES.md`
 - `installer/README.md`
@@ -57,17 +62,19 @@ No installer media/source-image hashes or USB read-back checks have been added. 
 - `profiles/zram-writeback.packages`
 - `profiles/zram-writeback.postinst`
 - `scripts/10-compressed-writeback.conf`
+- `scripts/90-zram-swappiness.conf`
 - `scripts/README.md`
 - `scripts/apt-simulate.sh`
+- `scripts/debian-backports.sources`
 - `scripts/firmware-candidates.txt`
 - `scripts/inspect-zram-backing.sh`
+- `scripts/plan-firmware.py`
 - `scripts/verify-source-layout.sh`
 - `scripts/zram-generator.conf.template`
 - `scripts/zram-pressure.service`
 - `scripts/zram-pressure.sh`
 - `simple-cdd.conf`
-
-- `.gitignore` — keeps generated ISO and temporary build outputs out of version control.
-- `SOURCE_MANIFEST.md` — this provenance and file-status manifest.
+- `tests/README.md`
+- `tests/test_plan_firmware.py`
 
 **Note:** This manifest lists the tracked project sources, not completed installer features or an artifact manifest for an ISO. Newly added future files should be appended when the project advances.
