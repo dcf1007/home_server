@@ -2,7 +2,7 @@
 
 **Project status:** documented installation plan, **not yet a built or tested ISO**. **Updated:** 2026-11-14. **Provenance:** custom server home-server installation decisions and requested GitHub documentation structure.
 
-Prepare an interactive, Simple-CDD-based **Debian 13 (Trixie), amd64** installation USB for `the installer-confirmed hostname`. The example hardware has a dedicated **256 GB system SSD**, **32 GB RAM** and nine NAS HDDs. These are build-specific examples, not universal requirements; confirm real devices and sizes in the installer.
+Prepare an interactive, Simple-CDD-based **Debian 13 (Trixie), amd64** installation USB for a configurable hostname. The example hardware has a **256 GB system SSD** and **32 GB RAM**; these are illustrative, not universal requirements. Confirm actual hardware and the OS installation disk in the installer.
 
 The USB supports UEFI and BIOS booting, highlights **Graphical install**, and waits for Enter; text-based installation and rescue remain available. The intended installed OS is **UEFI/GPT**, minimal/headless, with SSH and Standard system utilities. Disk selection and partition writes are manually confirmed, and both the installer-confirmed administrator account and a separate local root password are entered interactively.
 
@@ -25,7 +25,7 @@ The USB supports UEFI and BIOS booting, highlights **Graphical install**, and wa
 
 ## Key constraints
 
-- **No unapproved actions on NAS HDDs.** Whether to physically disconnect them is deferred.
+- **Manual OS disk selection:** verify the target device and explicitly confirm destructive partitioning operations before proceeding.
 - Root filesystem: **ext4**, 5% reserved blocks, `noatime,errors=panic`, ordinary ordered journaling; weekly TRIM; no LVM, encryption or separate `/boot`.
 - Installer EFI partition **1 GiB**; the user may create a swap partition in manual partitioning (**16 GB suggested**). **Without ZRAM**, use it as ordinary swap; **with ZRAM**, re-purpose that same partition exclusively as raw PARTUUID-backed writeback storage, never ordinary swap. If none was created and ZRAM is selected, offer to return to partitioning or deselect ZRAM. No swap and no ZRAM is permitted after Debian Installer's normal warning.
 - Kernel 7.x and corresponding headers from backports before first reboot; stable kernel available initially. GRUB menu visible **5 seconds**, newest kernel by default.
