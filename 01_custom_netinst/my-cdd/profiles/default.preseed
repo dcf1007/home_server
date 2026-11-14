@@ -1,0 +1,9 @@
+# my-cdd minimal default profile for Debian 13.
+# Do NOT copy Simple-CDD upstream default.preseed wholesale: it has many
+# debconf answers (tasksel, hostname, partman, clock, finish-install) that
+# suppress or alter ordinary interactive Debian Installer prompts.
+#
+# This single early command is Simple-CDD 0.6.9's essential bootstrap.
+# The profile-summary confirmation MUST be integrated into the
+# simple-cdd-profiles udeb BEFORE it loads/queues profile actions.
+d-i preseed/early_command string anna-install simple-cdd-profiles
