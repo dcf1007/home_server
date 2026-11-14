@@ -1,0 +1,10 @@
+#!/bin/sh
+# Fail-closed placeholder for the Docker profile.
+# Upstream Simple-CDD runs this inside the installed target at finish-install.
+# Docker must not start during maintainer scripts or at first boot; until the
+# reviewed service-suppression and signed-repository installer is integrated,
+# no Docker package transaction may occur.
+set -eu
+printf >&2 '%s\n' 'my-cdd docker: STOP — Docker early service suppression is not implemented/tested.'
+printf >&2 '%s\n' 'Never silently install, enable, or activate the daemon/socket.'
+exit 1
