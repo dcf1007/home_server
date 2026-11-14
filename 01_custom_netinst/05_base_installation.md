@@ -30,7 +30,7 @@ Root ext4 uses Debian's ordinary filesystem defaults, except for the **optional 
 
 **[profile_defaults.conf](profile_defaults.conf) is the single canonical source for suggested GUI choices**, including English installer language, locale, Spanish (Spain) keyboard, `Europe/Berlin` timezone and a UTC hardware clock. Every shown value remains editable and must be confirmed on the standard setup screens, **whether or not Debian tweaks is selected**. The original example values are recorded in the config file rather than duplicated as fixed choices here.
 
-Retain `systemd-timesyncd`. The separate desired date/number formats (**YYYY/MM/DD**, 24-hour, decimal `.`, grouping space) remain subject to engineering validation; they are **not ordinary installer GUI fields** and cannot be guaranteed by choosing `en_US.UTF-8`.
+Retain `systemd-timesyncd` for time synchronization; use the user-confirmed timezone and locale from the ordinary installer GUI.
 
 ## Repositories and ordinary package options
 
