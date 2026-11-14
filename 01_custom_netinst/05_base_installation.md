@@ -12,9 +12,9 @@ The reference design uses a **dedicated 256 GB SSD/NVMe**, separate from **nine 
 |---|---|
 | EFI System Partition | 1 GiB, FAT32, mount `/boot/efi` |
 | ext4 root | The rest of the SSD after other approved partitions; mount `/`; includes all application data |
-| Raw backing partition | **16 GB only when the optional ZRAM profile is selected**; no filesystem or independent swap. Use PARTUUID. |
+| User-created swap partition (optional) | Suggested size **16 GB**, chosen and confirmed manually. **Without ZRAM:** ordinary swap. **With ZRAM:** the same partition is reserved as **raw writeback backing**, identified via PARTUUID and never used as independent swap. |
 
-There is **no separate `/boot`** or application partition. Use filesystem UUIDs for root and ESP; ZRAM raw backing uses PARTUUID. If the ZRAM profile is **not selected**, the SSD's former 16 GB swap allocation has **not been redefined**. Its treatment is an unresolved conditional layout question; do not make an automatic choice.
+There is **no separate `/boot`** or application partition. Use filesystem UUIDs for root and ESP, and PARTUUID for the optional ZRAM raw backing. **The user decides in the normal manual partitioner whether to create a swap partition.** Debian Installer normally warns if no swap partition is assigned, and can continue without it after confirmation. If a swap partition exists it becomes ordinary swap **unless** the user selects ZRAM, in which case it must be safely re-purposed into raw backing instead of formatted/activated swap. If ZRAM is selected but no swap partition exists, the ZRAM profile must offer **return to partitioning and create swap** or **deselect ZRAM**; it must not proceed silently. The exact transition through partman and any swap signature removal must be tested before deployment.
 
 Root ext4: 5% reserved blocks, `noatime`, `errors=panic`, ordinary `data=ordered` journaling, continuous discard disabled, weekly `fstrim.timer` retained. Some are applied by [Debian tweaks](04_debian_tweaks.md) rather than installer menus.
 
