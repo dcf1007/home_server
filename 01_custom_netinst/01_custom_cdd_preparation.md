@@ -1,6 +1,6 @@
 # 01 — Customized netinst / Simple-CDD preparation
 
-**Status:** installation design, **not** a built or tested ISO. **Recorded:** 2026-11-14. **Provenance:** DCF1007 Debian 13 server planning conversation and the request to document custom netinst preparation.
+**Status:** installation design, **not** a built or tested ISO. **Recorded:** 2026-11-14. **Provenance:** custom server Debian 13 server planning conversation and the request to document custom netinst preparation.
 
 ## Purpose
 
@@ -14,14 +14,20 @@ Simple-CDD supports selectable profiles, typically expressed using files such as
 
 | Selectable profile | Guide | Scope |
 |---|---|---|
-| **Debian tweaks** | [04_debian_tweaks.md](04_debian_tweaks.md) | Debian settings not handled by normal installer menus; **does not contain ZRAM** |
-| **OpenMediaVault 8** | [05_openmediavault.md](05_openmediavault.md) | Optional OMV installation plus approved cron-apt shutdown |
-| **Docker** | [06_docker.md](06_docker.md) | Official Docker packages; no daemon/socket activation |
-| **ZSTD ZRAM writeback** | [07_zram_writeback.md](07_zram_writeback.md) | ZRAM, raw SSD backing and monitor |
+| **ZSTD ZRAM writeback** | [03_zram_writeback.md](03_zram_writeback.md) | ZRAM, dedicated raw SSD backing and monitor |
+| **Debian tweaks** | [04_debian_tweaks.md](04_debian_tweaks.md) | Non-menu Debian settings; **does not contain ZRAM** |
+| **OpenMediaVault 8** | [06_openmediavault.md](06_openmediavault.md) | Optional OMV installation, approved cron-apt shutdown |
+| **Docker** | [07_docker.md](07_docker.md) | Official Docker packages, daemon and socket inactive |
 
-The backports activation and preference policy has its own guide: [02_backports_apt.md](02_backports_apt.md). It is a **Debian tweaks** implementation step, not a fifth optional profile. Normal Debian installer choices are in [03_base_installation.md](03_base_installation.md).
+The backports activation and preference policy has its own guide: [02_backports_apt.md](02_backports_apt.md). It is a **Debian tweaks** implementation step, not a fifth optional profile. Normal Debian installer choices are in [05_base_installation.md](05_base_installation.md).
 
 **No defaults for profile checkboxes have been authorized yet.** Profile selection must not be substituted by automatic choice.
+
+## Editable installation identity defaults
+
+The initial hostname and administrator username are defined in [profile_defaults.conf.example](profile_defaults.conf.example) as **suggestions**, not fixed values. The installer must present each in an editable question, allow changes, and require explicit confirmation. Changed values must propagate consistently into the hostname, user account, sudo and SSH configurations.
+
+No passwords or password hashes may be embedded in installation media.
 
 ## Planned build-host setup
 
@@ -58,7 +64,7 @@ Verify actual Simple-CDD syntax and how profile questions are presented in this 
 ## Non-negotiable safeguards
 
 1. **No unattended disk actions:** present target SSD identification, partition creation, filesystem operations and final commit for manual confirmation. Never hard-code `/dev/sda` or touch the nine NAS HDDs.
-2. **Interactive passwords:** prompt for `david`'s password; configure and verify sudo; then prompt for a **separate root password before first reboot**. No password or hash stored in the media.
+2. **Interactive passwords:** prompt for the installer-confirmed administrator account's password; configure and verify sudo; then prompt for a **separate root password before first reboot**. No password or hash stored in the media.
 3. **Repository trust:** official Debian binary repositories use signed Release metadata. Third-party sources must use verified, narrowly scoped signing keys. Do not bypass signature checks.
 4. **Fail closed on selected profile errors:** a critical dependency, OMV, ZRAM, SSH/network or validation failure stops completion, preserves installer logs, and requests manual intervention; no silent fallback or false success.
 5. **No unexpected configuration:** the user will manage OMV itself after first boot, except for the explicitly approved disabling of OMV's scheduled cron-apt job and preserving agreed SSH access controls.
@@ -70,7 +76,7 @@ Verify actual Simple-CDD syntax and how profile questions are presented in this 
 - Generate and verify output ISO and USB image; preserve UEFI, BIOS, graphical, text and rescue boot paths.
 - Test each optional profile alone and in permitted combinations, including errors/rollback conditions.
 - Test offline/failed repository behavior, third-party key checks, package resolution, root and sudo login, GRUB settings and correct target-disk selection.
-- Confirm OMV does not reinstate root SSH access and does not block `david` access.
+- Confirm OMV does not reinstate root SSH access and does not block the installer-confirmed administrator account access.
 - Test with extra dummy disks to verify **zero writes to NAS disks**.
 - Install Linux 7.x **in the target OS**, not necessarily in the running installer. Test the ZRAM kernel interfaces on the installed system.
 - Do not call the image ready until [08_validation_and_pending.md](08_validation_and_pending.md) has been resolved.
