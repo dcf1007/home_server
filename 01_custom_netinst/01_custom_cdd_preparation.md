@@ -48,14 +48,14 @@ Simple-CDD supports selectable profiles, typically expressed using files such as
 
 ## Canonical editable installer GUI defaults
 
-The normal Debian Installer questions use **[profile_defaults.conf](profile_defaults.conf)** as the planning source of suggested defaults. It now contains:
+The normal Debian Installer questions use **[profile_defaults.conf](my-cdd/profile_defaults.conf)** as the planning source of suggested defaults. It now contains:
 
 - Editable example **hostname** and administrator **username**; an empty DNS domain.
 - **English** installer language, **`en_US.UTF-8`** locale and **Spanish (Spain)** keyboard.
 - **`Europe/Berlin`** time zone with the hardware real-time clock in **UTC**.
 - Wired **DHCP** networking and the minimal/headless software selection: **SSH server + Standard system utilities**, no desktop.
 
-The matching [`profile_defaults.conf.example`](profile_defaults.conf.example) is a reference example, not a second source of truth. No GUI-editable setting should be implemented only inside Debian tweaks. Prompt the user on the normal installer screens, allow edits, require confirmation, and propagate the confirmed values throughout the installed system. **Do not silently preseed answers, bypass installer screens or freeze values in profile post-install scripts**; the exact mapping from these symbolic config names to Debian Installer questions requires engineering validation.
+The matching [`profile_defaults.conf.example`](my-cdd/profile_defaults.conf.example) is a reference example, not a second source of truth. No GUI-editable setting should be implemented only inside Debian tweaks. Prompt the user on the normal installer screens, allow edits, require confirmation, and propagate the confirmed values throughout the installed system. **Do not silently preseed answers, bypass installer screens or freeze values in profile post-install scripts**; the exact mapping from these symbolic config names to Debian Installer questions requires engineering validation.
 
 **Do not store passwords, hashes, disk targets or selected-profile flags** in either defaults file. Only non-default boot, filesystem, recovery, SSH and update-policy settings remain in the optional Debian tweaks profile. Both Intel/AMD microcode packages and additional proactive firmware belong to the separate optional [Extended device support](10_extended_device_support.md) profile. When Backports is already selected, prefer eligible Backports firmware and **both** microcode package versions first through selective per-package requests, and fall back to normal repository candidates if needed. Keep global Backports priority **100**; simulate the full package set and require individual, explicitly approved omissions.
 
@@ -69,10 +69,15 @@ sudo apt install simple-cdd
 build-simple-cdd --help
 ```
 
-Provisional *source* layout (do not regard as already created):
+**Project scaffold has been created at [`my-cdd/`](my-cdd/README.md).** The configuration pair is already there; the build configuration and actual profile source files are still to be written.
+
+Planned *source* layout (lines other than the existing directories and moved defaults are not yet created):
 
 ```text
-simple-cdd/
+my-cdd/
+  README.md
+  profile_defaults.conf
+  profile_defaults.conf.example
   simple-cdd.conf
   profiles/
     default.description
@@ -94,6 +99,9 @@ simple-cdd/
     zram-writeback.description
     zram-writeback.packages
     zram-writeback.postinst
+  scripts/
+  installer/
+  build.sh
 ```
 
 Verify actual Simple-CDD syntax and how profile questions are presented in this release before producing the installer. **The user creates any swap partition manually in ordinary Debian Installer partitioning.** **At the start of the selected ZRAM profile execution**, its first task is to discover and positively identify the user-created swap partition; **immediately after explicit confirmation**, convert only that partition to GPT **8300**, PARTLABEL **`zram-writeback`**, raw/unformatted writeback backing, with no independent swap activation. **If the selected partition is already active as swap, request explicit consent for a targeted `swapoff` after checking memory safety and proceed only upon successful, verified deactivation; otherwise stop before changing the partition.** Do this before other ZRAM provisioning or first boot, not in the normal partitioner. When ZRAM is not selected, the partition remains ordinary swap. The target example is 16 GB, but use the actual user-confirmed capacity and PARTUUID rather than requiring an automatically created partition. If ZRAM is selected and **no** swap partition exists, the ZRAM profile must require an explicit choice: **go back to partitioning to create one, or deselect ZRAM**. Never silently add/repartition a disk or proceed with ZRAM using no backing partition. Validate the menu navigation, partman formatting/activation timing, fstab treatment and explicit consent before implementation.
