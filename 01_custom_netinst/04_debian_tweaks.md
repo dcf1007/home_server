@@ -4,6 +4,8 @@
 
 **Boundary:** This profile includes non-menu Debian configuration only. **Do not include ZRAM**: it belongs to [03_zram_writeback.md](03_zram_writeback.md). Standard installer questions remain interactive, see [05_base_installation.md](05_base_installation.md).
 
+**Required when ZRAM is selected:** If the user selects ZRAM without Debian tweaks, the installer asks the user to **select Debian tweaks as well or deselect ZRAM**. Debian tweaks must **never be selected automatically**. The ZRAM software itself is not merged into this profile.
+
 ## APT, kernel and firmware
 
 - Configure official repositories and the **provisional backports priority 900**, with stable/security/updates normally at 500, **only after passing compatibility checks** in [02_backports_apt.md](02_backports_apt.md).
@@ -65,7 +67,7 @@ Package names below exist in Debian 13 package listings for firmware. Exact vers
 
 ## Conditional profile semantics
 
-If Debian tweaks is not selected, do not silently apply its unique configuration and do not claim the installation matches the full custom server server design. OMV, Docker and ZRAM profiles remain independently selectable, but compatibility tests may rule out unsafe combinations. See [08_validation_and_pending.md](08_validation_and_pending.md).
+If Debian tweaks is not selected, do not silently apply its unique configuration and do not claim the installation matches the full custom server server design. OMV and Docker remain independently selectable, but **ZRAM requires explicit user selection of Debian tweaks**, or the user must deselect ZRAM. Compatibility checks still apply. See [08_validation_and_pending.md](08_validation_and_pending.md).
 
 ## Acceptance checks (examples)
 
