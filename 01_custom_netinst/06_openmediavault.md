@@ -4,7 +4,7 @@
 
 ## Scope
 
-If selected, install **OpenMediaVault 8** into the minimal Debian 13 system **during the customized installation, before first reboot**, after package and repository compatibility checks. Do not automatically configure NAS data disks, shared folders, SnapRAID, mergerfs, plugins, Docker integration, users or services beyond requirements explicitly stated here. The user will configure OMV after the first boot.
+If selected, install **OpenMediaVault 8** into the minimal Debian 13 system **during the customized installation, before first reboot**, after package and repository compatibility checks. Do not automatically configure optional OMV features, plugins, Docker integration or additional services beyond requirements explicitly stated here. The user will configure OMV after the first boot.
 
 This is a separate selectable profile. The **Debian tweaks** profile and the optional Docker and ZRAM profiles must remain distinct.
 
@@ -44,7 +44,7 @@ OMV's documented Debian installation can change network configuration and enable
 
 ## First boot / acceptance
 
-- OMV package and web interface installed, but **no NAS data-disk formatting/initialization**.
+- OMV package and web interface installed; further OMV setup is left to the user after first boot.
 - OMV cron-apt scheduled checks and security auto-installs disabled.
 - the installer-confirmed administrator account SSH and sudo work; root SSH refused.
 - Networking works; inspect routes, DNS, interfaces and OMV configuration.
