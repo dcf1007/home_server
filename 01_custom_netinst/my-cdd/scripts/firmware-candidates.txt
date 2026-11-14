@@ -1,0 +1,41 @@
+# Provisional Debian 13 binary firmware candidates from 10_extended_device_support.md.
+# These are NOT auto-installed; resolve the full set at install time.
+# With Backports explicitly selected, prefer viable targeted Backports versions.
+# Each unavailable/conflicting package requires its own omission consent.
+intel-microcode
+amd64-microcode
+firmware-linux
+firmware-linux-nonfree
+firmware-misc-nonfree
+firmware-intel-misc
+firmware-realtek
+firmware-bnx2
+firmware-bnx2x
+firmware-cavium
+firmware-marvell-prestera
+firmware-myricom
+firmware-netronome
+firmware-netxen
+firmware-qlogic
+firmware-atheros
+firmware-brcm80211
+firmware-iwlwifi
+firmware-ipw2x00
+firmware-libertas
+firmware-mediatek
+firmware-ti-connectivity
+firmware-ath9k-htc
+firmware-carl9170
+firmware-zd1211
+firmware-amd-graphics
+firmware-intel-graphics
+firmware-nvidia-graphics
+firmware-ast
+firmware-qcom-soc
+firmware-samsung
+firmware-siano
+firmware-ivtv
+firmware-cirrus
+firmware-intel-sound
+firmware-sof-signed
+bluez-firmware
