@@ -17,7 +17,7 @@ No hardware serial numbers, fixed device paths, or undocumented device-specific 
 
 ### Provisional broad firmware candidate list
 
-Package names below exist in Debian 13 package listings for firmware. Exact version/candidate, dependency conflicts, available architecture, repository selection with **Debian-default Backports priority 100, only if its profile is selected**, overlaps/metapackages and license/interactive debconf effects still require validation. Do not silently omit selected broad coverage or force an unvalidated installation.
+Package names below exist in Debian 13 package listings for firmware. Exact version/candidate, dependency conflicts, available architecture, repository selection with **Debian-default Backports priority 100, only if its profile is selected**, overlaps/metapackages and license/interactive debconf effects still require validation. **Unavailable/conflicting firmware packages may be omitted only after the installer lists each package, explains its specific reason, and receives explicit user approval for that omission.** Never silently omit coverage or force an unvalidated installation.
 
 | Coverage | Candidate Debian binary packages |
 |---|---|
@@ -27,20 +27,32 @@ Package names below exist in Debian 13 package listings for firmware. Exact vers
 | Graphics / GPU / media | `firmware-amd-graphics`, `firmware-intel-graphics`, `firmware-nvidia-graphics`, `firmware-ast`, `firmware-qcom-soc`, `firmware-samsung`, `firmware-siano`, `firmware-ivtv` |
 | Audio / Bluetooth / peripheral | `firmware-cirrus`, `firmware-intel-sound`, `firmware-sof-signed`, `bluez-firmware` |
 
-**Notes:** `firmware-linux`/`firmware-linux-nonfree` are metapackages and may already pull `firmware-misc-nonfree`; avoid duplicated intent. `firmware-qcom-media` is a dummy transitional package and intentionally not a useful additional firmware candidate. The list may be trimmed **only after** exact package availability/compatibility verification and review, not merely because hardware is currently absent. CPU microcode (`intel-microcode` or `amd64-microcode`) remains chosen according to detected CPU family, not both indiscriminately.
+**Notes:** `firmware-linux`/`firmware-linux-nonfree` are metapackages and may already pull `firmware-misc-nonfree`; avoid duplicated intent. `firmware-qcom-media` is a dummy transitional package and intentionally not a useful additional firmware candidate. The list may be trimmed **only after** exact package availability/compatibility verification and **explicit approval of every proposed omission**; absence of matching detected hardware alone is not permission to omit proactive firmware coverage. CPU microcode (`intel-microcode` or `amd64-microcode`) remains chosen according to detected CPU family, not both indiscriminately.
 
-**Mandatory pre-implementation evidence:** refresh signed APT metadata, run `apt-cache policy` and `apt-get -s install` for the exact final package set under the **actual selected APT policy** (Backports priority **100**, if explicitly selected) and other selected profiles (especially OMV), inspect removals and dependency changes, verify that no extra proprietary drivers or DKMS modules are implicitly installed, document packages excluded with reasons, and present the final effective package list for user confirmation. Auto-detection continues even if this extra-package step is unready.
+**Mandatory pre-implementation evidence:** refresh signed APT metadata, run `apt-cache policy` and `apt-get -s install` for the exact final package set under the **actual selected APT policy** (Backports priority **100**, if explicitly selected) and other selected profiles (especially OMV), inspect removals and dependency changes, verify that no extra proprietary drivers or DKMS modules are implicitly installed, record every excluded package with its specific reason and the user's explicit approval, and present the final effective package list for confirmation. Auto-detection continues even if this extra-package step is unready.
 
 **Upstream package references:** [Debian 13 firmware-nonfree source package](https://packages.debian.org/source/trixie/firmware-nonfree), [Debian 13 firmware package search](https://packages.debian.org/search?keywords=firmware&searchon=names&suite=trixie), [Debian firmware installer behavior](https://wiki.debian.org/Firmware/), [Intel SOF package](https://packages.debian.org/trixie/firmware-sof-signed).
+
+## Approved exception handling: unavailable or conflicting firmware packages
+
+**Decision recorded 2026-11-14:** This profile should install all compatible packages from its approved broad firmware inventory, including packages for hardware not currently detected. If a firmware package is **unavailable or cannot be installed without a conflict**, use this interactive procedure **before changing the requested package set**:
+
+1. For **every affected firmware package**, display its exact package name and the reason it cannot be installed (e.g., absent signed APT candidate for this architecture, unresolvable dependencies, package conflict, disallowed removal). Show the actual source/candidate and relevant dependency/impact information when known. **Do not guess at reasons or hide other exclusions.**
+2. Present an explicit choice for **each**: **approve omission of this named firmware package** or **decline and stop the Extended device support profile**. A blanket acknowledgment, silence, a default-checked option or confirmation of an unrelated APT transaction is **not** approval of an omission.
+3. If the user explicitly approves the omissions, build and **re-simulate the revised package transaction**. Continue only with all remaining compatible firmware packages and the independently selected CPU-vendor microcode; show the final exact installation set and obtain the normal transaction approval. If new unresolvable/conflicting packages appear, return for **new explicit omission decisions**; never omit them automatically.
+4. **Record each approved omission** in the installation evidence: exact package name, reason and dependency/conflict details, explicit approval decision, final retained package set and outcome. Include these records in the approved **complete/unredacted installer diagnostics**, copied to `/target/var/log/installer/` and the installer USB where safely writable; always display diagnostics and offer manual export.
+5. If an omission was **not approved**, or the remaining transaction cannot be completed safely, **stop with diagnostics**. An omission approval does not override separate safety gates for bootability, disk access, network/SSH access, signed repositories, system integrity or package removals. All package-removal operations retain their own explicit review and approval requirements.
+
+**Scope of the new omission exception:** The user explicitly specified **firmware packages**. The handling of a missing or conflicting **CPU-vendor microcode** package is a distinct potential policy choice; this document does not silently extend the firmware exception to it.
 
 ## Validation and acceptance
 
 The exact broad firmware package set is **provisional**, and the source guide's package-name inventory is not evidence that the complete transaction succeeds. Before executing:
 
 1. Detect CPU manufacturer reliably and select **only the appropriate** `intel-microcode` or `amd64-microcode` package. Verify availability, package origin and microcode installation; never install both indiscriminately.
-2. Simulate all selected additional firmware packages with `apt-get -s install`, inspect dependencies, removals, potential DKMS/proprietary driver changes and source/signature validity. Display the final reviewed package list and obtain explicit confirmation.
+2. Simulate the full requested additional firmware set with `apt-get -s install`, inspect dependencies, removals, potential DKMS/proprietary driver changes and source/signature validity. List **every unavailable/conflicting firmware package with a specific reason**, ask for **explicit approval of each omission**, and stop if approval is withheld. Re-simulate the remaining set, display the final package list, and obtain separate approval of the actual transaction.
 3. If Backports was selected, respect its **default effective priority 100**. Do not enable Backports or change APT pinning from this profile.
-4. Stop on unresolved compatibility or dependency failures, preserving diagnostics. Do not silently skip the approved broad-coverage requirement or switch to a narrower device selection.
+4. **Install all remaining compatible firmware** after the reviewed omissions and final transaction approval. Record omitted names, reasons and approvals in the complete installer logs; never silently narrow coverage. Stop on unresolved compatibility or dependency failures, and preserve diagnostics.
 
 Example post-installation checks (not proof of a working installer profile):
 
