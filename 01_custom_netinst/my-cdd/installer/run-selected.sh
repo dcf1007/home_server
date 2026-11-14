@@ -156,6 +156,24 @@ mark_complete() {
 [ -r "$MEDIA/ordered-selection.sh" ] || fatal 'Missing selection validator'
 [ -r "$CONFIRMED" ] || fatal 'No approved early profile selection was recorded'
 . "$MEDIA/profile-actions.sh"
+
+# Approved BASE-install requirements apply even with zero optional profiles:
+# preserve the installer-confirmed account, separate root emergency password,
+# its sudo access, and the explicit root-SSH prohibition.
+db_get passwd/username || fatal 'Cannot read native Debian Installer administrator'
+admin=$RET
+case "$admin" in ''|*[!a-zA-Z0-9_.-]*) fatal 'Invalid Debian Installer administrator name';; esac
+capture in-target id "$admin" || fatal 'Confirmed Debian administrator not installed'
+run_target usermod -aG sudo "$admin"
+capture in-target passwd -S root || fatal 'Cannot inspect root emergency password status'
+grep -E '^root[[:space:]]+P[[:space:]]' "$WORK/output" >/dev/null ||
+    fatal 'Separate local root password is not configured'
+mkdir -p /target/etc/ssh/sshd_config.d
+printf 'PermitRootLogin no\n' > /target/etc/ssh/sshd_config.d/01-my-cdd-root-login.conf
+capture in-target sshd -T || fatal 'Base OpenSSH configuration is invalid'
+grep -Fx 'permitrootlogin no' "$WORK/output" >/dev/null ||
+    fatal 'Effective OpenSSH setting still allows root login'
+
 db_get simple-cdd/profiles || fatal 'Cannot read Simple-CDD profile selection'
 ordered="$(/bin/sh "$MEDIA/ordered-selection.sh" "$RET")" ||
     fatal 'Invalid selected profiles or missing kernel prerequisite'
@@ -178,6 +196,8 @@ for profile in $ordered; do
     esac
     mark_complete "$profile"
 done
+# Other profiles must not re-enable automatic package updates.
+ensure_manual_updates
 log 'All selected optional profiles completed.'
 export_log
 exit 0
