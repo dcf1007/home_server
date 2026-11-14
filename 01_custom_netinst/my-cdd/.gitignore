@@ -4,3 +4,7 @@
 /*.iso
 /qemu-test.hd.img
 /qemu-test.hd.img.*
+
+# Python source-check/test byproducts
+__pycache__/
+*.pyc
