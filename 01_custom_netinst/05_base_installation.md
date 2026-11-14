@@ -39,7 +39,7 @@ Retain `systemd-timesyncd` for time synchronization; use the user-confirmed time
 - Standard APT package policy: install `Recommends`, not `Suggests`.
 - Installer software-selection suggestions (**SSH server**, **Standard system utilities**, **no desktop**) live in [profile_defaults.conf](profile_defaults.conf) and must be confirmed via the normal installation GUI; symbolic tasksel identifiers require validation before automation.
 - No `popularity-contest`.
-- Always retain Debian Installer's normal automatic firmware detection. **CPU microcode selection, broad additional device firmware and hardware-related verification** belong only to the optional [Extended device support](10_extended_device_support.md) profile and remain subject to validated package transactions.
+- Always retain Debian Installer's normal automatic firmware detection. The optional [Extended device support](10_extended_device_support.md) profile attempts **both Intel and AMD microcode packages** (without filtering by actual CPU vendor), plus broad additional firmware. It must simulate the combined transaction, and any unavailable/conflicting microcode or firmware package may be omitted **only after its reason is shown and the user explicitly approves that individual omission**.
 - Do not run unattended upgrades or automatically reboot for updates. The **separately selected Backports profile** owns the reviewed full-upgrade and post-upgrade cleanup steps, including explicit approval for proposed removals and purges.
 
 ## Finish
