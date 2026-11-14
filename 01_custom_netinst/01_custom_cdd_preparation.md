@@ -14,17 +14,18 @@ Simple-CDD supports selectable profiles, typically expressed using files such as
 
 | Selectable profile | Guide | Scope |
 |---|---|---|
-| **Backports** | [02_backports_apt.md](02_backports_apt.md) | Enable `trixie-backports`, validate APT priority 900, complete reviewed full upgrade |
+| **Backports** | [02_backports_apt.md](02_backports_apt.md) | Enable Backports at **Debian default priority 100**; perform user-reviewed eligible-package upgrade and autoremove/purge cleanup |
+| **Ensure 7.x kernel branch** | [09_ensure_7x_kernel.md](09_ensure_7x_kernel.md) | Use newest suitable Linux 7.x from standard repos, or request selective backported kernel packages when approved |
 | **ZSTD ZRAM writeback** | [03_zram_writeback.md](03_zram_writeback.md) | ZRAM, dedicated raw SSD backing and monitor |
 | **Debian tweaks** | [04_debian_tweaks.md](04_debian_tweaks.md) | Non-menu Debian settings; **does not contain ZRAM** |
 | **OpenMediaVault 8** | [06_openmediavault.md](06_openmediavault.md) | Optional OMV installation, approved cron-apt shutdown |
 | **Docker** | [07_docker.md](07_docker.md) | Official Docker packages, daemon and socket inactive |
 
-**Backports** is a fifth **independently selectable** profile described in [02_backports_apt.md](02_backports_apt.md). This profile alone enables the repository, applies approved APT priority 900 and completes the explicitly reviewed full upgrade **before dependent profiles may continue**. It is **not part of Debian tweaks or ZRAM**. Normal Debian Installer choices are in [05_base_installation.md](05_base_installation.md).
+**Backports** is an independently selectable profile described in [02_backports_apt.md](02_backports_apt.md). It enables the repo at default priority **100** and owns the explicitly confirmed upgrade of eligible installed packages followed by reviewed autoremove/purge cleanup. **Ensure 7.x kernel branch** is a separate profile described in [09_ensure_7x_kernel.md](09_ensure_7x_kernel.md), and installs only kernel-related backported packages when stable repos lack eligible Linux 7.x. Normal installer choices are in [05_base_installation.md](05_base_installation.md).
 
-**Approved default profile selection:** all **five** optional profiles (**Backports**, **ZSTD ZRAM writeback**, **Debian tweaks**, **OpenMediaVault 8**, **Docker**) start **unchecked**. The installer must show all options and require the user to explicitly select and confirm each desired profile. Selecting none means base Debian only; no profile is silently added.
+**Approved default profile selection:** all **six** optional profiles (**Backports**, **Ensure 7.x kernel branch**, **ZSTD ZRAM writeback**, **Debian tweaks**, **OpenMediaVault 8**, **Docker**) start **unchecked**. The installer must show all options and require the user to explicitly select and confirm each desired profile. Selecting none means base Debian only; no profile is silently added.
 
-**ZRAM is independent of Debian tweaks:** both are separately selectable and neither enables the other. ZRAM needs the latest eligible Linux 7.x kernel and headers; if none are available from ordinary signed repositories, the installer must offer **select Backports explicitly** or **deselect ZRAM**. The Backports profile owns the repository activation, pin and full-upgrade checkpoint, must finish successfully before ZRAM, and must never be selected silently.
+**ZRAM is independent of Debian tweaks but depends on Ensure 7.x kernel branch:** if ZRAM is selected without Ensure 7.x, offer to **select Ensure 7.x** or **deselect ZRAM**. Ensure 7.x checks the newest eligible kernel from standard repositories; if none is suitable, offer to **select Backports** or stop/deselect the requesting profile. Never silently enable any profile. Backports is kept at priority 100; it performs the reviewed full-upgrade and cleanup, and the kernel profile requests only necessary backported kernel-related packages. Validate all transitions before producing the ISO.
 
 ## Editable installation identity defaults
 
@@ -52,6 +53,8 @@ simple-cdd/
     default.preseed
     backports.description
     backports.postinst
+    ensure-7x-kernel.description
+    ensure-7x-kernel.postinst
     debian-tweaks.description
     debian-tweaks.packages
     debian-tweaks.postinst
