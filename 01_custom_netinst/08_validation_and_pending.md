@@ -8,7 +8,7 @@
 |---|---|---|
 | Base Debian | Interactive install, minimal, SSH + standard utilities, manual SSD writes | Boots UEFI, ext4 SSD, hostname, local/root passwords, DHCP, no NAS HDD changes |
 | Debian tweaks | Non-menu OS customizations (no ZRAM) | Kernel 7.x+headers, default stable fallback initially, GRUB, journald, fsck, SSD, APT pin and no unattended upgrades |
-| OpenMediaVault 8 | OMV package installation only plus disable OMV cron-apt; user configures OMV afterwards | Package transaction safe; networking and `david` SSH/sudo work; root SSH disabled; OMV cron-apt is inactive |
+| OpenMediaVault 8 | OMV package installation only plus disable OMV cron-apt; user configures OMV afterwards | Package transaction safe; networking and the installer-confirmed administrator account SSH/sudo work; root SSH disabled; OMV cron-apt is inactive |
 | Docker | Official Docker engine, containerd, Buildx and Compose CLI | Packages installed, `docker.service` and `docker.socket` inactive/disabled until approval |
 | ZSTD ZRAM | Generator, raw 16 GB backing, compressed writeback, monitor | Kernel support/ordering verified, appropriate emergency behavior, monitor restart, no independent swap |
 
@@ -21,9 +21,9 @@
 3. **ZRAM API compatibility:** verify selected kernel and Debian generator support resident limit, compressed writeback, early device setup and dynamic backing-size measurement; inspect uploaded monitor for logic/errors.
 4. **Conditional partition creation:** the optional ZRAM selection controls whether a raw 16 GB PARTUUID backing partition is needed. Profile choice must be known before destructive partition confirmation.
 5. **Emergency recovery:** ensure systemd *really enters* emergency mode for a failed ZRAM initialization, with usable local root credentials; test this in a disposable environment.
-6. **OMV / SSH / network:** ensure OMV does not enable root SSH or block `david`; check DHCP and DNS.
+6. **OMV / SSH / network:** ensure OMV does not enable root SSH or block the installer-confirmed administrator account; check DHCP and DNS.
 7. **OMV scheduled updates:** verify environment variable and Salt deploy method on exact OMV version; confirm cron-apt is disabled. Verify Debian APT unattended package installation separately.
-8. **Installer UI custom screens:** ensure requested order for `david`/sudo/root passwords and interactive confirmation is achievable with Debian Installer and Simple-CDD.
+8. **Installer UI custom screens:** ensure requested order for the installer-confirmed administrator account/sudo/root passwords and interactive confirmation is achievable with Debian Installer and Simple-CDD.
 9. **Docker service suppression:** ensure packages install without starting daemon/socket, including during package maintainer scripts.
 10. **Firmware package selection and locale overrides:** exact broad firmware set and custom date/number formatting need implementation review.
 11. **NAS disk preservation:** test installer with multiple disks and confirm no operations on NAS HDDs.
@@ -53,4 +53,4 @@
 
 ## Reference index
 
-[01 Preparation](01_custom_cdd_preparation.md) · [02 APT backports](02_backports_apt.md) · [03 Base install](03_base_installation.md) · [04 Debian tweaks](04_debian_tweaks.md) · [05 OMV](05_openmediavault.md) · [06 Docker](06_docker.md) · [07 ZRAM](07_zram_writeback.md)
+[01 Preparation](01_custom_cdd_preparation.md) · [02 APT backports](02_backports_apt.md) · [03 ZRAM](03_zram_writeback.md) · [04 Debian tweaks](04_debian_tweaks.md) · [05 Base install](05_base_installation.md) · [06 OMV](06_openmediavault.md) · [07 Docker](07_docker.md)
