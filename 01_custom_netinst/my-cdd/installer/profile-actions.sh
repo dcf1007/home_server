@@ -209,7 +209,14 @@ profile_firmware() {
             fi
         fi
         if [ -z "$selector" ]; then
-            reason='No compatible package candidate or simulated conflict; exact diagnostic recorded in log'
+            if [ -z "$bpo" ] && [ -z "$stable" ]; then
+                reason='No published candidate in the enabled approved Debian repositories'
+            else
+                detail="$(grep -m1 '^E:' "$WORK/output" | cut -c1-160 || true)"
+                [ -n "$detail" ] ||
+                    detail='APT refused the selected package combination (full diagnostics in target log)'
+                reason="Package dependency/conflict: $detail"
+            fi
             report_omission "$pkg" "$reason"
             printf '%s: %s\n' "$pkg" "$reason" >> "$WORK/firmware-omissions"
         else
