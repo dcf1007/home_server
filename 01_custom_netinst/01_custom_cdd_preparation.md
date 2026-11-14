@@ -63,7 +63,7 @@ Verify actual Simple-CDD syntax and how profile questions are presented in this 
 
 ## Non-negotiable safeguards
 
-1. **No unattended disk actions:** present target SSD identification, partition creation, filesystem operations and final commit for manual confirmation. Never hard-code `/dev/sda` or touch the nine NAS HDDs.
+1. **No unattended disk actions:** present OS installation target identification, partition creation, filesystem operations and final commit for manual confirmation. Never hard-code a device path such as `/dev/sda`.
 2. **Interactive passwords:** prompt for the installer-confirmed administrator account's password; configure and verify sudo; then prompt for a **separate root password before first reboot**. No password or hash stored in the media.
 3. **Repository trust:** official Debian binary repositories use signed Release metadata. Third-party sources must use verified, narrowly scoped signing keys. Do not bypass signature checks.
 4. **Fail closed on selected profile errors:** a critical dependency, OMV, ZRAM, SSH/network or validation failure stops completion, preserves installer logs, and requests manual intervention; no silent fallback or false success.
@@ -77,7 +77,7 @@ Verify actual Simple-CDD syntax and how profile questions are presented in this 
 - Test each optional profile alone and in permitted combinations, including errors/rollback conditions.
 - Test offline/failed repository behavior, third-party key checks, package resolution, root and sudo login, GRUB settings and correct target-disk selection.
 - Confirm OMV does not reinstate root SSH access and does not block the installer-confirmed administrator account access.
-- Test with extra dummy disks to verify **zero writes to NAS disks**.
+- Test target-disk selection and destructive-operation confirmation in disposable virtual machines.
 - Install Linux 7.x **in the target OS**, not necessarily in the running installer. Test the ZRAM kernel interfaces on the installed system.
 - Do not call the image ready until [08_validation_and_pending.md](08_validation_and_pending.md) has been resolved.
 
