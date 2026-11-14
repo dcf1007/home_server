@@ -49,7 +49,7 @@ The table follows the **actual optional installer-profile menu order**, not the 
 
 ## Scope and provenance
 
-These pages distinguish **approved user choices** from **engineering proposals requiring validation**. **Do not reinvent or separately decide ordinary Debian Installer prompts; confine additional questions and custom installer UI to genuinely nonstandard selected-profile requirements.** The [`my-cdd/`](my-cdd/README.md) scaffold and relocated defaults now exist, **but functional profiles, Simple-CDD build configuration, scripts and an ISO have not yet been generated or tested**.
+These pages distinguish **approved user choices** from **engineering proposals requiring validation**. **Do not reinvent or separately decide ordinary Debian Installer prompts; confine additional questions and custom installer UI to genuinely nonstandard selected-profile requirements.** The [`my-cdd/`](my-cdd/README.md) directory now contains **initial Simple-CDD build configuration, seven selectable profile source stubs, safe inspection scripts, early Debconf confirmation prototypes and original ZRAM code assets**. Their full execution integration and testing remain incomplete, and **no functional custom ISO or USB has been built**. Production build is intentionally blocked until the documented gates are met.
 
 **Primary sources:** user's extended Debian 13 installation planning conversation and uploaded `zram_zstd_writeback_design(1).md`; official Debian, APT, Simple-CDD, Linux, Docker and OpenMediaVault documentation linked in the numbered pages.
 
