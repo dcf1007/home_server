@@ -1,9 +1,10 @@
 # my-cdd minimal default profile for Debian 13.
-# Do NOT copy Simple-CDD upstream default.preseed wholesale: it has many
-# debconf answers (tasksel, hostname, partman, clock, finish-install) that
-# suppress or alter ordinary interactive Debian Installer prompts.
+# Preserve ordinary interactive Debian Installer questions (locale, keyboard,
+# networking/mirror, users, manual OS disk/partitions, tasksel and completion).
 #
-# This single early command is Simple-CDD 0.6.9's essential bootstrap.
-# The profile-summary confirmation MUST be integrated into the
-# simple-cdd-profiles udeb BEFORE it loads/queues profile actions.
-d-i preseed/early_command string anna-install simple-cdd-profiles
+# Decision approved 2026-11-14: early preseed hook, not a patched udeb.
+# The script loads Simple-CDD's own generated multiselect and my-cdd's
+# summary/confirmation templates before anna-install queues any profiles.
+# Its failure MUST prevent anna-install from running.
+# The upstream simple-cdd-profiles component remains unmodified.
+d-i preseed/early_command string /bin/sh /cdrom/simple-cdd/profile-confirm.sh && anna-install simple-cdd-profiles
