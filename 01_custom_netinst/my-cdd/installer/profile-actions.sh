@@ -412,3 +412,116 @@ ensure_manual_updates() {
         log 'Explicitly disabled an enabled unattended APT upgrade setting'
     fi
 }
+
+
+# Official OMV 8 installation from signed vendor repositories on Debian 13.
+profile_omv() {
+    # OMV warns that the resolver must work BEFORE package installation.
+    review_install 'OMV prerequisites: resolver, utilities and signing tools' systemd-resolved psmisc gnupg ca-certificates curl
+    capture in-target getent ahostsv4 packages.openmediavault.io ||
+        fatal 'Target DNS unavailable; stop rather than invent network configuration'
+    capture curl -fsSL --proto '=https' \
+        -o /target/tmp/my-cdd-omv-key https://packages.openmediavault.io/archive.key ||
+        fatal 'Official OMV signing key download failed'
+    capture in-target gpg --show-keys --with-colons /tmp/my-cdd-omv-key ||
+        fatal 'Vendor OMV signing key malformed'
+    grep '^fpr:' "$WORK/output" >/dev/null ||
+        fatal 'Vendor OMV key contained no fingerprint'
+    run_target gpg --batch --yes --dearmor -o \
+        /usr/share/keyrings/openmediavault-archive-keyring.gpg /tmp/my-cdd-omv-key
+    rm -f /target/tmp/my-cdd-omv-key
+    mkdir -p /target/etc/apt/sources.list.d
+    cat > /target/etc/apt/sources.list.d/openmediavault.list <<'EOT'
+deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] http://packages.openmediavault.org/public/ synchrony main
+deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] http://packages.openmediavault.io/ synchrony main
+EOT
+    update_signed_apt
+    capture in-target apt-cache policy openmediavault ||
+        fatal 'Cannot inspect official OMV package origin'
+    grep -F 'synchrony/main' "$WORK/output" >/dev/null ||
+        fatal 'Signed official OMV 8 package repository unavailable'
+    review_install 'OMV 8 package and dependencies' openmediavault
+    capture in-target dpkg-query -W -f='${Version}\n' openmediavault ||
+        fatal 'Cannot check installed OMV version'
+    grep -E '^8\.' "$WORK/output" >/dev/null ||
+        fatal 'Installed OMV is not version 8'
+
+    # Native Debian Installer account: never hardcode a username.
+    db_get passwd/username || fatal 'Missing Debian Installer username'
+    admin=$RET
+    case "$admin" in ''|*[!a-zA-Z0-9_.-]*) fatal 'Unexpected admin account name';; esac
+    capture in-target id "$admin" || fatal 'Admin account unavailable'
+    capture in-target getent group _ssh || fatal 'OMV _ssh access group unavailable'
+    run_target usermod -aG sudo,_ssh "$admin"
+    mkdir -p /target/etc/ssh/sshd_config.d
+    printf 'PermitRootLogin no\n' > /target/etc/ssh/sshd_config.d/01-my-cdd-root-login.conf
+    capture in-target sshd -T || fatal 'OMV SSH config invalid'
+    grep -Fx 'permitrootlogin no' "$WORK/output" >/dev/null ||
+        fatal 'OMV root SSH still enabled'
+
+    # Only approved OMV customization: disable the entire cron-apt schedule.
+    run_target omv-confdbadm populate
+    run_target omv-env set -- OMV_CRON_APT_ENABLED false
+    run_target omv-salt deploy run cronapt
+    if [ -f /target/etc/cron.d/cron-apt ]; then
+        if grep -Ev '^[[:space:]]*(#|$)' /target/etc/cron.d/cron-apt | grep -q .; then
+            fatal 'OMV cron-apt still schedules automatic update checks'
+        fi
+    fi
+    capture in-target omv-env get OMV_CRON_APT_ENABLED ||
+        fatal 'Cannot confirm OMV cron-apt environment setting'
+    grep -Ei '^(false|no|0)[[:space:]]*$' "$WORK/output" >/dev/null ||
+        fatal 'OMV cron-apt was not disabled'
+    capture in-target getent ahostsv4 packages.openmediavault.io ||
+        fatal 'OMV installation disrupted target DNS; manual repair required'
+    ensure_manual_updates
+    run_target dpkg --audit
+    log 'OMV 8 installed with cron-apt off; no NAS shares or plugins configured'
+}
+
+# Official Docker packages; daemon and socket MUST NOT start during install.
+profile_docker() {
+    review_install 'Docker signing prerequisites' ca-certificates curl
+    mkdir -p /target/etc/apt/keyrings
+    capture curl -fsSL --proto '=https' \
+        -o /target/etc/apt/keyrings/docker.asc https://download.docker.com/linux/debian/gpg ||
+        fatal 'Official Docker signing key download failed'
+    chmod 644 /target/etc/apt/keyrings/docker.asc
+    grep -Fx 'VERSION_CODENAME=trixie' /target/etc/os-release >/dev/null ||
+        fatal 'Docker requires installed Debian 13 trixie'
+    cat > /target/etc/apt/sources.list.d/docker.sources <<'EOT'
+Types: deb
+URIs: https://download.docker.com/linux/debian
+Suites: trixie
+Components: stable
+Architectures: amd64
+Signed-By: /etc/apt/keyrings/docker.asc
+EOT
+    update_signed_apt
+    for pkg in docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin; do
+        capture in-target apt-cache policy "$pkg" || fatal "Cannot inspect $pkg"
+        grep -F 'download.docker.com/linux/debian' "$WORK/output" >/dev/null ||
+            fatal "$pkg lacks the official signed Docker repository"
+    done
+    # Installer-only startup prevention targeting ONLY Docker service/socket.
+    # Unlike disabling units after the transaction, these masks are applied
+    # before any maintainer scripts can request startup.
+    capture systemctl --root=/target mask docker.service docker.socket ||
+        fatal 'Could not prevent Docker startup before package installation'
+    simulate_target install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    check_critical_removals
+    review_plan 'Docker: complete official package transaction, daemon/socket suppressed' "$WORK/plan"
+    run_target apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    capture systemctl --root=/target unmask docker.service docker.socket ||
+        fatal 'Could not remove temporary Docker startup suppression'
+    capture systemctl --root=/target disable docker.service docker.socket ||
+        fatal 'Could not disable Docker daemon and socket for first boot'
+    for unit in docker.service docker.socket; do
+        capture systemctl --root=/target is-enabled "$unit" ||
+            fatal "Cannot verify $unit disabled"
+        grep -Fx disabled "$WORK/output" >/dev/null ||
+            fatal "$unit not disabled for first boot"
+    done
+    run_target dpkg --audit
+    log 'Docker packages installed; Docker daemon and socket disabled; no containers started'
+}
