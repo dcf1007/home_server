@@ -1,11 +1,8 @@
 # my-cdd source manifest and provenance
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
-**Latest revision:** 2026-11-14 (Europe/Berlin).  
-**Nearest user prompt:** “yes”, authorizing cleanup of the unnecessary mock tests,
-their supporting infrastructure, the extra build modes/checks and unused helper
-scripts, while retaining the seven required Simple-CDD profiles and approved
-early preseed confirmation.  
+**Latest revision:** 2026-11-15 (Europe/Berlin).  
+**Nearest user prompt:** “ok. continue then”, following “replace the placeholders” and the request to retain all 37 firmware candidates unless proven redundant. The previously approved unnecessary-test cleanup remains in force.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -28,6 +25,13 @@ early preseed confirmation.
   [Extended device support inventory](../10_extended_device_support.md).
   The signed Backports and ZRAM swappiness templates are only source material
   for their independently selected profiles.
+- `installer/run-selected.sh` and `installer/profile-actions.sh` were written
+  in the continuation after “replace the placeholders” and “ok. continue then”.
+  They use Debian Installer's standard `preseed/late_command` to execute
+  confirmed profiles, native cdebconf approvals, signed APT repositories,
+  explicitly confirmed ZRAM conversion, OMV 8 and Docker safeguards. The seven
+  `*.postinst` scripts now verify completion rather than duplicate the work.
+  Their behavior remains **unverified on a running installer**.
 - The remaining README and implementation notes document approved behavior,
   remaining integration work and safety limitations.
 
@@ -52,17 +56,20 @@ with only an unfinished-profile safeguard. File history remains in Git.
 
 ## Actual implementation state
 
-**Not a working ISO.** The seven optional profiles are described, but their
-`.packages` files do not auto-queue packages and their `.postinst` scripts
-are fail-closed placeholders. The early profile confirmation exists as
-source but has not run inside Debian Installer. Actual target package
-installation, ZRAM partition conversion, OMV/Docker service management,
-boot-menu changes and first-boot validation remain incomplete.
+**Not a validated ISO.** The seven optional profiles are described; their
+`.packages` files intentionally do not queue unreviewed packages, and their
+`.postinst` files verify installer-stage completion records. The approved
+early confirmation and late ordered actions are connected in source but have
+not been run inside Debian Installer. The existing original ZRAM assets and
+all 37 firmware/microcode inventory names are unchanged.
 
-There has been no ISO build, USB creation, package-install run, partition
-modification or extra test execution in this cleanup.
+Real APT transactions, native GTK/text prompts, destructive ZRAM conversion,
+OMV/Docker package service behavior, boot-menu changes and first-boot
+behavior remain unverified. No ISO, USB, actual package installation or disk
+modification has been performed in this source-writing turn. No mock/offline
+test harness was added.
 
-## Current tracked files (46)
+## Current tracked files (48)
 
 - `.gitignore`
 - `README.md`
@@ -71,8 +78,10 @@ modification or extra test execution in this cleanup.
 - `installer/IMPLEMENTATION_GATES.md`
 - `installer/README.md`
 - `installer/ordered-selection.sh`
+- `installer/profile-actions.sh`
 - `installer/profile-confirm.sh`
 - `installer/profile-confirm.templates`
+- `installer/run-selected.sh`
 - `profile_defaults.conf`
 - `profile_defaults.conf.example`
 - `profiles/README.md`
@@ -110,4 +119,3 @@ modification or extra test execution in this cleanup.
 - `scripts/zram-pressure.service`
 - `scripts/zram-pressure.sh`
 - `simple-cdd.conf`
-
