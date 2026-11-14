@@ -59,7 +59,7 @@ simple-cdd/
     zram-writeback.postinst
 ```
 
-Verify actual Simple-CDD syntax and how profile questions are presented in this release before producing the installer. It is not safe to assume profile selection happens before disk partitioning; **the ZRAM profile changes the disk layout**, so either arrange a compatible early selection step or explicitly confirm the partition choice manually in the installer. Never silently repartition afterward.
+Verify actual Simple-CDD syntax and how profile questions are presented in this release before producing the installer. **The user creates any swap partition manually in ordinary Debian Installer partitioning.** The selected ZRAM profile must later identify and re-purpose that same partition as **exclusive raw writeback backing**, preventing conventional swap initialization/activation; when ZRAM is not selected, the partition remains ordinary swap. The target example is 16 GB, but use the actual user-confirmed capacity and PARTUUID rather than requiring an automatically created partition. If ZRAM is selected and **no** swap partition exists, the ZRAM profile must require an explicit choice: **go back to partitioning to create one, or deselect ZRAM**. Never silently add/repartition a disk or proceed with ZRAM using no backing partition. Validate the menu navigation, partman formatting/activation timing, fstab treatment and explicit consent before implementation.
 
 ## Non-negotiable safeguards
 
