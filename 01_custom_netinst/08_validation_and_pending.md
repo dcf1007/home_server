@@ -25,13 +25,13 @@
 7. **OMV scheduled updates:** verify environment variable and Salt deploy method on exact OMV version; confirm cron-apt is disabled. Verify Debian APT unattended package installation separately.
 8. **Installer UI custom screens:** ensure requested order for the installer-confirmed administrator account/sudo/root passwords and interactive confirmation is achievable with Debian Installer and Simple-CDD.
 9. **Docker service suppression:** ensure packages install without starting daemon/socket, including during package maintainer scripts.
-10. **Firmware package selection and locale overrides:** exact broad firmware set and custom date/number formatting need implementation review.
+10. **Firmware package selection and locale overrides:** broad proactive firmware coverage was approved; a provisional, Debian-13-package-name-verified inventory is in [04 Debian tweaks](04_debian_tweaks.md). Exact candidates and installation transactions still require simulation under the backports preference, inclusion/exclusion rationale and confirmation. Custom date/number formatting still needs implementation review.
 11. **NAS disk preservation:** test installer with multiple disks and confirm no operations on NAS HDDs.
 12. **Installer image release:** verify boot modes, unsigned customized image provenance and USB integrity when media validation policy is finalized.
 
 ## Deferred / still open
 
-- Exact firmware packages beyond automatically detected hardware support.
+- **Broad firmware coverage approved:** exact package names proposed and cross-checked against Debian's published package list; final installable set, dependencies and user confirmation **not yet finished**.
 - Whether nine NAS HDDs are physically disconnected during installation.
 - Installation-media verification workflow (deferred to USB preparation).
 - **Confirmed:** all four optional profiles are **unchecked by default**; the user explicitly selects and confirms desired components. Validate empty-selection behavior and all combinations.
