@@ -44,11 +44,6 @@ The following are **independently selected** and never activated by Debian tweak
 
 - Check `apt-config dump` and relevant timers/services after selected profiles run. The explicitly approved **one-time, user-confirmed Backports upgrade** is separate and remains permitted.
 
-### Custom date/number presentation (unvalidated)
-
-- Preserve the user's requested **YYYY/MM/DD** date display, **24-hour** time, decimal separator **`.`**, and thousands grouping **a space**. These are not automatically produced by the GUI-selected `en_US.UTF-8` locale.
-- Do not claim this is implemented without determining which locale/application settings can produce the combination, then obtaining any necessary confirmation. Do not override the selected timezone, keyboard or locale without approval.
-
 ## Acceptance (illustrative, not completed)
 
 ```sh
