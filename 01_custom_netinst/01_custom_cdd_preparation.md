@@ -16,22 +16,31 @@ Simple-CDD supports selectable profiles, typically expressed using files such as
 |---|---|---|
 | **Backports** | [02_backports_apt.md](02_backports_apt.md) | Enable Backports at **Debian default priority 100**; perform user-reviewed eligible-package upgrade and autoremove/purge cleanup |
 | **Ensure 7.x kernel branch** | [09_ensure_7x_kernel.md](09_ensure_7x_kernel.md) | Use newest suitable Linux 7.x from standard repos, or request selective backported kernel packages when approved |
-| **ZSTD ZRAM writeback** | [03_zram_writeback.md](03_zram_writeback.md) | ZRAM, dedicated raw SSD backing and monitor |
-| **Debian tweaks** | [04_debian_tweaks.md](04_debian_tweaks.md) | Non-menu Debian settings; **does not contain ZRAM** |
+| **Debian tweaks** | [04_debian_tweaks.md](04_debian_tweaks.md) | Non-GUI Debian configuration; **independent of the kernel profile** |
+| **ZSTD ZRAM writeback** | [03_zram_writeback.md](03_zram_writeback.md) | ZRAM, dedicated raw SSD backing and monitor; explicitly requires Ensure 7.x |
 | **OpenMediaVault 8** | [06_openmediavault.md](06_openmediavault.md) | Optional OMV installation, approved cron-apt shutdown |
 | **Docker** | [07_docker.md](07_docker.md) | Official Docker packages, daemon and socket inactive |
 
 **Backports** is an independently selectable profile described in [02_backports_apt.md](02_backports_apt.md). It enables the repo at default priority **100** and owns the explicitly confirmed upgrade of eligible installed packages followed by reviewed autoremove/purge cleanup. **Ensure 7.x kernel branch** is a separate profile described in [09_ensure_7x_kernel.md](09_ensure_7x_kernel.md), and installs only kernel-related backported packages when stable repos lack eligible Linux 7.x. Normal installer choices are in [05_base_installation.md](05_base_installation.md).
 
-**Approved default profile selection:** all **six** optional profiles (**Backports**, **Ensure 7.x kernel branch**, **ZSTD ZRAM writeback**, **Debian tweaks**, **OpenMediaVault 8**, **Docker**) start **unchecked**. The installer must show all options and require the user to explicitly select and confirm each desired profile. Selecting none means base Debian only; no profile is silently added.
+**Approved default profile selection:** all **six** optional profiles (**Backports**, **Ensure 7.x kernel branch**, **Debian tweaks**, **ZSTD ZRAM writeback**, **OpenMediaVault 8**, **Docker**) start **unchecked**. The installer must show all options and require the user to explicitly select and confirm each desired profile. Selecting none means base Debian only; no profile is silently added.
+
+**Exact optional profile menu/execution order:** **Backports → Ensure 7.x kernel branch → Debian tweaks → ZRAM → OMV 8 → Docker**, skipping profiles not selected. This is an intentional installer-menu order; existing numbered documentation filenames are historical and need not indicate the menu order. **Debian tweaks is independent of Ensure 7.x**: it must configure the selected tweaks on Debian's default kernel when Ensure 7.x is unchecked. No kernel-package installation is performed by Debian tweaks.
 
 **ZRAM is independent of Debian tweaks but depends on Ensure 7.x kernel branch:** if ZRAM is selected without Ensure 7.x, offer to **select Ensure 7.x** or **deselect ZRAM**. Ensure 7.x checks the newest eligible kernel from standard repositories; if none is suitable, offer to **select Backports** or stop/deselect the requesting profile. Never silently enable any profile. Backports is kept at priority 100; it performs the reviewed full-upgrade and cleanup, and the kernel profile requests only necessary backported kernel-related packages. Validate all transitions before producing the ISO.
 
-## Editable installation identity defaults
+## Canonical editable installer GUI defaults
 
-The initial hostname and administrator username are defined in [profile_defaults.conf.example](profile_defaults.conf.example) as **suggestions**, not fixed values. The installer must present each in an editable question, allow changes, and require explicit confirmation. Changed values must propagate consistently into the hostname, user account, sudo and SSH configurations.
+The normal Debian Installer questions use **[profile_defaults.conf](profile_defaults.conf)** as the planning source of suggested defaults. It now contains:
 
-No passwords or password hashes may be embedded in installation media.
+- Editable example **hostname** and administrator **username**; an empty DNS domain.
+- **English** installer language, **`en_US.UTF-8`** locale and **Spanish (Spain)** keyboard.
+- **`Europe/Berlin`** time zone with the hardware real-time clock in **UTC**.
+- Wired **DHCP** networking and the minimal/headless software selection: **SSH server + Standard system utilities**, no desktop.
+
+The matching [`profile_defaults.conf.example`](profile_defaults.conf.example) is a reference example, not a second source of truth. No GUI-editable setting should be implemented only inside Debian tweaks. Prompt the user on the normal installer screens, allow edits, require confirmation, and propagate the confirmed values throughout the installed system. **Do not silently preseed answers, bypass installer screens or freeze values in profile post-install scripts**; the exact mapping from these symbolic config names to Debian Installer questions requires engineering validation.
+
+**Do not store passwords, hashes, disk targets or selected-profile flags** in either defaults file. Separate non-GUI policies such as GRUB, journald and fsck remain in the optional Debian tweaks profile. The requested custom date/number display formats are **not** native locale/timezone GUI questions; they remain a documented, unverified implementation requirement.
 
 ## Planned build-host setup
 
