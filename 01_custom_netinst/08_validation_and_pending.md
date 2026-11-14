@@ -34,7 +34,7 @@
 - Exact firmware packages beyond automatically detected hardware support.
 - Whether nine NAS HDDs are physically disconnected during installation.
 - Installation-media verification workflow (deferred to USB preparation).
-- Default selected/unselected states of the **four** optional installation profiles.
+- **Confirmed:** all four optional profiles are **unchecked by default**; the user explicitly selects and confirms desired components. Validate empty-selection behavior and all combinations.
 - SSD partition use **if ZRAM profile is not selected**; earlier 16 GB ordinary swap decision was superseded only for the ZRAM architecture.
 - Precise validated method for date/number formatting beyond base `en_US.UTF-8`.
 - Native system snapshot/rollback requirement (earlier deferred; ext4 root selected, so native Btrfs root snapshots are not available without a future migration).
