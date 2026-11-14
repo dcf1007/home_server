@@ -80,3 +80,11 @@ Description: Deactivate exactly ${MYCDD_PARTITION} as swap before conversion?
  This specific partition currently contains ${MYCDD_USED} bytes of used swap.
  Moving those pages into RAM may cause memory pressure or failure.
  Only this partition will be passed to swapoff. Default is No.
+
+Template: my-cdd/approve-removal
+Type: boolean
+Default: false
+Description: Remove the package ${MYCDD_REMOVAL}?
+ This is one individually identified package from the displayed APT
+ autoremove/purge simulation. Choose No to stop the cleanup rather than
+ execute an unapproved removal.
