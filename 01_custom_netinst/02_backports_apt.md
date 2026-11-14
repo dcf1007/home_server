@@ -35,7 +35,7 @@ Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 
 Do not automatically add `deb-src`, enable an APT proxy or broaden third-party repository trust.
 
-**Recoverable mirror/download failures:** follow the global [Decision 117 installer policy](01_custom_cdd_preparation.md): offer **Retry, explicitly approved Change mirror, or Stop**. A selected mirror must remain an approved signed HTTPS endpoint of the same `trixie-backports` repository and components; preserve `Signed-By` and the **default APT priority 100**. Revalidate metadata and re-simulate changed transactions before restoring normal user approval. Never substitute stable-only behavior for an unfinished selected Backports profile or skip its reviewed upgrade/cleanup. The persistence of a changed mirror after installation is an unresolved separate choice.
+**Mirror/download failures:** rely on Debian Installer's normal network, mirror and package-retrieval prompts where they apply; do **not** create additional custom mirror dialogs or a mirror-persistence decision. For an error during this optional Backports profile, reuse an existing supported installer recovery facility if available; otherwise stop with diagnostics and explicit manual resolution. Preserve signed HTTPS repository metadata, `Signed-By` and Backports priority **100**; after source/candidate changes, re-simulate and obtain approvals. Never silently skip an unfinished selected Backports profile or its reviewed upgrade/cleanup.
 
 ## 2. **Restore and verify Debian's default Backports priority**
 
