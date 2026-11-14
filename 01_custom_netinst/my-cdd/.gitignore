@@ -1,10 +1,4 @@
-# Local Simple-CDD build outputs and disposable test artifacts
+# Local Simple-CDD build artifacts
 /images/
 /tmp/
-/*.iso
-/qemu-test.hd.img
-/qemu-test.hd.img.*
-
-# Python source-check/test byproducts
-__pycache__/
-*.pyc
+*.iso
