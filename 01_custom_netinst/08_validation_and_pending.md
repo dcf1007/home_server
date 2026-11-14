@@ -10,7 +10,7 @@
 | Debian tweaks | Non-menu OS customizations (no ZRAM) | Kernel 7.x+headers, default stable fallback initially, GRUB, journald, fsck, SSD, APT pin and no unattended upgrades |
 | OpenMediaVault 8 | OMV package installation only plus disable OMV cron-apt; user configures OMV afterwards | Package transaction safe; networking and the installer-confirmed administrator account SSH/sudo work; root SSH disabled; OMV cron-apt is inactive |
 | Docker | Official Docker engine, containerd, Buildx and Compose CLI | Packages installed, `docker.service` and `docker.socket` inactive/disabled until approval |
-| ZSTD ZRAM | Generator, raw 16 GB backing, compressed writeback, monitor | Kernel support/ordering verified, appropriate emergency behavior, monitor restart, no independent swap |
+| ZSTD ZRAM | Generator, manually selected raw backing, compressed writeback, monitor and ZRAM-only `vm.swappiness=100` | Kernel support/ordering verified; effective swappiness 100 only when selected; appropriate emergency behavior, monitor restart and no independent swap |
 
 **All optional profiles are independently selectable**, subject to verified compatibility. Unapproved implicit dependencies or profile selections are prohibited.
 
