@@ -87,15 +87,22 @@ Verify actual Simple-CDD syntax and how profile questions are presented in this 
 1. **No unattended disk actions:** present OS installation target identification, partition creation, filesystem operations and final commit for manual confirmation. Never hard-code a device path such as `/dev/sda`.
 2. **Interactive passwords:** prompt for the installer-confirmed administrator account's password; configure and verify sudo; then prompt for a **separate root password before first reboot**. No password or hash stored in the media.
 3. **Repository trust:** official Debian binary repositories use signed Release metadata. Third-party sources must use verified, narrowly scoped signing keys. Do not bypass signature checks.
-4. **Fail closed on selected profile errors:** a critical dependency, OMV, ZRAM, SSH/network or validation failure stops completion, preserves installer logs, and requests manual intervention; no silent fallback or false success.
+4. **Fail closed on selected profile errors:** a critical dependency, OMV, ZRAM, SSH/network or validation failure stops completion, preserves installer logs, and requests manual intervention; no silent fallback or false success. **No installer-managed snapshots, backup images, automatic rollback or automatic restoration.** Recovery is explicitly manual, including repair or reinstallation.
 5. **No unexpected configuration:** the user will manage OMV itself after first boot, except for the explicitly approved disabling of OMV's scheduled cron-apt job and preserving agreed SSH access controls.
 6. **Reboot:** show Debian's standard completion screen, require manual **Continue** before first reboot.
+
+## Installation failure and recovery boundary
+
+- **Approved policy:** installer does not create snapshots, full-system backups, restore points or automatic rollback logic before, during or after optional-profile installation. It must not request backup destinations or secretly allocate rollback storage.
+- On critical failure, **stop with an unambiguous failure message**, retain available installer logs and diagnostics, and allow the user to choose manual recovery or reinstall. A partially installed target is **not** represented as a successful or automatically recoverable installation.
+- Preserve existing special-case behavior: failure of **ZRAM initialization on first boot** must enter emergency mode; failure of the running ZRAM monitor should be logged/restarted without emergency mode. Neither exception constitutes automatic rollback.
+- **Implementation gate:** determine where diagnostic logs survive interruptions, hard reboots, failed disks and reinstallations; do not promise persistence when only the installer's temporary filesystem holds logs.
 
 ## Build and release gates
 
 - Verify original Debian source artifact and signatures/checksums; the exact overall verification workflow is **deferred**.
 - Generate and verify output ISO and USB image; preserve UEFI, BIOS, graphical, text and rescue boot paths.
-- Test each optional profile alone and in permitted combinations, including errors/rollback conditions.
+- Test each optional profile alone and in permitted combinations, including **fail-stop behavior**, diagnostic availability and manual recovery paths. **Do not build or imply rollback functionality**.
 - Test offline/failed repository behavior, third-party key checks, package resolution, root and sudo login, GRUB settings and correct target-disk selection.
 - Confirm OMV does not reinstate root SSH access and does not block the installer-confirmed administrator account access.
 - Test target-disk selection and destructive-operation confirmation in disposable virtual machines.
