@@ -1,0 +1,56 @@
+# 08 — Validation gates, decisions deferred, and release checklist
+
+**Status:** open engineering checklist; no installer artifact built or tested. **Recorded:** 2026-11-14. **Provenance:** conversation decisions and uploaded ZRAM compressed-writeback proposal.
+
+## Installation profile acceptance matrix
+
+| Choice | Install-time action | Validation |
+|---|---|---|
+| Base Debian | Interactive install, minimal, SSH + standard utilities, manual SSD writes | Boots UEFI, ext4 SSD, hostname, local/root passwords, DHCP, no NAS HDD changes |
+| Debian tweaks | Non-menu OS customizations (no ZRAM) | Kernel 7.x+headers, default stable fallback initially, GRUB, journald, fsck, SSD, APT pin and no unattended upgrades |
+| OpenMediaVault 8 | OMV package installation only plus disable OMV cron-apt; user configures OMV afterwards | Package transaction safe; networking and `david` SSH/sudo work; root SSH disabled; OMV cron-apt is inactive |
+| Docker | Official Docker engine, containerd, Buildx and Compose CLI | Packages installed, `docker.service` and `docker.socket` inactive/disabled until approval |
+| ZSTD ZRAM | Generator, raw 16 GB backing, compressed writeback, monitor | Kernel support/ordering verified, appropriate emergency behavior, monitor restart, no independent swap |
+
+**All optional profiles are independently selectable**, subject to verified compatibility. Unapproved implicit dependencies or profile selections are prohibited.
+
+## Blocking verification issues
+
+1. **Global APT pin 900 versus OMV 8:** official OMV guidance warns of incompatible backports dependencies. Simulate intended package set and ask before any policy change.
+2. **Kernel availability:** confirm a suitable kernel 7.x and matching `linux-headers-amd64` from actual `trixie-backports` at build time.
+3. **ZRAM API compatibility:** verify selected kernel and Debian generator support resident limit, compressed writeback, early device setup and dynamic backing-size measurement; inspect uploaded monitor for logic/errors.
+4. **Conditional partition creation:** the optional ZRAM selection controls whether a raw 16 GB PARTUUID backing partition is needed. Profile choice must be known before destructive partition confirmation.
+5. **Emergency recovery:** ensure systemd *really enters* emergency mode for a failed ZRAM initialization, with usable local root credentials; test this in a disposable environment.
+6. **OMV / SSH / network:** ensure OMV does not enable root SSH or block `david`; check DHCP and DNS.
+7. **OMV scheduled updates:** verify environment variable and Salt deploy method on exact OMV version; confirm cron-apt is disabled. Verify Debian APT unattended package installation separately.
+8. **Installer UI custom screens:** ensure requested order for `david`/sudo/root passwords and interactive confirmation is achievable with Debian Installer and Simple-CDD.
+9. **Docker service suppression:** ensure packages install without starting daemon/socket, including during package maintainer scripts.
+10. **Firmware package selection and locale overrides:** exact broad firmware set and custom date/number formatting need implementation review.
+11. **NAS disk preservation:** test installer with multiple disks and confirm no operations on NAS HDDs.
+12. **Installer image release:** verify boot modes, unsigned customized image provenance and USB integrity when media validation policy is finalized.
+
+## Deferred / still open
+
+- Exact firmware packages beyond automatically detected hardware support.
+- Whether nine NAS HDDs are physically disconnected during installation.
+- Installation-media verification workflow (deferred to USB preparation).
+- Default selected/unselected states of the **four** optional installation profiles.
+- SSD partition use **if ZRAM profile is not selected**; earlier 16 GB ordinary swap decision was superseded only for the ZRAM architecture.
+- Precise validated method for date/number formatting beyond base `en_US.UTF-8`.
+- Native system snapshot/rollback requirement (earlier deferred; ext4 root selected, so native Btrfs root snapshots are not available without a future migration).
+- Exact device-independent partition labels or type GUID for raw ZRAM backing if special marking is needed.
+- Whether/when Docker daemon should later be activated; OMV Compose and other services are separate later-phase decisions.
+- Any required safe exceptions to global backports pin 900 must receive **explicit approval**.
+- All profile/script implementations must be reviewed before production.
+
+## Failure policy and evidence
+
+- **Critical selected-profile failure:** stop, preserve logs, request manual intervention, never silently switch profiles or report success.
+- **ZRAM init failure:** enter systemd emergency mode for local recovery, requiring a root password set during installation.
+- **ZRAM monitor failure:** log and restart the monitor; do not independently trigger emergency mode.
+- **Update installation:** user approval only (security included); no automatic reboots.
+- Keep logs of `apt-cache policy`, simulated transactions, profile selections, partition identification and installer exit status in the installer/build evidence bundle.
+
+## Reference index
+
+[01 Preparation](01_custom_cdd_preparation.md) · [02 APT backports](02_backports_apt.md) · [03 Base install](03_base_installation.md) · [04 Debian tweaks](04_debian_tweaks.md) · [05 OMV](05_openmediavault.md) · [06 Docker](06_docker.md) · [07 ZRAM](07_zram_writeback.md)
