@@ -528,20 +528,20 @@ EOT
     # Installer-only startup prevention targeting ONLY Docker service/socket.
     # Unlike disabling units after the transaction, these masks are applied
     # before any maintainer scripts can request startup.
-    capture systemctl --root=/target mask docker.service docker.socket ||
+    capture in-target systemctl --root=/ mask docker.service docker.socket ||
         fatal 'Could not prevent Docker startup before package installation'
     simulate_target install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     check_critical_removals
     review_plan 'Docker: complete official package transaction, daemon/socket suppressed' "$WORK/plan"
     run_target apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    capture systemctl --root=/target unmask docker.service docker.socket ||
+    capture in-target systemctl --root=/ unmask docker.service docker.socket ||
         fatal 'Could not remove temporary Docker startup suppression'
-    capture systemctl --root=/target disable docker.service docker.socket ||
+    capture in-target systemctl --root=/ disable docker.service docker.socket ||
         fatal 'Could not disable Docker daemon and socket for first boot'
     for unit in docker.service docker.socket; do
         # systemctl is-enabled exits nonzero for the desired "disabled"
         # state; inspect its output rather than treating status 1 as failure.
-        capture systemctl --root=/target is-enabled "$unit" || :
+        capture in-target systemctl --root=/ is-enabled "$unit" || :
         grep -Fx disabled "$WORK/output" >/dev/null ||
             fatal "$unit is not disabled for first boot"
     done
