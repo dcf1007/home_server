@@ -9,12 +9,12 @@
 | Base Debian | Interactive install, minimal, SSH + standard utilities, manual disk selection | Boots UEFI, ext4 OS filesystem, hostname, local/root passwords, DHCP, confirmed installation target |
 | Backports | Explicitly enable `trixie-backports` at default priority **100**; review/complete eligible upgrades, autoremove and purge leftovers | Full upgrade and cleanup confirmed; all proposed removals explicitly reviewed; no eligible upgrades left; no critical package removed |
 | Ensure 7.x kernel branch | Install newest eligible Linux **7.x** image and matching headers from standard repos, or request Backports and install only necessary kernel-related backports packages | Correct version, headers and GRUB; initial stable-kernel fallback; no fixed version lock; backports selected explicitly if required |
-| Debian tweaks | Non-menu OS customizations (no ZRAM, no repository pin or kernel installer) | GRUB, journald, fsck, SSD, firmware, manual updates; kernel packages installed only through separate Ensure 7.x profile |
+| Debian tweaks | Non-GUI OS customizations only (no ZRAM, no repository pin, no kernel installer, no native installer GUI answers) | GRUB, journald, fsck, SSD, firmware, manual updates; functions with **or without** Ensure 7.x selected |
 | OpenMediaVault 8 | OMV package installation only plus disable OMV cron-apt; user configures OMV afterwards | Package transaction safe; networking and the installer-confirmed administrator account SSH/sudo work; root SSH disabled; OMV cron-apt is inactive |
 | Docker | Official Docker engine, containerd, Buildx and Compose CLI | Packages installed, `docker.service` and `docker.socket` inactive/disabled until approval |
 | ZSTD ZRAM | Generator, manually selected raw backing, compressed writeback, monitor and ZRAM-only `vm.swappiness=100` | Kernel support/ordering verified; effective swappiness 100 only when selected; appropriate emergency behavior, monitor restart and no independent swap |
 
-**All six optional profiles (Backports, Ensure 7.x kernel branch, ZRAM, Debian tweaks, OMV, Docker) are displayed separately and initially unchecked.** ZRAM can be selected without Debian tweaks, but it **requires explicit selection of Ensure 7.x**. If Ensure 7.x is unchecked, offer to select it or deselect ZRAM. Ensure 7.x checks ordinary Debian repositories; if a suitable 7.x kernel is unavailable, offer to explicitly select Backports or stop/deselect the requesting profile. Backports remains at priority **100**, owns the reviewed eligible-package upgrade and cleanup; Ensure 7.x owns selective installation of kernel-related backported packages. No optional profile is selected automatically.
+**All six optional profiles are separately displayed and initially unchecked, in this exact menu order: Backports → Ensure 7.x kernel branch → Debian tweaks → ZRAM → OMV → Docker.** Debian tweaks is **independent of Ensure 7.x**; it neither requires nor installs a 7.x kernel, and must work with the default Debian kernel. ZRAM can be selected without Debian tweaks, but it **requires explicit selection of Ensure 7.x**. If Ensure 7.x is unchecked, offer to select it or deselect ZRAM. Ensure 7.x checks ordinary Debian repositories; if a suitable 7.x kernel is unavailable, offer to explicitly select Backports or stop/deselect the requesting profile. Backports remains at priority **100**, owns the reviewed eligible-package upgrade and cleanup; Ensure 7.x owns selective installation of kernel-related backported packages. No optional profile is selected automatically.
 
 ## Blocking verification issues
 
@@ -25,7 +25,7 @@
 5. **Emergency recovery:** ensure systemd *really enters* emergency mode for a failed ZRAM initialization, with usable local root credentials; test this in a disposable environment.
 6. **OMV / SSH / network:** ensure OMV does not enable root SSH or block the installer-confirmed administrator account; check DHCP and DNS.
 7. **OMV scheduled updates:** verify environment variable and Salt deploy method on exact OMV version; confirm cron-apt is disabled. Verify Debian APT unattended package installation separately.
-8. **Installer UI custom screens:** ensure requested order for the installer-confirmed administrator account/sudo/root passwords and interactive confirmation is achievable with Debian Installer and Simple-CDD.
+8. **Installer GUI defaults and interaction:** [profile_defaults.conf](profile_defaults.conf) is the single canonical source for editable suggestions (hostname, username, empty domain, English/`en_US.UTF-8`, Spanish keyboard, `Europe/Berlin`, UTC RTC, DHCP and headless SSH/standard tasks). Validate mapping of symbolic keys to actual installer questions, on-screen editability, confirmation, account/sudo/root-password ordering and use even when Debian tweaks is unchecked. Do not put secrets, fixed disk targets or profile preselection in this file.
 9. **Docker service suppression:** ensure packages install without starting daemon/socket, including during package maintainer scripts.
 10. **Firmware package selection and locale overrides:** broad proactive firmware coverage was approved; a provisional package-name inventory is in [04 Debian tweaks](04_debian_tweaks.md). Exact candidates and transactions still require simulation under the **actual repository policy** (Backports priority **100**, if selected), with inclusion/exclusion rationale and confirmation. Custom date/number formatting still needs implementation review.
 11. **OS installation target selection:** require explicit confirmation of the installation disk and destructive partition writes; validate the selection procedure using disposable test disks.
@@ -35,14 +35,15 @@
 
 - **Broad firmware coverage approved:** exact package names proposed and cross-checked against Debian's published package list; final installable set, dependencies and user confirmation **not yet finished**.
 - Installation-media verification workflow (deferred to USB preparation).
-- **Confirmed:** all six optional profiles are **unchecked by default**. Validate empty selection; ZRAM explicitly requiring Ensure 7.x; Ensure 7.x asking for Backports when necessary; backports priority **100**; reviewed full upgrade, approved removals and post-upgrade autoremove/purge; all selected profile combinations. Never auto-select another profile.
+- **Confirmed:** all six optional profiles are **unchecked by default** and displayed Backports → Ensure 7.x → Debian tweaks → ZRAM → OMV → Docker. Validate empty selection; Debian tweaks working **without Ensure 7.x**, ZRAM explicitly requiring Ensure 7.x; Ensure 7.x asking for Backports when necessary; backports priority **100**; reviewed full upgrade, approved removals and post-upgrade autoremove/purge; all selected profile combinations. Never auto-select another profile.
 - **Resolved:** if the user makes a swap partition and ZRAM is unselected, use ordinary swap; if ZRAM is selected, use the same partition exclusively as its raw backing. If no swap is created, ordinary Debian's no-swap warning applies; ZRAM must prompt to return or be deselected. Technical integration of the two roles remains unverified.
 - Precise validated method for date/number formatting beyond base `en_US.UTF-8`.
 - Native system snapshot/rollback requirement (earlier deferred; ext4 root selected, so native Btrfs root snapshots are not available without a future migration).
 - Exact device-independent partition labels or type GUID for raw ZRAM backing if special marking is needed.
 - Whether/when Docker daemon should later be activated; OMV Compose and other services are separate later-phase decisions.
 - **Resolved:** the global Backports priority-900 pin was revoked. Preserve Debian's default priority **100** and selectively install 7.x kernel packages when required; any deviation requires explicit approval.
-- **Still open:** whether selecting Debian tweaks should also require the new Ensure 7.x kernel profile; do not silently introduce this dependency before the user's decision.
+- **Resolved:** Debian tweaks is **independent of Ensure 7.x kernel branch**. The kernel is installed only by the explicitly selected Ensure 7.x profile, not as a hidden Debian tweaks dependency.
+- **Resolved:** native Debian Installer GUI defaults formerly described under Debian tweaks, including timezone and RTC, belong to [profile_defaults.conf](profile_defaults.conf) and native setup screens, not optional tweaks. Validate the exact mapping before release.
 - All profile/script implementations must be reviewed before production.
 
 ## Failure policy and evidence
@@ -55,4 +56,4 @@
 
 ## Reference index
 
-[01 Preparation](01_custom_cdd_preparation.md) · [02 Backports](02_backports_apt.md) · [03 ZRAM](03_zram_writeback.md) · [04 Debian tweaks](04_debian_tweaks.md) · [05 Base install](05_base_installation.md) · [06 OMV](06_openmediavault.md) · [07 Docker](07_docker.md) · [09 Ensure 7.x](09_ensure_7x_kernel.md)
+[01 Preparation](01_custom_cdd_preparation.md) · [02 Backports](02_backports_apt.md) · [09 Ensure 7.x](09_ensure_7x_kernel.md) · [04 Debian tweaks](04_debian_tweaks.md) · [03 ZRAM](03_zram_writeback.md) · [06 OMV](06_openmediavault.md) · [07 Docker](07_docker.md) · [05 Base install](05_base_installation.md) · [GUI defaults](profile_defaults.conf)
