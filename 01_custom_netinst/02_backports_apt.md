@@ -1,10 +1,20 @@
-# 02 — Activate trixie-backports and set APT priority
+# 02 — Optional Backports profile: activate, pin and upgrade
 
-**Status:** **provisional approved preference; implementation blocked by compatibility checks**. **Recorded:** 2026-11-14. **Provenance:** explicit user decision to prefer backports globally, with priority **900**, ordinary stable and security **500**, and manual upgrades.
+**Status:** selectable **Backports installer profile**, initially **unchecked**. The global priority policy is **approved provisionally**, but execution remains blocked by compatibility checks. **Recorded:** 2026-11-14. **Provenance:** explicit user decisions to prefer backports at priority **900**, stable/security at **500**, and perform a **complete, reviewed package upgrade as a step within the Backports profile**.
 
-## 1. Activate the Debian repositories
+## Installer profile behavior and dependencies
 
-Use official HTTPS endpoints and Debian's signed archive keyring. Binary packages only; all four components enabled:
+- **Backports is a distinct opt-in profile**, not an implicit part of Debian tweaks or ZRAM. Its checkbox is initially **unchecked**. The user must explicitly select and confirm it; no other profile may silently select it.
+- When Backports is selected, its implementation runs in this order: **(1) enable and verify the repository, (2) apply and verify APT pinning, (3) simulate and review a full upgrade of all eligible installed packages, (4) perform the confirmed upgrade, (5) validate completion, and only then (6) continue to other selected profiles**.
+- When Backports is **not selected**, do not enable the backports repository, impose its pin, or run this upgrade workflow. Ordinary signed Debian 13 repositories remain usable.
+- If ZRAM or Debian tweaks requires an eligible **Linux 7.x** kernel not available from the standard repositories, prompt the user to **explicitly select Backports or deselect/stop the requesting profile**. Never auto-enable Backports, Debian tweaks or any other profile.
+- Selected OMV and Docker profiles remain separate; their dependencies must be simulated against the exact resulting APT state **before** a full upgrade that could affect them.
+
+
+
+## 1. Activate Debian backports if this profile is selected
+
+Use official HTTPS endpoints and Debian's signed archive keyring. Binary packages only; all four components enabled **only when Backports is selected**:
 
 - `trixie`, `trixie-updates` and `trixie-backports` at `https://deb.debian.org/debian`.
 - `trixie-security` at `https://security.debian.org/debian-security`.
@@ -41,25 +51,28 @@ Pin: release n=trixie-backports
 Pin-Priority: 900
 ```
 
-**Do not apply this pin until validation passes.** APT release-metadata matching and effective priority must be checked on the real mirror; `APT::Default-Release` or other pins can change the result. A single backports pin does not explicitly set all other origins to 500; that value is their ordinary default without competing configuration.
+**This provisional pin is applied only by the explicitly selected Backports profile, and only after validation passes.** APT release-metadata matching and effective priority must be checked on the real mirror; `APT::Default-Release` or other pins can change the result. A single backports pin does not explicitly set all other origins to 500; that value is their ordinary default without competing configuration.
 
-## 3. Required, explicitly reviewed upgrade after enabling backports
+## 3. Mandatory upgrade step inside this profile
 
-**New user requirement:** whenever `trixie-backports` is **newly enabled as part of the customized installation**, the process must **complete all available installed-package upgrades under the approved APT policy before continuing**. Updating package lists alone does not satisfy this requirement.
+**The Backports profile owns the complete upgrade step.** After the repository is enabled and priority 900 has passed validation, **upgrade all currently eligible installed packages before proceeding**. Updating package indexes alone does not satisfy this requirement.
 
-1. Run `apt-get update`; verify signed repository metadata and effective pinning/candidates.
-2. Simulate `apt-get -s dist-upgrade` and show the complete transaction to the user, including any dependency installs, proposed removals and version changes. Confirm upgrade scope, dependencies and security effects. With the provisional global backports priority 900, a large number of package replacements may be proposed.
-3. **Ask for explicit approval** before performing the real upgrade. Preserve the prior no-unattended-upgrade policy (this is a one-time, interactive installation action).
-4. Apply the reviewed transaction and confirm that package configuration succeeds, there are no broken/partially configured packages, and nothing eligible for upgrade is left under the chosen policy. If full completion is impossible, **stop for manual intervention**; do not silently proceed, disable backports, skip upgrades, force package removals or modify the pin.
-5. Revalidate OMV, networking/SSH and Docker package compatibility after the upgrade and prior to their profile installations.
+1. Refresh signed APT metadata with `apt-get update`, inspect `apt-cache policy`, and validate package candidate origins and priorities (especially security updates and third-party applications).
+2. Run `apt-get -s full-upgrade` and display the complete proposed transaction, including version changes, new dependencies, downgrades, proposed removals, held packages and any package candidates affected by the Backports pin.
+3. **Require explicit user confirmation of the reviewed transaction**. A package removal or dependency conflict must not be performed automatically; present it for further review and stop on an unresolved or unsafe operation.
+4. Execute the **confirmed** upgrade inside this profile. Do not silently narrow it to a selected subset, ignore pending upgrades, relax the global pin or use `--allow-unauthenticated` or equivalent overrides.
+5. Check `dpkg --audit`, `apt-mark showhold`, `apt list --upgradable`, APT simulation results and service health. If anything eligible remains unupgraded or if the transaction failed, **stop** the selected profile, retain logs and request manual intervention. Do not proceed to ZRAM or other profiles.
+6. Re-simulate dependencies for separately selected OMV, Docker and kernel 7.x requirements after this profile succeeds.
 
-**Important:** `apt full-upgrade` may remove existing packages to resolve dependencies. That is more invasive than `apt upgrade`. Any proposed removals/conflicts require a distinct user-confirmed resolution policy before performing the upgrade. See [ZRAM kernel prerequisite](03_zram_writeback.md).
+**Caution:** `apt full-upgrade` is capable of removing packages. Whether an explicitly reviewed removal is permissible is a separate installation-policy decision; until resolved, such removals must result in a stop and manual review.
+
+This is a **one-time, interactive install-stage action**, not permission for unattended upgrades. No other installer profile implements a duplicate Backports full-upgrade step.
 
 ## 4. Package installation and manual updates
 
-The selected Debian tweaks profile installs `linux-image-amd64` and `linux-headers-amd64` from backports before the first reboot. A Debian stable kernel should remain available as a fallback at first boot; **no customized kernel retention** is authorized.
+Debian tweaks and ZRAM each enforce their own requirement for the newest eligible Linux **7.x** kernel and matching headers (with moving `linux-image-amd64` and `linux-headers-amd64` metapackages; no fixed version lock). Backports may supply the candidate packages, but choosing Backports never implicitly selects either profile. Keep a stable kernel initially available as fallback; **no customized kernel retention** is authorized.
 
-All updates, including security updates, **must require manual approval**. The Debian tweaks profile must set/verify:
+All upgrades, including security updates, **require manual approval**. This profile performs only the explicitly confirmed one-time upgrade described above; Debian tweaks separately applies the manual-only APT configuration, and every selected-profile combination must verify that no independent unattended installation mechanism remains enabled:
 
 ```text
 APT::Periodic::Unattended-Upgrade "0";
