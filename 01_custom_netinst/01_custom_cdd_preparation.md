@@ -14,16 +14,17 @@ Simple-CDD supports selectable profiles, typically expressed using files such as
 
 | Selectable profile | Guide | Scope |
 |---|---|---|
+| **Backports** | [02_backports_apt.md](02_backports_apt.md) | Enable `trixie-backports`, validate APT priority 900, complete reviewed full upgrade |
 | **ZSTD ZRAM writeback** | [03_zram_writeback.md](03_zram_writeback.md) | ZRAM, dedicated raw SSD backing and monitor |
 | **Debian tweaks** | [04_debian_tweaks.md](04_debian_tweaks.md) | Non-menu Debian settings; **does not contain ZRAM** |
 | **OpenMediaVault 8** | [06_openmediavault.md](06_openmediavault.md) | Optional OMV installation, approved cron-apt shutdown |
 | **Docker** | [07_docker.md](07_docker.md) | Official Docker packages, daemon and socket inactive |
 
-The backports activation and preference policy has its own guide: [02_backports_apt.md](02_backports_apt.md). It is a **Debian tweaks** implementation step, not a fifth optional profile. Normal Debian installer choices are in [05_base_installation.md](05_base_installation.md).
+**Backports** is a fifth **independently selectable** profile described in [02_backports_apt.md](02_backports_apt.md). This profile alone enables the repository, applies approved APT priority 900 and completes the explicitly reviewed full upgrade **before dependent profiles may continue**. It is **not part of Debian tweaks or ZRAM**. Normal Debian Installer choices are in [05_base_installation.md](05_base_installation.md).
 
-**Approved default profile selection:** all four optional profiles (**ZSTD ZRAM writeback**, **Debian tweaks**, **OpenMediaVault 8**, **Docker**) start **unchecked**. The installer must show all options and require the user to explicitly select and confirm each desired profile. Selecting none means base Debian only; no profile is silently added.
+**Approved default profile selection:** all **five** optional profiles (**Backports**, **ZSTD ZRAM writeback**, **Debian tweaks**, **OpenMediaVault 8**, **Docker**) start **unchecked**. The installer must show all options and require the user to explicitly select and confirm each desired profile. Selecting none means base Debian only; no profile is silently added.
 
-**ZRAM is independently selectable:** Debian tweaks and ZRAM are separate options, both unchecked by default. Selecting ZRAM **does not require** selecting Debian tweaks, and never selects or applies another profile implicitly. ZRAM itself checks its Linux 7.x/kernel-header, generator and writeback prerequisites and, when necessary, requires user approval to enable `trixie-backports` and a reviewed upgrade before proceeding. Test the ZRAM-only path and all authorized combinations in the installer.
+**ZRAM is independent of Debian tweaks:** both are separately selectable and neither enables the other. ZRAM needs the latest eligible Linux 7.x kernel and headers; if none are available from ordinary signed repositories, the installer must offer **select Backports explicitly** or **deselect ZRAM**. The Backports profile owns the repository activation, pin and full-upgrade checkpoint, must finish successfully before ZRAM, and must never be selected silently.
 
 ## Editable installation identity defaults
 
@@ -49,6 +50,8 @@ simple-cdd/
   profiles/
     default.description
     default.preseed
+    backports.description
+    backports.postinst
     debian-tweaks.description
     debian-tweaks.packages
     debian-tweaks.postinst
