@@ -6,7 +6,9 @@
 
 Upstream **Simple-CDD 0.6.9** (`debian/simple-cdd-profiles.postinst`) calls `db_input high simple-cdd/profiles`, `db_go`, then immediately processes `*.preseed`, `*.udebs` and `*.packages`. A late `profiles/*.postinst` or `preseed/late_command` cannot enforce approval before queuing.
 
-Provide a reviewed integration (custom udeb or appropriately patched profile-selection flow) that:
+**Approved method (2026-11-14, user choice A):** use the already-supported `preseed/early_command` stage, with **no upstream udeb modification**. The [`profiles/default.preseed`](../profiles/default.preseed) command now invokes `/bin/sh /cdrom/simple-cdd/profile-confirm.sh && anna-install simple-cdd-profiles`. The shell's `&&` prevents the subsequent `anna-install` invocation when the gate fails. The script now loads the generated Simple-CDD and custom Debconf templates and asks the original profile question before the unmodified udeb starts. This is **source integration, not a tested functional installer**.
+
+The integrated source must:
 - reads the exact seven-profile selection after the Debconf multiselect;
 - displays the selected/unchecked state and dependencies in GTK and text;
 - obtains an explicit **default-No** approval before ANY selected-profile actions;
