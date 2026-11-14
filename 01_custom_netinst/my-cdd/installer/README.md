@@ -3,7 +3,7 @@
 The seven profiles are presented by Simple-CDD's standard `simple-cdd/profiles` Debconf multiselect; none is automatically selected. We must add one custom **summary confirmation** before profile operation, not replace Debian's native installer GUI or its normal keyboard/time/account/network/partman/retry dialogs.
 
 - [`profile-confirm.templates`](profile-confirm.templates) — proposed Debconf note/boolean templates, with **seven independently substituted status lines**, a default-No confirmation and a dependency-error note.
-- [`profile-confirm.sh`](profile-confirm.sh) — proposed early call **after** reading selected profiles, **before** loading profile preseeds or queuing udebs/packages. **Not yet installed/integrated**.
+- [`profile-confirm.sh`](profile-confirm.sh) — **wired into [`profiles/default.preseed`](../profiles/default.preseed)** through the approved `preseed/early_command`, before `anna-install simple-cdd-profiles`. It explicitly loads Simple-CDD's generated multiselect and the seven-line confirmation, then sets the original selection's Debconf `seen` flag on approval. It is **not yet tested in a running installer**.
 - [`ordered-selection.sh`](ordered-selection.sh) — read-only, deterministic ordering and dependency parser; not a package installer.
 - [`test-ordered-selection.sh`](test-ordered-selection.sh) — standalone source-level checks.
 - [`IMPLEMENTATION_GATES.md`](IMPLEMENTATION_GATES.md) — exact release blockers and validated test/build sequence.
