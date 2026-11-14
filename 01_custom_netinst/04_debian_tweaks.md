@@ -4,7 +4,7 @@
 
 **Boundary:** This profile includes non-menu Debian configuration only. **Do not include ZRAM**: it belongs to [03_zram_writeback.md](03_zram_writeback.md). Standard installer questions remain interactive, see [05_base_installation.md](05_base_installation.md).
 
-**Required when ZRAM is selected:** If the user selects ZRAM without Debian tweaks, the installer asks the user to **select Debian tweaks as well or deselect ZRAM**. Debian tweaks must **never be selected automatically**. The ZRAM software itself is not merged into this profile.
+**Independent optional profiles:** ZRAM can be selected and installed **without** Debian tweaks. Its kernel 7.x, generator, repository and upgrade prerequisites are checked by the ZRAM profile itself. This profile contains no ZRAM software or tuning and is never selected automatically.
 
 ## APT, kernel and firmware
 
@@ -67,7 +67,7 @@ Package names below exist in Debian 13 package listings for firmware. Exact vers
 
 ## Conditional profile semantics
 
-If Debian tweaks is not selected, do not silently apply its unique configuration and do not claim the installation matches the full custom server server design. OMV and Docker remain independently selectable, but **ZRAM requires explicit user selection of Debian tweaks**, or the user must deselect ZRAM. Compatibility checks still apply. See [08_validation_and_pending.md](08_validation_and_pending.md).
+If Debian tweaks is not selected, do not silently apply its unique configuration or claim the installation includes the complete Debian tweaks design. **ZRAM, OMV and Docker remain independently selectable**, and the ZRAM profile provides its own technical prerequisites if selected alone. Never silently enable another profile. Compatibility checks still apply. See [08_validation_and_pending.md](08_validation_and_pending.md).
 
 ## Acceptance checks (examples)
 
