@@ -16,7 +16,7 @@ The reference design uses a **256 GB SSD/NVMe** for the OS. This is an example c
 
 There is **no separate `/boot`** or application partition. Use filesystem UUIDs for root and ESP, and PARTUUID for the optional ZRAM raw backing. **The user decides in the normal manual partitioner whether to create a swap partition.** Debian Installer normally warns if no swap partition is assigned, and can continue without it after confirmation. If a swap partition exists it becomes ordinary swap **unless** the user selects ZRAM, in which case it must be safely re-purposed into raw backing instead of formatted/activated swap. If ZRAM is selected but no swap partition exists, the ZRAM profile must offer **return to partitioning and create swap** or **deselect ZRAM**; it must not proceed silently. The exact transition through partman and any swap signature removal must be tested before deployment.
 
-Root ext4: 5% reserved blocks, `noatime`, `errors=panic`, ordinary `data=ordered` journaling, continuous discard disabled. Filesystem-specific changes belong to [Debian tweaks](04_debian_tweaks.md); **weekly `fstrim.timer` verification** belongs to the optional [Extended device support](10_extended_device_support.md) profile. Debian's ordinary timer defaults remain otherwise unchanged.
+Root ext4 uses Debian's ordinary filesystem defaults, except for the **optional [Debian tweaks](04_debian_tweaks.md)** profile's non-default `noatime` and `errors=panic` mount options. Disk formatting and partition confirmation remain in Debian Installer; no default-setting override is needed.
 
 ## Identity, credentials and networking
 
