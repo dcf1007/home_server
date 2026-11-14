@@ -1,0 +1,16 @@
+# Debconf templates for an EARLY custom profile-selection integration.
+# These are NOT automatically loaded by vanilla simple-cdd 0.6.9.
+Template: my-cdd/profile-summary
+Type: note
+Description: Review selected custom installation profiles
+ The following seven options will be applied in the documented order:
+ ${MYCDD_SUMMARY}
+ .
+ This summary does not replace disk, ZRAM conversion, package or other approvals.
+
+Template: my-cdd/profile-confirm
+Type: boolean
+Default: false
+Description: Proceed with these selected installation profiles?
+ Choose No to stop before custom profile actions. Use the installer Back
+ navigation to revise selections when available.
