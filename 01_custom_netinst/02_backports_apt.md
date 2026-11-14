@@ -32,10 +32,10 @@ Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 
 Normally Debian Backports is at priority **100** and ordinary releases at **500**. The requested override promotes **all** packages from `trixie-backports` to **900**, with `trixie`, `trixie-updates` and `trixie-security` remaining at **500** (assuming no other target-release or priority overrides).
 
-**Provisional** `/etc/apt/preferences.d/90-dcf1007-backports.pref`:
+**Provisional** `/etc/apt/preferences.d/90-local-backports.pref`:
 
 ```text
-Explanation: DCF1007 provisional global backports preference; compatibility gate required
+Explanation: custom server provisional global backports preference; compatibility gate required
 Package: *
 Pin: release n=trixie-backports
 Pin-Priority: 900
@@ -53,7 +53,7 @@ All updates, including security updates, **must require manual approval**. The D
 APT::Periodic::Unattended-Upgrade "0";
 ```
 
-This setting disables APT periodic unattended package installation, **not necessarily package-index refreshes**. OMV's separate cron-apt scheduler is disabled when OMV is selected, as documented in [05_openmediavault.md](05_openmediavault.md).
+This setting disables APT periodic unattended package installation, **not necessarily package-index refreshes**. OMV's separate cron-apt scheduler is disabled when OMV is selected, as documented in [06_openmediavault.md](06_openmediavault.md).
 
 **Security caveat:** A pin of 900 for backports and 500 for security means the newer backport can win over the stable security version. APT also ordinarily avoids downgrades unless a candidate priority exceeds 1000. Merely pinning the security repository is not a guarantee of timely security coverage for packages sourced from backports.
 
