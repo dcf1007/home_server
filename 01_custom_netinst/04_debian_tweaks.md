@@ -54,6 +54,6 @@ sudo sshd -T | grep -i permitrootlogin
 apt-config dump | grep -E 'Periodic|Unattended'
 ```
 
-Verify `fsck.repair=no` is effective in the booted target system, and that the GRUB menu behavior is correct without unnecessary overrides. If the custom date/number display requirement is unsatisfied, retain it as an open implementation checkpoint.
+Verify `fsck.repair=no` is effective in the booted target system, and that the GRUB menu behavior is correct without unnecessary overrides.
 
 **No implementation claim:** documentation is updated, but no resulting ISO, profile, booted kernel or service state has been tested.
