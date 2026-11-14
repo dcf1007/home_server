@@ -2,7 +2,7 @@
 
 **Status:** agreed choices, to be entered or confirmed in the interactive installer. **Recorded:** 2026-11-14. **Provenance:** custom server installation-planning decisions.
 
-The base installation is Debian 13 Trixie **amd64**, minimal/headless, with **SSH server** and **Standard system utilities**, **without** a desktop environment. Native GUI suggestions for installer language, localization, identities, networking, time and task selection come from [profile_defaults.conf](profile_defaults.conf) regardless of optional profile selections. The USB boots graphical installer by default, waits for Enter, and retains text/rescue. The target server is UEFI/GPT, Secure Boot disabled. No custom BIOS boot check.
+The base installation is Debian 13 Trixie **amd64**, minimal/headless, with **SSH server** and **Standard system utilities**, **without** a desktop environment. Native GUI suggestions for installer language, localization, identities, networking, time and task selection come from [profile_defaults.conf](my-cdd/profile_defaults.conf) regardless of optional profile selections. The USB boots graphical installer by default, waits for Enter, and retains text/rescue. The target server is UEFI/GPT, Secure Boot disabled. No custom BIOS boot check.
 
 ## Disk layout
 
@@ -20,7 +20,7 @@ Root ext4 uses Debian's ordinary filesystem defaults, except for the **optional 
 
 ## Identity, credentials and networking
 
-- The **hostname, administrator username, DNS domain and wired DHCP suggestions** come from [profile_defaults.conf](profile_defaults.conf) and must be displayed in editable Debian Installer questions with explicit confirmation. The default local DNS domain is empty; the network uses router-side IP reservation. **None** of these GUI choices belongs to the Debian tweaks profile.
+- The **hostname, administrator username, DNS domain and wired DHCP suggestions** come from [profile_defaults.conf](my-cdd/profile_defaults.conf) and must be displayed in editable Debian Installer questions with explicit confirmation. The default local DNS domain is empty; the network uses router-side IP reservation. **None** of these GUI choices belongs to the Debian tweaks profile.
 - Prompt for the administrator password interactively and configure `sudo` access for the **actual confirmed username**, regardless of whether Debian tweaks or Ensure 7.x was selected.
 - **After** setting the installer-confirmed administrator account and sudo, enter a **separate root password** interactively **before first reboot**. No password or hash embedded in USB.
 - Initial SSH password authentication for the installer-confirmed administrator account. Root SSH login disabled (`PermitRootLogin no`).
@@ -28,7 +28,7 @@ Root ext4 uses Debian's ordinary filesystem defaults, except for the **optional 
 
 ## Localization / time — normal installer GUI
 
-**[profile_defaults.conf](profile_defaults.conf) is the single canonical source for suggested GUI choices**, including English installer language, locale, Spanish (Spain) keyboard, `Europe/Berlin` timezone and a UTC hardware clock. Every shown value remains editable and must be confirmed on the standard setup screens, **whether or not Debian tweaks is selected**. The original example values are recorded in the config file rather than duplicated as fixed choices here.
+**[profile_defaults.conf](my-cdd/profile_defaults.conf) is the single canonical source for suggested GUI choices**, including English installer language, locale, Spanish (Spain) keyboard, `Europe/Berlin` timezone and a UTC hardware clock. Every shown value remains editable and must be confirmed on the standard setup screens, **whether or not Debian tweaks is selected**. The original example values are recorded in the config file rather than duplicated as fixed choices here.
 
 Retain `systemd-timesyncd` for time synchronization; use the user-confirmed timezone and locale from the ordinary installer GUI.
 
@@ -37,7 +37,7 @@ Retain `systemd-timesyncd` for time synchronization; use the user-confirmed time
 - Base Debian repositories: `trixie`, `trixie-updates` and `trixie-security`; components `main contrib non-free non-free-firmware`; binary package sources only. **`trixie-backports` is enabled only if the user explicitly selects the separate Backports profile**.
 - Official HTTPS mirrors, no APT proxy. **Use Debian Installer's normal network, mirror-selection, retrieval/retry and installed-APT configuration prompts without duplicating them or adding a separate mirror-persistence decision.** Preserve signed metadata and HTTPS trust; custom selected-profile failures follow the documented stop-with-diagnostics rule when no safe native recovery is available. Re-simulate custom APT transactions only if package candidates change. [02 — Backports](02_backports_apt.md) documents optional repository enablement at **Debian default priority 100**, with explicit approval for package upgrades and subsequent autoremove/purge. The independently selectable [Ensure 7.x kernel branch](09_ensure_7x_kernel.md) profile **prefers suitable Backports kernel/header versions when Backports was explicitly selected**, otherwise checks normal Debian versions first and asks permission to activate Backports only if required.
 - Standard APT package policy: install `Recommends`, not `Suggests`.
-- Installer software-selection suggestions (**SSH server**, **Standard system utilities**, **no desktop**) live in [profile_defaults.conf](profile_defaults.conf) and must be confirmed via the normal installation GUI; symbolic tasksel identifiers require validation before automation.
+- Installer software-selection suggestions (**SSH server**, **Standard system utilities**, **no desktop**) live in [profile_defaults.conf](my-cdd/profile_defaults.conf) and must be confirmed via the normal installation GUI; symbolic tasksel identifiers require validation before automation.
 - No `popularity-contest`.
 - Always retain Debian Installer's normal automatic firmware detection. The optional [Extended device support](10_extended_device_support.md) profile attempts **both Intel and AMD microcode packages** (without filtering by actual CPU vendor), plus broad additional firmware. **If Backports was selected, prefer its viable firmware and microcode versions first** using targeted per-package requests without changing the global priority **100**; if Backports offers no usable version, evaluate normal repositories before considering omission. Simulate the combined transaction; any unavailable/conflicting microcode or firmware package may be omitted **only after its reason is shown and the user explicitly approves that individual omission**.
 - Do not run unattended upgrades or automatically reboot for updates. The **separately selected Backports profile** owns the reviewed full-upgrade and post-upgrade cleanup steps, including explicit approval for proposed removals and purges.
