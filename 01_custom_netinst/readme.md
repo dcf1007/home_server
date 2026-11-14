@@ -11,7 +11,7 @@ The USB supports UEFI and BIOS booting, highlights **Graphical install**, and wa
 | No. | Guide | Purpose |
 |---|---|---|
 | **01** | [Custom netinst / Simple-CDD preparation](01_custom_cdd_preparation.md) | Build steps, installation profile menu and confirmations |
-| **02** | [Activate trixie-backports and configure APT priority](02_backports_apt.md) | Repositories, provisional global pin 900 and compatibility checks |
+| **02** | [**Backports** selectable profile](02_backports_apt.md) | Repository activation, provisional priority 900, **reviewed full upgrade of eligible installed packages** |
 | **03** | [**ZSTD ZRAM writeback** profile](03_zram_writeback.md) | ZSTD compressed swap with dedicated raw SSD backing |
 | **04** | [**Debian tweaks** profile](04_debian_tweaks.md) | Debian customization outside normal installer screens; **no ZRAM** |
 | **05** | [Base Debian installation](05_base_installation.md) | Normal installer questions, partitioning and account confirmation |
@@ -21,14 +21,14 @@ The USB supports UEFI and BIOS booting, highlights **Graphical install**, and wa
 
 [Editable installation identity defaults](profile_defaults.conf.example)
 
-**All four optional profiles start unchecked:** Debian tweaks, OpenMediaVault 8, Docker and ZSTD ZRAM compressed writeback. The user must explicitly select and confirm any desired component. **ZRAM is independently selectable without Debian tweaks**, but must validate its own kernel 7.x, generator, backports and upgrade prerequisites. Never silently select any other profile. The **02 backports guide is not an additional selectable profile**: the Debian tweaks profile applies its own APT pinning policy; a ZRAM-only install must explicitly validate the effective APT policy. Normal Debian Installer settings are separate.
+**All five optional profiles start unchecked:** **Backports**, ZRAM, Debian tweaks, OpenMediaVault 8 and Docker. The user must explicitly select and confirm any desired component. **ZRAM is independent of Debian tweaks**. ZRAM and Debian tweaks require an eligible Linux 7.x kernel; if it is unavailable from ordinary Debian repositories, offer **select Backports explicitly or deselect/stop the requesting profile**. The **Backports profile alone** enables `trixie-backports`, configures provisional APT priority 900, performs the reviewed full upgrade and verifies completion before dependent profiles run. **Never silently enable another profile.** Normal Debian Installer settings are separate.
 
 ## Key constraints
 
 - **Manual OS disk selection:** verify the target device and explicitly confirm destructive partitioning operations before proceeding.
 - Root filesystem: **ext4**, 5% reserved blocks, `noatime,errors=panic`, ordinary ordered journaling; weekly TRIM; no LVM, encryption or separate `/boot`.
 - Installer EFI partition **1 GiB**; the user may create a swap partition in manual partitioning (**16 GB suggested**). **Without ZRAM**, use it as ordinary swap; **with ZRAM**, re-purpose that same partition exclusively as raw PARTUUID-backed writeback storage, never ordinary swap. If none was created and ZRAM is selected, offer to return to partitioning or deselect ZRAM. No swap and no ZRAM is permitted after Debian Installer's normal warning.
-- Require the **newest eligible Linux 7.x kernel** and matching headers, without pinning a fixed version. Check default Debian repositories first; request enabling **trixie-backports** when necessary. When newly enabled, complete an **explicitly confirmed full upgrade of all eligible installed packages** before continuing; stop on unresolved dependency/removal conflicts. Retain the stable kernel initially. GRUB menu visible **5 seconds**, newest kernel by default.
+- ZRAM and Debian tweaks require the **newest eligible Linux 7.x kernel** and matching headers, without pinning a fixed version. Check default Debian repositories first; when unavailable, require explicit selection of **Backports**. **Only the Backports profile** performs the explicitly confirmed full upgrade of eligible installed packages before dependent profiles continue. Stop on unresolved dependency/removal conflicts. Retain a stable fallback kernel initially. Installed GRUB menu is visible for **5 seconds**, newest kernel by default.
 - Debian tweaks includes **broad proactive firmware coverage** (networking, storage, wireless, graphics, audio and others) in addition to Debian's automatic firmware detection. Candidate package inventory is documented in [04 Debian tweaks](04_debian_tweaks.md), subject to final APT simulation and confirmation.
 - the installer-confirmed administrator account: sudo and initial SSH password login. Separate local root password before first reboot; root SSH login prohibited.
 - **Manual software updates and reboots only**. Explicitly disable Debian unattended upgrades in Debian tweaks, and disable OMV's scheduled cron-apt when OMV is selected.
@@ -36,7 +36,7 @@ The USB supports UEFI and BIOS booting, highlights **Graphical install**, and wa
 - The ZRAM profile alone sets `vm.swappiness=100` using `/etc/sysctl.d/90-zram-swappiness.conf`; no ZRAM-specific swappiness change when the profile is unchecked.
 - If a selected profile fails critical checks, **stop** and retain logs; no silent alternative or false success.
 - ZRAM initialization failure must enter emergency mode; ZRAM monitor failure must be logged and retried without emergency mode.
-- APT backports priority **900** is **provisional** and potentially incompatible with OMV. No ISO release or automatic adjustment until compatibility is verified and approved.
+- **If Backports is selected**, its provisional global APT priority **900** may be incompatible with OMV. No ISO release or automatic pin adjustment until compatibility is verified and approved.
 
 ## Scope and provenance
 
