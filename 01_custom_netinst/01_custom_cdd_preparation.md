@@ -21,7 +21,7 @@ Simple-CDD supports selectable profiles, typically expressed using files such as
 
 The backports activation and preference policy has its own guide: [02_backports_apt.md](02_backports_apt.md). It is a **Debian tweaks** implementation step, not a fifth optional profile. Normal Debian installer choices are in [05_base_installation.md](05_base_installation.md).
 
-**No defaults for profile checkboxes have been authorized yet.** Profile selection must not be substituted by automatic choice.
+**Approved default profile selection:** all four optional profiles (**ZSTD ZRAM writeback**, **Debian tweaks**, **OpenMediaVault 8**, **Docker**) start **unchecked**. The installer must show all options and require the user to explicitly select and confirm each desired profile. Selecting none means base Debian only; no profile is silently added.
 
 ## Editable installation identity defaults
 
