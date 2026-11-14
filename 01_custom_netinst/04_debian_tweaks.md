@@ -1,6 +1,6 @@
 # 04 — Optional Debian tweaks profile
 
-**Status:** requirements only; profile scripts and installation have not been built or tested. **Updated:** 2026-11-14. **Provenance:** installation choices, updated to omit settings already implemented by Debian's normal defaults. All optional profiles remain unchecked unless explicitly selected.
+**Status:** requirements documented and a fail-closed selectable Simple-CDD source stub created; the Debian tweaks executor and installation have not been implemented or tested. **Updated:** 2026-11-14. **Provenance:** installation choices, updated to omit settings already implemented by Debian's normal defaults. All optional profiles remain unchecked unless explicitly selected.
 
 ## Scope
 
