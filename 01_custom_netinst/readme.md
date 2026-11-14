@@ -8,29 +8,32 @@ The USB supports UEFI and BIOS booting, highlights **Graphical install**, and wa
 
 ## Documentation map
 
-| No. | Guide | Purpose |
-|---|---|---|
-| **01** | [Custom netinst / Simple-CDD preparation](01_custom_cdd_preparation.md) | Build steps, installation profile menu and confirmations |
-| **02** | [**Backports** selectable profile](02_backports_apt.md) | Enable Backports with Debian's default priority **100**; reviewed full upgrade, autoremove/purge cleanup |
-| **03** | [**ZSTD ZRAM writeback** profile](03_zram_writeback.md) | ZSTD compressed swap with dedicated raw SSD backing |
-| **04** | [**Debian tweaks** profile](04_debian_tweaks.md) | Debian customization outside normal installer screens; **no ZRAM** |
-| **05** | [Base Debian installation](05_base_installation.md) | Normal installer questions, partitioning and account confirmation |
-| **06** | [**OpenMediaVault 8** profile](06_openmediavault.md) | Optional OMV install and disabled cron-apt scheduling |
-| **07** | [**Docker** profile](07_docker.md) | Docker packages; daemon/socket disabled pending approval |
-| **08** | [Validation and unresolved choices](08_validation_and_pending.md) | Integration checks, failure handling and remaining choices |
-| **09** | [**Ensure 7.x kernel branch** profile](09_ensure_7x_kernel.md) | Newest eligible Linux 7.x from standard repos, or selectively from Backports if required |
+The table follows the **actual optional installer-profile menu order**, not the historical filenames' numbers. Every optional profile is initially unchecked.
 
-[Editable installation identity defaults](profile_defaults.conf.example)
+| Guide | Purpose |
+|---|---|
+| [01 — Custom netinst / Simple-CDD preparation](01_custom_cdd_preparation.md) | Installer build process and profile menu architecture |
+| **[02 — Backports](02_backports_apt.md)** | Optional repository at default priority 100; reviewed upgrade and cleanup |
+| **[09 — Ensure 7.x kernel branch](09_ensure_7x_kernel.md)** | Newest eligible Linux 7.x and headers; request Backports explicitly if necessary |
+| **[04 — Debian tweaks](04_debian_tweaks.md)** | Kernel-independent non-GUI Debian configuration |
+| **[03 — ZSTD ZRAM writeback](03_zram_writeback.md)** | ZSTD compressed swap and raw PARTUUID writeback backing; requires Ensure 7.x |
+| **[06 — OpenMediaVault 8](06_openmediavault.md)** | Optional OMV packages and disabled cron-apt scheduling |
+| **[07 — Docker](07_docker.md)** | Docker packages; daemon/socket inactive |
+| [05 — Base Debian installation](05_base_installation.md) | Native installer GUI, disk partitioning and account confirmation |
+| [08 — Validation and pending](08_validation_and_pending.md) | Integration checks and remaining choices |
 
-**All six optional profiles start unchecked:** Backports, **Ensure 7.x kernel branch**, ZRAM, Debian tweaks, OpenMediaVault 8 and Docker. The user must explicitly select and confirm every component. **ZRAM depends on Ensure 7.x**, but remains independent of Debian tweaks. If Ensure 7.x is unchecked when ZRAM is selected, ask to **select Ensure 7.x or deselect ZRAM**. Ensure 7.x first searches the normal Debian repositories; if Linux 7.x is unavailable, ask to **select Backports or cancel the kernel-dependent profile**. Backports is maintained at Debian's default priority **100**; its profile alone owns the reviewed full upgrade and cleanup, while Ensure 7.x installs **only kernel-related packages** selectively from Backports when needed. No other profile is silently selected.
+**[Canonical editable installer GUI defaults](profile_defaults.conf)** · [Reference example](profile_defaults.conf.example)
+
+**All six optional profiles start unchecked, in this menu order:** **Backports → Ensure 7.x kernel branch → Debian tweaks → ZRAM → OpenMediaVault 8 → Docker**. The user must explicitly select and confirm every component. **Debian tweaks remains fully functional on Debian's default kernel, independent of Ensure 7.x.** **ZRAM depends on Ensure 7.x**, but remains independent of Debian tweaks. If Ensure 7.x is unchecked when ZRAM is selected, ask to **select Ensure 7.x or deselect ZRAM**. Ensure 7.x first searches the normal Debian repositories; if Linux 7.x is unavailable, ask to **select Backports or cancel the kernel-dependent profile**. Backports is maintained at Debian's default priority **100**; its profile alone owns the reviewed full upgrade and cleanup, while Ensure 7.x installs **only kernel-related packages** selectively from Backports when needed. No other profile is silently selected.
 
 ## Key constraints
 
+- **Installer GUI settings:** suggested hostname, administrator username, local domain, installer language/locale, Spanish keyboard, `Europe/Berlin` timezone, UTC RTC, DHCP and tasksel selections are centralized in [profile_defaults.conf](profile_defaults.conf), editable and confirmed in the native installer regardless of optional profiles. No passwords or disk target are stored.
 - **Manual OS disk selection:** verify the target device and explicitly confirm destructive partitioning operations before proceeding.
 - Root filesystem: **ext4**, 5% reserved blocks, `noatime,errors=panic`, ordinary ordered journaling; weekly TRIM; no LVM, encryption or separate `/boot`.
 - Installer EFI partition **1 GiB**; the user may create a swap partition in manual partitioning (**16 GB suggested**). **Without ZRAM**, use it as ordinary swap; **with ZRAM**, re-purpose that same partition exclusively as raw PARTUUID-backed writeback storage, never ordinary swap. If none was created and ZRAM is selected, offer to return to partitioning or deselect ZRAM. No swap and no ZRAM is permitted after Debian Installer's normal warning.
 - The separately selected **Ensure 7.x kernel branch** profile installs the **newest eligible Linux 7.x image and matching headers**, without a fixed version lock. If stable repositories do not provide 7.x, it requests **explicit selection of Backports** and then only the necessary backported kernel-related packages. **Backports** performs an explicitly approved normal full upgrade of all eligible installed packages under priority **100**, followed by separately reviewed **autoremove/purge cleanup**. Removals require review/approval; preserve the stable fallback kernel initially. Installed GRUB menu remains visible for **5 seconds**, defaulting to the newest kernel.
-- Debian tweaks includes **broad proactive firmware coverage** (networking, storage, wireless, graphics, audio and others) in addition to Debian's automatic firmware detection. Candidate package inventory is documented in [04 Debian tweaks](04_debian_tweaks.md), subject to final APT simulation and confirmation.
+- When **Debian tweaks** is selected, it adds **broad proactive firmware coverage** (networking, storage, wireless, graphics, audio and others) beyond Debian Installer's normal automatic firmware detection. Candidate package inventory is documented in [04 Debian tweaks](04_debian_tweaks.md), subject to final APT simulation and confirmation.
 - the installer-confirmed administrator account: sudo and initial SSH password login. Separate local root password before first reboot; root SSH login prohibited.
 - **Manual software updates and reboots only**. Explicitly disable Debian unattended upgrades in Debian tweaks, and disable OMV's scheduled cron-apt when OMV is selected.
 - Docker packages install if selected, **without activating Docker daemon/socket** during installation or on first boot.
