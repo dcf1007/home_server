@@ -33,3 +33,50 @@ Default: false
 Description: Proceed with exactly these selected installation profiles?
  Select No to return to the profile selection screen. The default is No.
  Other required operation-specific confirmations still apply.
+
+# These existing cdebconf question types are reused by the selected-profile
+# late_command; all state-changing approvals default to No.
+Template: my-cdd/transaction-approve
+Type: boolean
+Default: false
+Description: Approve the reviewed operation: ${MYCDD_OPERATION}?
+ The complete transaction, versions, origins, proposed removals and
+ consequences were displayed immediately before this question.
+ Choose No to stop without executing the proposed operation.
+
+Template: my-cdd/approve-omission
+Type: boolean
+Default: false
+Description: Approve omission of ${MYCDD_PACKAGE}?
+ Reason: ${MYCDD_REASON}
+ .
+ This approval applies ONLY to this named firmware/microcode package.
+ Choose No to stop instead of silently dropping it from the installation.
+
+Template: my-cdd/zram-partuuid
+Type: string
+Default:
+Description: Enter the exact PARTUUID of the swap partition you created
+ The partition must have been selected manually in Debian Installer.
+ Copy the complete PARTUUID from the displayed partition information.
+ Nothing is selected automatically. Leave blank to stop without changes.
+
+Template: my-cdd/zram-destructive
+Type: boolean
+Default: false
+Description: Convert ${MYCDD_PARTITION} into raw ZRAM backing?
+ Confirmed partition: ${MYCDD_PARTITION}
+ Confirmed PARTUUID: ${MYCDD_PARTUUID}
+ Confirmed size: ${MYCDD_SIZE}
+ .
+ This permanently destroys signatures on ONLY that partition. The
+ partition will become GPT type 8300 with PARTLABEL zram-writeback,
+ without a filesystem or ordinary swap activation. Default is No.
+
+Template: my-cdd/zram-swapoff
+Type: boolean
+Default: false
+Description: Deactivate exactly ${MYCDD_PARTITION} as swap before conversion?
+ This specific partition currently contains ${MYCDD_USED} bytes of used swap.
+ Moving those pages into RAM may cause memory pressure or failure.
+ Only this partition will be passed to swapoff. Default is No.
