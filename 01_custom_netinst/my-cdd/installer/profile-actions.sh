@@ -157,10 +157,16 @@ profile_kernel() {
     run_target apt-get -y install "linux-image-amd64/$KERNEL_SUITE" "linux-headers-amd64/$KERNEL_SUITE"
     run_target update-initramfs -u -k all
     run_target update-grub
-    [ -n "$(find /target/boot -maxdepth 1 -name 'vmlinuz-7.*' -print -quit)" ] ||
-        fatal 'Linux 7.x boot image not found after installation'
-    [ -n "$(find /target/usr/src -maxdepth 1 -name 'linux-headers-7.*' -print -quit)" ] ||
-        fatal 'Matching Linux 7.x headers not found after installation'
+    paired=0
+    for image in /target/boot/vmlinuz-7.*; do
+        [ -f "$image" ] || continue
+        abi="${image##*/vmlinuz-}"
+        if [ -d "/target/usr/src/linux-headers-$abi" ]; then
+            paired=1
+        fi
+    done
+    [ "$paired" = 1 ] ||
+        fatal 'No Linux 7.x boot image with exactly matching installed headers'
     run_target dpkg --audit
 }
 profile_firmware() {
