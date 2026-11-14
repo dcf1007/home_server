@@ -1,6 +1,6 @@
 # 06 — Selectable **OpenMediaVault 8** profile
 
-**Status:** planned conditional install, no built ISO or successful OMV test claimed. **Recorded:** 2026-11-14. **Provenance:** user request for independently selectable OMV 8 installer component and explicit approval to disable all OMV scheduled cron-apt checks.
+**Status:** OMV 8 vendor-repository install and cron-apt/SSH safeguarding routine is written in source. **No built ISO or successful OMV install/first-boot test claimed.** **Recorded:** 2026-11-14. **Provenance:** user request for independently selectable OMV 8 installer component and explicit approval to disable all OMV scheduled cron-apt checks.
 
 ## Scope
 
