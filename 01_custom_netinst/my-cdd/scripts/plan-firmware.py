@@ -115,12 +115,26 @@ def plan(names: list[str], with_backports: bool, runner=run) -> tuple[list[tuple
         if with_backports and bpo:
             selected.append((name, f"{name}/trixie-backports", "Backports-first; version must be verified by simulation"))
         elif stable:
-            # Don't request an exact version here: ordinary APT release
-            # priorities determine the preferred stable candidate.
-            # The final installed version and origin MUST be reviewed.
-            reason = ("Stable fallback: no published, enabled Backports candidate"
-                      if with_backports else "Normal Debian repositories; Backports not selected")
-            selected.append((name, name, reason))
+            # Use only normal Debian suites; a plain "name" could otherwise
+            # resolve against an unrelated/unapproved third-party repository.
+            # Match the actual APT candidate version (normal stable priority)
+            # instead of silently selecting a different version or downgrade.
+            candidate_line = re.search(r"(?m)^\s*Candidate:\s*(\S+)\s*$", proc.stdout)
+            candidate = candidate_line.group(1) if candidate_line else "(unknown)"
+            allowed = [v for v in stable if v.version == candidate]
+            if not allowed:
+                blockers.append(
+                    f"{name}: APT candidate {candidate} is not an eligible normal Debian version; "
+                    "possible installed-only or unapproved-origin version; manual review required"
+                )
+                continue
+            preferred = ("trixie-security", "trixie-updates", "trixie")
+            suite = next(s for s in preferred if s in allowed[0].suites)
+            reason = (f"Stable fallback: no published, enabled Backports candidate; "
+                      f"selected {candidate} from {suite}"
+                      if with_backports else
+                      f"Normal Debian candidate {candidate} from {suite}; Backports not selected")
+            selected.append((name, f"{name}/{suite}", reason))
         else:
             why = ("no eligible Backports or Stable/Updates/Security candidate"
                    if with_backports else "no eligible Stable/Updates/Security candidate")
