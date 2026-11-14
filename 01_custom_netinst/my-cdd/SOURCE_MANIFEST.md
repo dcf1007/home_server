@@ -1,7 +1,7 @@
 # my-cdd source file manifest and provenance
 
 **Created:** 2026-11-14 (Europe/Berlin).  
-**Nearest user prompt for this revision:** “continue the implementation. remember not to decide anything without asking.” The initial file set was created in response to “proceed”, after the preceding request to create `my-cdd/` and relocate the existing configuration.
+**Nearest user prompt for this revision:** “A” — explicit approval of the **early preseed confirmation hook**, without patching the upstream Simple-CDD profile-selector udeb. The previous source creation was prompted by “proceed”, and subsequent implementation was requested with “continue the implementation. remember not to decide anything without asking.”
 **Last revised:** 2026-11-14 (Europe/Berlin).  
 **Repository:** `dcf1007/home_server`, `01_custom_netinst/my-cdd/`.
 
@@ -13,7 +13,8 @@
 - **Generated non-destructive inspection/test helpers:** `scripts/apt-simulate.sh`, `scripts/inspect-zram-backing.sh`, `scripts/verify-source-layout.sh`, and `installer/ordered-selection.sh`, `installer/test-ordered-selection.sh`, etc.
 - **Generated design/validation documents:** all other `README.md`, `IMPLEMENTATION_GATES.md`, Debconf templates, and metadata entries.
 - **Generated in the current continuation (source-only, no installer actions):** `scripts/plan-firmware.py` (strict read-only APT policy + joint simulation), `tests/test_plan_firmware.py` and `tests/README.md` (mocked offline tests), `scripts/debian-backports.sources` (selected-only signed repository template), `scripts/90-zram-swappiness.conf` (ZRAM-selected-only setting). The `installer/profile-confirm.sh` and `installer/profile-confirm.templates` were revised to use one status field per optional profile and explicit reselection on No; build/source checks and related documentation were updated. These changes implement **existing approved policy only**.
-- **Remaining user decision:** selection of a supported **early installer integration strategy**, before any build hook, udeb replacement or upstream modification is adopted; no method was silently chosen.
+- **Approved early integration method:** A — modify only the existing `profiles/default.preseed` to invoke `installer/profile-confirm.sh` before `anna-install simple-cdd-profiles`. The hook loads both Debconf template sets, collects manual selection, presents seven status lines and default-No confirmation, and marks the same selection question as seen on approval. The **upstream udeb is not modified**, and no profile is auto-selected. This source-level integration was **not tested in a running installer**; a failure requires asking the user before changing methods.
+- **User concern on offline tests:** The user objected to unrequested mock firmware/offline tests. No test files were added, removed or executed in response to the latest “A”, which approved the confirmation method only. Their disposition remains unapproved and should not be silently decided.
 
 ## Current implementation status
 
