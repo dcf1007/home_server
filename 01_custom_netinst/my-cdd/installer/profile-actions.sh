@@ -43,7 +43,19 @@ profile_backports() {
     simulate_target autoremove --purge
     check_critical_removals
     if grep -E '^Remv |^Purg ' "$WORK/plan" >/dev/null; then
-        review_plan 'Backports: review all proposed autoremove/purge entries' "$WORK/plan"
+        show_note 'Backports: review full autoremove/purge simulation' "$WORK/plan" ||
+            fatal 'Could not display the complete cleanup plan'
+        awk '/^Remv / || /^Purg / {print $2}' "$WORK/plan" |
+            sort -u > "$WORK/removal-list"
+        [ -s "$WORK/removal-list" ] ||
+            fatal 'Cleanup simulation proposed changes but no package names could be identified'
+        while IFS= read -r pkg; do
+            db_subst my-cdd/approve-removal MYCDD_REMOVAL "$pkg" ||
+                fatal "Could not show approval for removal of $pkg"
+            yes_no my-cdd/approve-removal ||
+                fatal "Individual removal not approved: $pkg"
+            log "USER APPROVED REMOVAL: $pkg"
+        done < "$WORK/removal-list"
         run_target apt-get -y autoremove --purge
     fi
     capture in-target dpkg -l || fatal 'Cannot list residual dpkg configuration'
