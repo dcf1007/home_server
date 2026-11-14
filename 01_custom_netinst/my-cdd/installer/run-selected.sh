@@ -168,7 +168,8 @@ run_target usermod -aG sudo "$admin"
 capture in-target passwd -S root || fatal 'Cannot inspect root emergency password status'
 grep -E '^root[[:space:]]+P[[:space:]]' "$WORK/output" >/dev/null ||
     fatal 'Separate local root password is not configured'
-mkdir -p /target/etc/ssh/sshd_config.d
+mkdir -p /target/etc/ssh/sshd_config.d /target/run/sshd
+chmod 755 /target/run/sshd
 printf 'PermitRootLogin no\n' > /target/etc/ssh/sshd_config.d/01-my-cdd-root-login.conf
 capture in-target sshd -T || fatal 'Base OpenSSH configuration is invalid'
 grep -Fx 'permitrootlogin no' "$WORK/output" >/dev/null ||
