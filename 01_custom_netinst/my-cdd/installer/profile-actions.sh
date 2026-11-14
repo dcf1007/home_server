@@ -517,10 +517,11 @@ EOT
     capture systemctl --root=/target disable docker.service docker.socket ||
         fatal 'Could not disable Docker daemon and socket for first boot'
     for unit in docker.service docker.socket; do
-        capture systemctl --root=/target is-enabled "$unit" ||
-            fatal "Cannot verify $unit disabled"
+        # systemctl is-enabled exits nonzero for the desired "disabled"
+        # state; inspect its output rather than treating status 1 as failure.
+        capture systemctl --root=/target is-enabled "$unit" || :
         grep -Fx disabled "$WORK/output" >/dev/null ||
-            fatal "$unit not disabled for first boot"
+            fatal "$unit is not disabled for first boot"
     done
     run_target dpkg --audit
     log 'Docker packages installed; Docker daemon and socket disabled; no containers started'
