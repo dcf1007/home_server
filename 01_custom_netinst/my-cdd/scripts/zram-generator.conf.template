@@ -1,0 +1,10 @@
+# Early unit generation may precede creation of the PARTUUID symlink.
+# The generator re-reads the configuration during device setup.
+set!backingBytes = /usr/sbin/blockdev --getsize64 /dev/disk/by-partuuid/YOUR_PARTUUID 2>/dev/null || echo 0
+
+[zram0]
+zram-size = ram + backingBytes / 1048576
+zram-resident-limit = ram / 2
+compression-algorithm = zstd
+writeback-device = /dev/disk/by-partuuid/YOUR_PARTUUID
+swap-priority = 100
