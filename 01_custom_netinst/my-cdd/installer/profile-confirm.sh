@@ -1,90 +1,108 @@
 #!/bin/sh
-# Debconf GTK/text confirmation gate source for Simple-CDD 0.6.9.
-# NOT YET WIRED INTO A UDEB. MUST run after the Simple-CDD multiselect
-# and before the upstream postinst loads any profile preseed or queues
-# udebs/packages. This script performs no package or disk operation.
+# Approved method A (2026-11-14): run in preseed/early_command BEFORE
+# anna-install simple-cdd-profiles. Do not patch the upstream udeb.
+# This script handles selection and confirmation only; it changes no APT,
+# target partition, installed user/account, or optional profile state.
 set -eu
-. /usr/share/debconf/confmodule
 
-# Shipped to /cdrom/simple-cdd via Simple-CDD all_extras once integrated.
-ORDER_HELPER=/cdrom/simple-cdd/ordered-selection.sh
-[ -r "$ORDER_HELPER" ] || {
-    printf >&2 'STOP: ordered profile selection helper not on installer media\n'
+CDDIR=/cdrom/simple-cdd
+ORDER_HELPER="$CDDIR/ordered-selection.sh"
+TEMPLATE_SIMPLE="$CDDIR/simple-cdd.templates"
+TEMPLATE_CONFIRM="$CDDIR/profile-confirm.templates"
+
+stop() {
+    printf >&2 'my-cdd early profile gate: STOP: %s\n' "$*"
     exit 1
 }
+for required in "$ORDER_HELPER" "$TEMPLATE_SIMPLE" "$TEMPLATE_CONFIRM"; do
+    [ -r "$required" ] || stop "missing installer-media source: $required"
+done
+command -v debconf-loadtemplate >/dev/null 2>&1 ||
+    stop 'debconf-loadtemplate is not available in the installer'
 
-# All templates must be loaded by the early udeb integration BEFORE entry.
-# Never silently proceed if a question is missing/hidden.
-review_statuses() {
-    db_subst my-cdd/profile-summary MYCDD_BACKPORTS "$backports_state"
-    db_subst my-cdd/profile-summary MYCDD_KERNEL "$kernel_state"
-    db_subst my-cdd/profile-summary MYCDD_FIRMWARE "$firmware_state"
-    db_subst my-cdd/profile-summary MYCDD_ZRAM "$zram_state"
-    db_subst my-cdd/profile-summary MYCDD_TWEAKS "$tweaks_state"
-    db_subst my-cdd/profile-summary MYCDD_OMV "$omv_state"
-    db_subst my-cdd/profile-summary MYCDD_DOCKER "$docker_state"
-    db_fset my-cdd/profile-summary seen false
-    db_input critical my-cdd/profile-summary || return 1
-    db_go || return 1
-}
+# Generated simple-cdd.templates has the actual Choices and empty Defaults.
+# Load both template families explicitly; the original profile udeb has NOT
+# been installed, so we must not assume its template is already registered.
+debconf-loadtemplate simple-cdd "$TEMPLATE_SIMPLE" ||
+    stop 'could not load upstream Simple-CDD profile question'
+debconf-loadtemplate my-cdd "$TEMPLATE_CONFIRM" ||
+    stop 'could not load the optional-profile summary questions'
+. /usr/share/debconf/confmodule
 
-get_status() {
-    p=$1
-    case " $ordered " in
-        *" $p "*) status=Selected ;;
-        *) status='Not selected' ;;
-    esac
-}
-
-return_to_selection() {
-    # Simple-CDD originally asked this using db_input high.
-    # Reopen it explicitly; NO checkboxes are changed in the script.
-    db_fset simple-cdd/profiles seen false
+ask_profiles() {
+    # Ensure a normal, explicit seven-choice multiselect is actually shown.
+    # Do not silently leave a previously seen/auto-selected value.
+    db_fset simple-cdd/profiles seen false || return 1
     db_input high simple-cdd/profiles || return 1
     db_go || return 1
 }
 
+status_of() {
+    case " $ordered " in
+        *" $1 "*) profile_status='Selected' ;;
+        *) profile_status='Not selected' ;;
+    esac
+}
+
+display_summary() {
+    status_of backports
+    db_subst my-cdd/profile-summary MYCDD_BACKPORTS "$profile_status" || return 1
+    status_of ensure-7x-kernel
+    db_subst my-cdd/profile-summary MYCDD_KERNEL "$profile_status" || return 1
+    status_of extended-device-support
+    db_subst my-cdd/profile-summary MYCDD_FIRMWARE "$profile_status" || return 1
+    status_of zram-writeback
+    db_subst my-cdd/profile-summary MYCDD_ZRAM "$profile_status" || return 1
+    status_of debian-tweaks
+    db_subst my-cdd/profile-summary MYCDD_TWEAKS "$profile_status" || return 1
+    status_of openmediavault
+    db_subst my-cdd/profile-summary MYCDD_OMV "$profile_status" || return 1
+    status_of docker
+    db_subst my-cdd/profile-summary MYCDD_DOCKER "$profile_status" || return 1
+
+    # All substitutions are single-line tokens: no embedded newline in
+    # the line-oriented Debconf SUBST protocol.
+    db_fset my-cdd/profile-summary seen false || return 1
+    db_input critical my-cdd/profile-summary || return 1
+    db_go || return 1
+}
+
+ask_profiles || stop 'selection screen unavailable or cancelled; no profile operations may start'
 while :; do
-    db_get simple-cdd/profiles || exit 1
-    raw=$RET
-    if ! ordered="$(sh "$ORDER_HELPER" "$raw")"; then
-        db_fset my-cdd/profile-invalid seen false
-        db_input critical my-cdd/profile-invalid || exit 1
-        db_go || exit 1
-        return_to_selection || exit 1
+    db_get simple-cdd/profiles || stop 'cannot read selected profiles'
+    selected=$RET
+    if ! ordered="$(/bin/sh "$ORDER_HELPER" "$selected")"; then
+        db_fset my-cdd/profile-invalid seen false ||
+            stop 'could not display the invalid-selection message'
+        db_input critical my-cdd/profile-invalid ||
+            stop 'invalid selection; profile question cannot be shown'
+        db_go || stop 'invalid selection not acknowledged'
+        ask_profiles || stop 'could not return to profile selection'
         continue
     fi
 
-    get_status backports
-    backports_state=$status
-    get_status ensure-7x-kernel
-    kernel_state=$status
-    get_status extended-device-support
-    firmware_state=$status
-    get_status zram-writeback
-    zram_state=$status
-    get_status debian-tweaks
-    tweaks_state=$status
-    get_status openmediavault
-    omv_state=$status
-    get_status docker
-    docker_state=$status
-
-    review_statuses || exit 1
-    db_set my-cdd/profile-confirm false
-    db_fset my-cdd/profile-confirm seen false
-    db_input critical my-cdd/profile-confirm || exit 1
-    db_go || exit 1
-    db_get my-cdd/profile-confirm || exit 1
-
+    display_summary || stop 'profile summary unavailable or cancelled'
+    db_set my-cdd/profile-confirm false || stop 'cannot set safe No default'
+    db_fset my-cdd/profile-confirm seen false || stop 'cannot reset confirmation question'
+    db_input critical my-cdd/profile-confirm || stop 'confirmation unavailable or cancelled'
+    db_go || stop 'confirmation cancelled'
+    db_get my-cdd/profile-confirm || stop 'cannot read confirmation'
     if [ "$RET" = true ]; then
-        # The calling udeb may now safely continue loading the approved
-        # profile files, but any separate package/destructive approvals
-        # are still mandatory. Do not write a "success" marker here.
-        printf '%s\n' "my-cdd: user confirmed selected profiles: $ordered"
+        # The unmodified Simple-CDD udeb normally loads this template and
+        # db_input's the same question after anna-install. Keep its already
+        # answered value "seen" to avoid asking twice. This behavior must
+        # be confirmed against actual Trixie GTK/text installer frontends.
+        db_fset simple-cdd/profiles seen true ||
+            stop 'cannot preserve approved selection for upstream Simple-CDD'
+        if [ -n "$ordered" ]; then
+            printf '%s\n' "my-cdd early profile gate: confirmed profiles: $ordered"
+        else
+            printf '%s\n' 'my-cdd early profile gate: confirmed base Debian only'
+        fi
         exit 0
     fi
-    # No => allow new manual selection. Back/cancel => return failure;
-    # the caller MUST NOT swallow that failure and queue packages.
-    return_to_selection || exit 1
+
+    # An explicit No is a request to revisit the same original multiselect.
+    # Never enable the kernel profile on ZRAM's behalf or add any profile.
+    ask_profiles || stop 'could not return to profile selection'
 done
