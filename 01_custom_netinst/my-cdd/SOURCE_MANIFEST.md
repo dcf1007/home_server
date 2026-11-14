@@ -67,4 +67,7 @@ No installer media/source-image hashes or USB read-back checks have been added. 
 - `scripts/zram-pressure.sh`
 - `simple-cdd.conf`
 
+- `.gitignore` — keeps generated ISO and temporary build outputs out of version control.
+- `SOURCE_MANIFEST.md` — this provenance and file-status manifest.
+
 **Note:** This manifest lists the tracked project sources, not completed installer features or an artifact manifest for an ISO. Newly added future files should be appended when the project advances.
