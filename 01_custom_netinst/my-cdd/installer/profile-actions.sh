@@ -117,18 +117,31 @@ try_kernel_suite() {
     log "Rejected candidate kernel suite: $ks did not resolve safely"
     return 1
 }
+choose_normal_kernel() {
+    # Among normal Debian repositories, use the newest *viable* 7.x pair,
+    # not an arbitrarily preferred security/updates suite.
+    best_suite=''
+    best_version=''
+    for normal in trixie-security trixie-updates trixie; do
+        if try_kernel_suite "$normal"; then
+            if [ -z "$best_version" ] ||
+                in-target dpkg --compare-versions "$KERNEL_IMAGE_VERSION" gt "$best_version"; then
+                best_suite=$normal
+                best_version=$KERNEL_IMAGE_VERSION
+            fi
+        fi
+    done
+    [ -n "$best_suite" ] || return 1
+    try_kernel_suite "$best_suite"
+}
 profile_kernel() {
     update_signed_apt
     if backports_is_selected; then
         try_kernel_suite trixie-backports ||
-            try_kernel_suite trixie-security ||
-            try_kernel_suite trixie-updates ||
-            try_kernel_suite trixie ||
+            choose_normal_kernel ||
             fatal 'No compatible moving 7.x kernel image+headers in selected repositories'
     else
-        try_kernel_suite trixie-security ||
-            try_kernel_suite trixie-updates ||
-            try_kernel_suite trixie ||
+        choose_normal_kernel ||
             fatal 'No normal-repository 7.x kernel: explicitly select Backports or stop/deselect this profile'
     fi
     {
