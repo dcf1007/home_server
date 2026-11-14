@@ -1,7 +1,23 @@
-# Example values for an interactive Debian 13 custom installer.
-# These are suggested defaults, not unattended/preseeded answers.
-# The graphical installer MUST display both values in editable fields,
-# allow changing them, and require user confirmation before applying.
+# Reference example for profile_defaults.conf (canonical installation GUI defaults).
+# Updated: 2026-11-14
+# Provenance: requested relocation of normal Debian Installer GUI defaults
+# from the optional Debian tweaks profile into profile_defaults.conf.
+# Do not load this .example as a separate or competing configuration source.
+#
+# All values are suggestions for editable native installer questions.
+# Confirm values on the installer screen. Never include passwords, hashes,
+# fixed disk names, or silently selected optional profiles.
 DEFAULT_HOSTNAME="dcf1007-server"
 DEFAULT_ADMIN_USERNAME="david"
-# Do not embed passwords or password hashes in the USB or in this file.
+DEFAULT_DOMAIN=""
+DEFAULT_LANGUAGE="en"
+DEFAULT_LOCALE="en_US.UTF-8"
+DEFAULT_KEYBOARD_LAYOUT="es"
+DEFAULT_KEYBOARD_VARIANT=""
+DEFAULT_TIMEZONE="Europe/Berlin"
+DEFAULT_RTC_UTC="true"
+DEFAULT_NETWORK_METHOD="dhcp"
+DEFAULT_TASKSEL_TASKS="ssh-server,standard"
+
+# Symbolic key names and tasksel mappings are untested design inputs.
+# The canonical file at profile_defaults.conf governs documentation/implementation.
