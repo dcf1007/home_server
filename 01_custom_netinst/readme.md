@@ -33,6 +33,7 @@ The USB supports UEFI and BIOS booting, highlights **Graphical install**, and wa
 - the installer-confirmed administrator account: sudo and initial SSH password login. Separate local root password before first reboot; root SSH login prohibited.
 - **Manual software updates and reboots only**. Explicitly disable Debian unattended upgrades in Debian tweaks, and disable OMV's scheduled cron-apt when OMV is selected.
 - Docker packages install if selected, **without activating Docker daemon/socket** during installation or on first boot.
+- The ZRAM profile alone sets `vm.swappiness=100` using `/etc/sysctl.d/90-zram-swappiness.conf`; no ZRAM-specific swappiness change when the profile is unchecked.
 - If a selected profile fails critical checks, **stop** and retain logs; no silent alternative or false success.
 - ZRAM initialization failure must enter emergency mode; ZRAM monitor failure must be logged and retried without emergency mode.
 - APT backports priority **900** is **provisional** and potentially incompatible with OMV. No ISO release or automatic adjustment until compatibility is verified and approved.
