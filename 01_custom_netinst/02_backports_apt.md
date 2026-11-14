@@ -1,105 +1,125 @@
-# 02 — Optional Backports profile: activate, pin and upgrade
+# 02 — Optional Backports profile: Debian-default APT priority, upgrade and cleanup
 
-**Status:** selectable **Backports installer profile**, initially **unchecked**. The global priority policy is **approved provisionally**, but execution remains blocked by compatibility checks. **Recorded:** 2026-11-14. **Provenance:** explicit user decisions to prefer backports at priority **900**, stable/security at **500**, and perform a **complete, reviewed package upgrade as a step within the Backports profile**.
+**Status:** independently selectable installer profile, **unchecked by default**. **Recorded:** 2026-11-14. **Provenance:** user-selected revision returning Backports to the **Debian default priority** rather than globally preferring all backported packages, plus explicitly reviewed full upgrades, removals and post-upgrade autoremove/purge.
 
-## Installer profile behavior and dependencies
+## Role in the installation
 
-- **Backports is a distinct opt-in profile**, not an implicit part of Debian tweaks or ZRAM. Its checkbox is initially **unchecked**. The user must explicitly select and confirm it; no other profile may silently select it.
-- When Backports is selected, its implementation runs in this order: **(1) enable and verify the repository, (2) apply and verify APT pinning, (3) simulate and review a full upgrade of all eligible installed packages, (4) perform the confirmed upgrade, (5) validate completion, and only then (6) continue to other selected profiles**.
-- When Backports is **not selected**, do not enable the backports repository, impose its pin, or run this upgrade workflow. Ordinary signed Debian 13 repositories remain usable.
-- If ZRAM or Debian tweaks requires an eligible **Linux 7.x** kernel not available from the standard repositories, prompt the user to **explicitly select Backports or deselect/stop the requesting profile**. Never auto-enable Backports, Debian tweaks or any other profile.
-- Selected OMV and Docker profiles remain separate; their dependencies must be simulated against the exact resulting APT state **before** a full upgrade that could affect them.
+This optional profile:
 
+1. Adds and verifies the signed Debian `trixie-backports` repository **only after explicit user selection**.
+2. Preserves Debian's **built-in backports priority of 100** versus ordinary stable/security packages at the usual **500**, assuming no other target-release or local pin overrides. **Do not create a custom priority-900 pin**.
+3. Refreshes APT metadata and performs the user's **explicitly reviewed upgrades of all eligible installed packages** under this default priority. This does **not** mean installing every package offered by Backports.
+4. After successful upgrading, performs **reviewed autoremove and purge cleanup** with explicit approval for every proposed removal.
+5. Revalidates package/database state before any selected dependent profile proceeds.
 
+The **[09 — Ensure 7.x kernel branch](09_ensure_7x_kernel.md)** profile asks the user to select Backports **only when ordinary repositories do not provide a suitable Linux 7.x kernel**. It then selectively installs the kernel image and headers from Backports. **ZRAM depends on Ensure 7.x, not directly on Backports.** No profile is selected silently.
 
-## 1. Activate Debian backports if this profile is selected
+## 1. Repository configuration
 
-Use official HTTPS endpoints and Debian's signed archive keyring. Binary packages only; all four components enabled **only when Backports is selected**:
+Debian 13 repositories use official signed HTTPS Debian mirrors with binary package sources and components `main contrib non-free non-free-firmware`.
 
-- `trixie`, `trixie-updates` and `trixie-backports` at `https://deb.debian.org/debian`.
+Default sources:
+
+- `trixie` and `trixie-updates` at `https://deb.debian.org/debian`;
 - `trixie-security` at `https://security.debian.org/debian-security`.
-- Components: `main contrib non-free non-free-firmware`.
-- No Debian `deb-src` entries initially; no proxy.
-- No third-party repositories given implicit trust. The separate Docker and OMV sources need their own supported keyring configuration.
 
-**Illustrative** deb822 source definition for the main Debian repository (reconcile with installer-generated source files rather than blindly duplicating them):
+When and only when **Backports is explicitly selected**, add a `trixie-backports` source, for example `/etc/apt/sources.list.d/debian-backports.sources`:
 
 ```text
 Types: deb
 URIs: https://deb.debian.org/debian
-Suites: trixie trixie-updates trixie-backports
-Components: main contrib non-free non-free-firmware
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
-
-Types: deb
-URIs: https://security.debian.org/debian-security
-Suites: trixie-security
+Suites: trixie-backports
 Components: main contrib non-free non-free-firmware
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 ```
 
-## 2. Global preference requested by the user
+Do not automatically add `deb-src`, enable an APT proxy or broaden third-party repository trust.
 
-Normally Debian Backports is at priority **100** and ordinary releases at **500**. The requested override promotes **all** packages from `trixie-backports` to **900**, with `trixie`, `trixie-updates` and `trixie-security` remaining at **500** (assuming no other target-release or priority overrides).
+## 2. **Restore and verify Debian's default Backports priority**
 
-**Provisional** `/etc/apt/preferences.d/90-local-backports.pref`:
+The upstream Backports Release metadata supplies `NotAutomatic: yes` and `ButAutomaticUpgrades: yes`, which normally result in priority **100**. Ordinary stable and security archives normally carry **500** without additional overrides.
 
-```text
-Explanation: custom server provisional global backports preference; compatibility gate required
-Package: *
-Pin: release n=trixie-backports
-Pin-Priority: 900
-```
-
-**This provisional pin is applied only by the explicitly selected Backports profile, and only after validation passes.** APT release-metadata matching and effective priority must be checked on the real mirror; `APT::Default-Release` or other pins can change the result. A single backports pin does not explicitly set all other origins to 500; that value is their ordinary default without competing configuration.
-
-## 3. Mandatory upgrade step inside this profile
-
-**The Backports profile owns the complete upgrade step.** After the repository is enabled and priority 900 has passed validation, **upgrade all currently eligible installed packages before proceeding**. Updating package indexes alone does not satisfy this requirement.
-
-1. Refresh signed APT metadata with `apt-get update`, inspect `apt-cache policy`, and validate package candidate origins and priorities (especially security updates and third-party applications).
-2. Run `apt-get -s full-upgrade` and display the complete proposed transaction, including version changes, new dependencies, downgrades, proposed removals, held packages and any package candidates affected by the Backports pin.
-3. **Require explicit user confirmation of the reviewed transaction**. A package removal or dependency conflict must not be performed automatically; present it for further review and stop on an unresolved or unsafe operation.
-4. Execute the **confirmed** upgrade inside this profile. Do not silently narrow it to a selected subset, ignore pending upgrades, relax the global pin or use `--allow-unauthenticated` or equivalent overrides.
-5. Check `dpkg --audit`, `apt-mark showhold`, `apt list --upgradable`, APT simulation results and service health. If anything eligible remains unupgraded or if the transaction failed, **stop** the selected profile, retain logs and request manual intervention. Do not proceed to ZRAM or other profiles.
-6. Re-simulate dependencies for separately selected OMV, Docker and kernel 7.x requirements after this profile succeeds.
-
-**Caution:** `apt full-upgrade` is capable of removing packages. Whether an explicitly reviewed removal is permissible is a separate installation-policy decision; until resolved, such removals must result in a stop and manual review.
-
-This is a **one-time, interactive install-stage action**, not permission for unattended upgrades. No other installer profile implements a duplicate Backports full-upgrade step.
-
-## 4. Package installation and manual updates
-
-Debian tweaks and ZRAM each enforce their own requirement for the newest eligible Linux **7.x** kernel and matching headers (with moving `linux-image-amd64` and `linux-headers-amd64` metapackages; no fixed version lock). Backports may supply the candidate packages, but choosing Backports never implicitly selects either profile. Keep a stable kernel initially available as fallback; **no customized kernel retention** is authorized.
-
-All upgrades, including security updates, **require manual approval**. This profile performs only the explicitly confirmed one-time upgrade described above; Debian tweaks separately applies the manual-only APT configuration, and every selected-profile combination must verify that no independent unattended installation mechanism remains enabled:
+**Superseded setting — do not install:**
 
 ```text
-APT::Periodic::Unattended-Upgrade "0";
+# Do not create /etc/apt/preferences.d/90-local-backports.pref
+# Package: *
+# Pin: release n=trixie-backports
+# Pin-Priority: 900
 ```
 
-This setting disables APT periodic unattended package installation, **not necessarily package-index refreshes**. OMV's separate cron-apt scheduler is disabled when OMV is selected, as documented in [06_openmediavault.md](06_openmediavault.md).
+The 900 pin belonged to an earlier design and is explicitly **revoked**. If a working system already has an overriding preferences file or `APT::Default-Release` setting, inspect it and request approval to correct it; do not assume an absent or effective priority.
 
-**Security caveat:** A pin of 900 for backports and 500 for security means the newer backport can win over the stable security version. APT also ordinarily avoids downgrades unless a candidate priority exceeds 1000. Merely pinning the security repository is not a guarantee of timely security coverage for packages sourced from backports.
+Verification:
 
-## 5. Mandatory validation before enabling priority 900
+```sh
+apt-get update
+apt-cache policy
+apt-cache policy linux-image-amd64 linux-headers-amd64
+apt-config dump | grep -E 'Default-Release|Periodic|Unattended'
+```
+
+This policy **does not automatically select newer backports versions** over stable. An explicitly selected kernel 7.x profile may request `linux-image-amd64/trixie-backports` and `linux-headers-amd64/trixie-backports` when needed. Normal stable dependencies remain preferred unless a necessary backported dependency is specifically required.
+
+## 3. Full upgrade of eligible installed packages — inside Backports
+
+1. Refresh package indexes and verify signatures and effective APT priorities.
+2. Simulate a **normal, non-targeted** `apt-get -s full-upgrade` and display the complete package action plan: upgrades, new dependencies, downgrades, held/unresolvable packages and any proposed removals.
+3. **Explicitly approve the proposed transaction before execution.** Removals are **permitted only after full review and explicit approval**. Block changes that would compromise the installed system, selected profiles, network/SSH access, bootloader, the intended Linux 7.x kernel or its initial stable fallback.
+4. Execute the approved normal `apt-get full-upgrade` **without `-t trixie-backports`**. The default APT priority means this upgrades eligible packages from stable, updates and security and **already-installed** backported packages as applicable, rather than installing all backports.
+5. Confirm transaction success; run `dpkg --audit`, inspect `apt-mark showhold`, repeat a dry-run upgrade and check that no eligible installed package remains unupgraded under the verified policy. If a conflict or incomplete upgrade remains, **stop with diagnostics** rather than silently proceeding.
+
+**Do not** treat the above one-time, explicitly approved install-stage transaction as authorization for unattended upgrades or future automatic reboots.
+
+## 4. After upgrading: reviewed autoremove and purge leftovers
+
+Perform cleanup **after** the successful upgrade, before declaring this profile complete:
+
+1. **Simulate** `apt-get -s autoremove --purge` and enumerate every package and configuration slated for removal.
+2. Explicitly display the list and **ask the user to approve** it. If it includes the new kernel, its headers, necessary boot support, an initial stable fallback kernel, or other required package, **stop and seek resolution**; do not silently remove it, force a different kernel retention policy or skip the conflict.
+3. After approval, run `apt-get autoremove --purge` to remove no-longer-required automatic dependencies and purge their configuration files.
+4. Inspect **residual configuration** left by already-removed packages, e.g.:
+
+   ```sh
+   dpkg -l | awk '$1 == "rc" {print $2}'
+   ```
+
+   List and review those residual packages; **only then** purge specifically approved entries with `dpkg --purge <approved-package-names>`. Never blindly purge all records or use an unreviewed shell expansion.
+5. Verify `dpkg --audit`, critical installed packages, `apt-cache policy`, `apt-get -s autoremove --purge` and the intended boot entries again. If cleanup is incomplete or unsafe, stop for manual review.
+
+**Stable kernel fallback nuance:** an earlier decision requires the original stable kernel to remain selectable **at first boot**, but no permanent custom kernel-retention policy. An immediate autoremove/purge must **not** remove that initial fallback. The final behavior when APT wants to purge the fallback is subject to explicit review, not silent permanent locking.
+
+These actions belong to the Backports profile's **upgrade and cleanup** workflow. A selective kernel package installation done by [Ensure 7.x](09_ensure_7x_kernel.md) is a separate transaction; if it causes an upgrade, the same reviewed cleanup safeguards apply.
+
+## 5. Package management remains manual
+
+- `APT::Periodic::Unattended-Upgrade "0";` remains the manual-upgrades-only target. Debian tweaks installs its respective configuration, and the complete installer must validate that no other selected package has reenabled automated upgrades.
+- Do **not** automatically install security, stable, backports or third-party package upgrades after the installation finishes.
+- The OpenMediaVault profile separately disables OMV's scheduled `cron-apt` checks/installs; Docker remains off through first boot if selected.
+- `apt-get full-upgrade` and `apt-get autoremove --purge` must never run unattended or without the required confirmation screens.
+
+## 6. Acceptance and failure criteria
 
 ```sh
 apt-cache policy
-apt-cache policy linux-image-amd64 linux-headers-amd64 openmediavault
-apt-config dump | grep -E 'Default-Release|Unattended|Periodic'
-apt-get -s upgrade
-apt-get -s dist-upgrade
+apt-cache policy linux-image-amd64 linux-headers-amd64
+apt-get -s full-upgrade
+apt-get -s autoremove --purge
+apt-mark showhold
+dpkg --audit
+dpkg -l | awk '$1 == "rc" {print $2}'
 ```
 
-- Review candidate versions for core libraries, systemd, APT, Python, networking, SSH, OMV and dependencies.
-- Simulate both base and all selected-profile installations. If OMV and priority 900 conflict, **stop and ask**; do not silently lower the pin, force a dependency, or skip OMV.
-- Verify third-party package pinning and origin independently; do not grant globally higher priority to all third-party sources.
-- Verify all upgrade and reboot actions remain manual.
-- Document the exact resulting `apt-cache policy` and transaction simulation outputs.
+- Backports effective priority **100**, ordinary stable/security generally **500**, with no unintended override.
+- Full upgrade and cleanup were separately reviewed and completed, or installation is explicitly blocked.
+- No unapproved package removals, no unmet dependencies, no erroneous kernel/bootstrap loss.
+- Other profiles remain opt-in and unmodified unless explicitly selected.
 
-## Warning
+## References
 
-The [official Debian Backports instructions](https://backports.debian.org/Instructions/) recommend **selective** use and say backported packages are not collectively tested for co-installability. [OMV 8 package guidance](https://docs.openmediavault.org/en/stable/various/apt.html) warns that backports can make OMV incompatible. Priority 900 is the user's explicit preference, **not an endorsed safe default**. The installation must fail its validation gate rather than silently use unapproved alternatives.
+- [Official Debian Backports instructions](https://backports.debian.org/Instructions/)
+- [Debian package manager/reference on APT priorities](https://www.debian.org/doc/manuals/debian-reference/ch02.en)
+- [APT preferences manual](https://manpages.debian.org/trixie/apt/apt_preferences.5.en.html)
+- [APT manual](https://manpages.debian.org/trixie/apt/apt.8.en.html)
 
-References: [APT pinning manual](https://manpages.debian.org/trixie/apt/apt_preferences.5.en.html) · [Debian Backports](https://backports.debian.org/Instructions/) · [APT periodic upgrades](https://manpages.debian.org/trixie/unattended-upgrades/unattended-upgrades.8.en.html)
+**Validation status:** policy documented; installation transaction, early menu integration, cleanup confirmation prompts and real kernel compatibility are **not yet tested**.
