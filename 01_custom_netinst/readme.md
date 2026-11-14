@@ -39,7 +39,7 @@ The table follows the **actual optional installer-profile menu order**, not the 
 - **Manual software updates and reboots only**. Explicitly disable Debian unattended upgrades in Debian tweaks, and disable OMV's scheduled cron-apt when OMV is selected.
 - Docker packages install if selected, **without activating Docker daemon/socket** during installation or on first boot.
 - The ZRAM profile alone sets `vm.swappiness=100` using `/etc/sysctl.d/90-zram-swappiness.conf`; no ZRAM-specific swappiness change when the profile is unchecked.
-- If a selected profile fails critical checks, **stop** and retain logs; no silent alternative or false success.
+- If a selected profile fails critical checks, **stop**, retain available diagnostics and require **manual recovery or reinstallation**; no silent alternative or false success. **No installer-managed snapshots, backup images or automatic rollback** are created.
 - ZRAM initialization failure must enter emergency mode; ZRAM monitor failure must be logged and retried without emergency mode.
 - **Backports uses the default priority 100, not 900.** No blanket preference for backported packages. Explicit kernel selections and necessary dependencies still require APT compatibility validation, particularly with OMV.
 
