@@ -23,7 +23,7 @@ The table follows the **actual optional installer-profile menu order**, not the 
 | [05 — Base Debian installation](05_base_installation.md) | Native installer GUI, disk partitioning and account confirmation |
 | [08 — Validation and pending](08_validation_and_pending.md) | Integration checks and remaining choices |
 
-**[Canonical editable installer GUI defaults](profile_defaults.conf)** · [Reference example](profile_defaults.conf.example)
+**[Canonical editable installer GUI defaults](my-cdd/profile_defaults.conf)** · [Reference example](my-cdd/profile_defaults.conf.example) · **[my-cdd build project](my-cdd/README.md)**
 
 **Installer confirmation:** After profile selection, show an additional **native GTK Debconf summary** of all seven selected/unselected profiles and dependencies, then require **explicit default-No confirmation before selected-profile operations begin**. The text installer uses equivalent Debconf prompts. Debian Installer provides the needed frontend controls, but the early Simple-CDD integration must be implemented and tested. If a summary cannot be presented before profile package queuing, use existing individual confirmations (conditional Option B); do not show a misleading late prompt. Disk, partition and package changes still require separate approvals. See [01 preparation](01_custom_cdd_preparation.md) and [08 validation](08_validation_and_pending.md).
 
@@ -31,7 +31,7 @@ The table follows the **actual optional installer-profile menu order**, not the 
 
 ## Key constraints
 
-- **Installer GUI settings:** suggested hostname, administrator username, local domain, installer language/locale, Spanish keyboard, `Europe/Berlin` timezone, UTC RTC, DHCP and tasksel selections are centralized in [profile_defaults.conf](profile_defaults.conf), editable and confirmed in the native installer regardless of optional profiles. No passwords or disk target are stored.
+- **Installer GUI settings:** suggested hostname, administrator username, local domain, installer language/locale, Spanish keyboard, `Europe/Berlin` timezone, UTC RTC, DHCP and tasksel selections are centralized in [profile_defaults.conf](my-cdd/profile_defaults.conf), editable and confirmed in the native installer regardless of optional profiles. No passwords or disk target are stored.
 - **Manual OS disk selection:** verify the target device and explicitly confirm destructive partitioning operations before proceeding.
 - Root filesystem: **ext4** without LVM, encryption or separate `/boot`; normal ext4 defaults remain unchanged. The optional Debian tweaks profile adds non-default `noatime,errors=panic` mount options and prevents automatic filesystem repairs.
 - Installer EFI partition **1 GiB**; the user may create a swap partition in manual partitioning (**16 GB suggested**). **Without ZRAM**, use it as ordinary swap; **with ZRAM**, as the first ZRAM profile operation detect and confirm the exact partition, then **immediately** convert it (before other ZRAM provisioning) to **raw unformatted** GPT type **8300** (`Linux filesystem`), name it **`zram-writeback`** as **GPT PARTLABEL**, and use its **PARTUUID** for ZRAM backing. If already activated as swap, require memory safety review and **separate consent for targeted `swapoff`**, with verified success before conversion; otherwise stop. Never leave the physical backing active as conventional swap. If none was created and ZRAM is selected, offer to return to partitioning or deselect ZRAM. No swap and no ZRAM is permitted after Debian Installer's normal warning.
@@ -49,7 +49,7 @@ The table follows the **actual optional installer-profile menu order**, not the 
 
 ## Scope and provenance
 
-These pages distinguish **approved user choices** from **engineering proposals requiring validation**. **Do not reinvent or separately decide ordinary Debian Installer prompts; confine additional questions and custom installer UI to genuinely nonstandard selected-profile requirements.** This repository currently contains **documentation only** for this plan; it does not certify a prepared USB, tested Simple-CDD profile scripts or a successful first boot.
+These pages distinguish **approved user choices** from **engineering proposals requiring validation**. **Do not reinvent or separately decide ordinary Debian Installer prompts; confine additional questions and custom installer UI to genuinely nonstandard selected-profile requirements.** The [`my-cdd/`](my-cdd/README.md) scaffold and relocated defaults now exist, **but functional profiles, Simple-CDD build configuration, scripts and an ISO have not yet been generated or tested**.
 
 **Primary sources:** user's extended Debian 13 installation planning conversation and uploaded `zram_zstd_writeback_design(1).md`; official Debian, APT, Simple-CDD, Linux, Docker and OpenMediaVault documentation linked in the numbered pages.
 
