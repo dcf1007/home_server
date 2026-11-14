@@ -19,7 +19,7 @@
 1. **Global APT pin 900 versus OMV 8:** official OMV guidance warns of incompatible backports dependencies. Simulate intended package set and ask before any policy change.
 2. **Kernel availability:** confirm a suitable kernel 7.x and matching `linux-headers-amd64` from actual `trixie-backports` at build time.
 3. **ZRAM API compatibility:** verify selected kernel and Debian generator support resident limit, compressed writeback, early device setup and dynamic backing-size measurement; inspect uploaded monitor for logic/errors.
-4. **Conditional partition creation:** the optional ZRAM selection controls whether a raw 16 GB PARTUUID backing partition is needed. Profile choice must be known before destructive partition confirmation.
+4. **User-controlled swap partition, conditional role:** user creates swap in ordinary Debian Installer partitioning (16 GB suggested). Without ZRAM, use as conventional swap. With ZRAM, re-purpose the **same** partition exclusively for raw PARTUUID writeback and prevent normal swap activation. If absent and ZRAM selected, explicitly offer **return to partitioning** or **deselect ZRAM**. Validate partman stage/order, swap signatures, `/etc/fstab`, user confirmation and safe navigation before shipping.
 5. **Emergency recovery:** ensure systemd *really enters* emergency mode for a failed ZRAM initialization, with usable local root credentials; test this in a disposable environment.
 6. **OMV / SSH / network:** ensure OMV does not enable root SSH or block the installer-confirmed administrator account; check DHCP and DNS.
 7. **OMV scheduled updates:** verify environment variable and Salt deploy method on exact OMV version; confirm cron-apt is disabled. Verify Debian APT unattended package installation separately.
@@ -35,7 +35,7 @@
 - Whether nine NAS HDDs are physically disconnected during installation.
 - Installation-media verification workflow (deferred to USB preparation).
 - **Confirmed:** all four optional profiles are **unchecked by default**; the user explicitly selects and confirms desired components. Validate empty-selection behavior and all combinations.
-- SSD partition use **if ZRAM profile is not selected**; earlier 16 GB ordinary swap decision was superseded only for the ZRAM architecture.
+- **Resolved:** if the user makes a swap partition and ZRAM is unselected, use ordinary swap; if ZRAM is selected, use the same partition exclusively as its raw backing. If no swap is created, ordinary Debian's no-swap warning applies; ZRAM must prompt to return or be deselected. Technical integration of the two roles remains unverified.
 - Precise validated method for date/number formatting beyond base `en_US.UTF-8`.
 - Native system snapshot/rollback requirement (earlier deferred; ext4 root selected, so native Btrfs root snapshots are not available without a future migration).
 - Exact device-independent partition labels or type GUID for raw ZRAM backing if special marking is needed.
