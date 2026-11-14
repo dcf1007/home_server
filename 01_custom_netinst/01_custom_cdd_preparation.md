@@ -100,8 +100,8 @@ Verify actual Simple-CDD syntax and how profile questions are presented in this 
 
 ## Build and release gates
 
-- Verify original Debian source artifact and signatures/checksums; the exact overall verification workflow is **deferred**.
-- Generate and verify output ISO and USB image; preserve UEFI, BIOS, graphical, text and rescue boot paths.
+- **No installer-media verification:** as explicitly requested, do not require source-image checksum/signature checks, generated-ISO hashing, USB read-back/comparison, or a verification-only boot test. This does not change signed APT repository enforcement or the separate functional requirements of the installer.
+- Generate the customized ISO and write it to the USB. Preserve the specified UEFI, BIOS, graphical, text and rescue functionality; do not add a separate media-integrity verification procedure.
 - Test each optional profile alone and in permitted combinations, including **fail-stop behavior**, diagnostic availability and manual recovery paths. **Do not build or imply rollback functionality**.
 - Test offline/failed repository behavior, third-party key checks, package resolution, root and sudo login, GRUB settings and correct target-disk selection.
 - Confirm OMV does not reinstate root SSH access and does not block the installer-confirmed administrator account access.
