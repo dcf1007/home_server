@@ -69,7 +69,7 @@ sudo apt install simple-cdd
 build-simple-cdd --help
 ```
 
-**Implementation sources are now being generated in [`my-cdd/`](my-cdd/README.md):** build configuration, minimal default preseed, seven selectable profile descriptions, guarded `.postinst` files, native Debconf integration source, package-inventory/preflight helpers and untested ZRAM source assets exist. **They are not an installed, tested or release-ready installer.** The exact profile executor and early integration remain implementation gates.
+**Implementation sources are now being generated in [`my-cdd/`](my-cdd/README.md):** build configuration, minimal default preseed, seven selectable profile descriptions, guarded `.postinst` files, native Debconf integration source, firmware inventory and untested ZRAM source assets exist. **They are not an installed, tested or release-ready installer.** The exact profile executor and early integration remain implementation gates.
 
 Source layout (the planned production executor, native installer packaging and release tests are still missing):
 
