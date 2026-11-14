@@ -8,7 +8,8 @@
 - [`build.sh`](build.sh) — `sh build.sh --check` for safe static source checks. `--test-build` and `--release` are **blocked** until their respective documented integration and test milestones are completed.
 - [`profiles/`](profiles/) — default preseed/udebs/base packages and seven selectable profile descriptions plus deliberate fail-closed postinst sources.
 - [`installer/`](installer/) — early GTK/text Debconf confirmation prototypes, deterministic selection handling, and mandatory implementation gates.
-- [`scripts/`](scripts/) — read-only APT/ZRAM inspections, firmware inventory, and **untested source-extracted ZRAM assets**.
+- [`scripts/`](scripts/) — read-only APT/ZRAM inspections, **new Backports-first joint firmware planner**, firmware inventory, signed Backports and selected-ZRAM configuration templates, and **untested source-extracted ZRAM assets**.
+- [`tests/`](tests/) — offline planner unit-test sources and selection checks; source-level test execution is configured in `build.sh --check` but has not been run in a Debian 13 installer environment.
 - [`profile_defaults.conf`](profile_defaults.conf) — original canonical, editable native Debian Installer suggestions, moved here byte-for-byte from the former root-level file.
 - [`profile_defaults.conf.example`](profile_defaults.conf.example) — original example/reference, not another source of truth.
 - [`SOURCE_MANIFEST.md`](SOURCE_MANIFEST.md) — creation provenance, source categories and current blocked implementation status.
