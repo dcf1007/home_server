@@ -6,7 +6,7 @@
 
 | Choice | Install-time action | Validation |
 |---|---|---|
-| Base Debian | Interactive install, minimal, SSH + standard utilities, manual SSD writes | Boots UEFI, ext4 SSD, hostname, local/root passwords, DHCP, no NAS HDD changes |
+| Base Debian | Interactive install, minimal, SSH + standard utilities, manual disk selection | Boots UEFI, ext4 OS filesystem, hostname, local/root passwords, DHCP, confirmed installation target |
 | Debian tweaks | Non-menu OS customizations (no ZRAM) | Kernel 7.x+headers, default stable fallback initially, GRUB, journald, fsck, SSD, APT pin and no unattended upgrades |
 | OpenMediaVault 8 | OMV package installation only plus disable OMV cron-apt; user configures OMV afterwards | Package transaction safe; networking and the installer-confirmed administrator account SSH/sudo work; root SSH disabled; OMV cron-apt is inactive |
 | Docker | Official Docker engine, containerd, Buildx and Compose CLI | Packages installed, `docker.service` and `docker.socket` inactive/disabled until approval |
@@ -26,13 +26,12 @@
 8. **Installer UI custom screens:** ensure requested order for the installer-confirmed administrator account/sudo/root passwords and interactive confirmation is achievable with Debian Installer and Simple-CDD.
 9. **Docker service suppression:** ensure packages install without starting daemon/socket, including during package maintainer scripts.
 10. **Firmware package selection and locale overrides:** broad proactive firmware coverage was approved; a provisional, Debian-13-package-name-verified inventory is in [04 Debian tweaks](04_debian_tweaks.md). Exact candidates and installation transactions still require simulation under the backports preference, inclusion/exclusion rationale and confirmation. Custom date/number formatting still needs implementation review.
-11. **NAS disk preservation:** test installer with multiple disks and confirm no operations on NAS HDDs.
+11. **OS installation target selection:** require explicit confirmation of the installation disk and destructive partition writes; validate the selection procedure using disposable test disks.
 12. **Installer image release:** verify boot modes, unsigned customized image provenance and USB integrity when media validation policy is finalized.
 
 ## Deferred / still open
 
 - **Broad firmware coverage approved:** exact package names proposed and cross-checked against Debian's published package list; final installable set, dependencies and user confirmation **not yet finished**.
-- Whether nine NAS HDDs are physically disconnected during installation.
 - Installation-media verification workflow (deferred to USB preparation).
 - **Confirmed:** all four optional profiles are **unchecked by default**; the user explicitly selects and confirms desired components. Validate empty-selection behavior and all combinations.
 - **Resolved:** if the user makes a swap partition and ZRAM is unselected, use ordinary swap; if ZRAM is selected, use the same partition exclusively as its raw backing. If no swap is created, ordinary Debian's no-swap warning applies; ZRAM must prompt to return or be deselected. Technical integration of the two roles remains unverified.
