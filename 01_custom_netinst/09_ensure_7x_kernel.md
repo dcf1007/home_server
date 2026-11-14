@@ -1,6 +1,6 @@
 # 09 — Selectable **Ensure 7.x kernel branch** profile
 
-**Status:** planned installer profile, not implemented or tested. **Recorded:** 2026-11-14. **Provenance:** installation-planning decisions, including the explicit requirement for the newest eligible Linux kernel on the **7.x branch**, **Backports-first kernel selection when Backports is selected**, a separately selected Backports profile if normal Debian repositories cannot supply 7.x, and no version locks. This page supersedes earlier references that made Debian tweaks or ZRAM install the kernel directly.
+**Status:** source routine now selects and simulates candidate moving Linux 7.x kernel/header metapackages, checks exact installed header ABI, and records user approval. **Not executed or verified in Debian Installer.** **Recorded:** 2026-11-14. **Provenance:** installation-planning decisions, including the explicit requirement for the newest eligible Linux kernel on the **7.x branch**, **Backports-first kernel selection when Backports is selected**, a separately selected Backports profile if normal Debian repositories cannot supply 7.x, and no version locks. This page supersedes earlier references that made Debian tweaks or ZRAM install the kernel directly.
 
 ## Scope and selection
 
