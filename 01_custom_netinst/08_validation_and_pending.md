@@ -12,7 +12,7 @@
 | Docker | Official Docker engine, containerd, Buildx and Compose CLI | Packages installed, `docker.service` and `docker.socket` inactive/disabled until approval |
 | ZSTD ZRAM | Generator, manually selected raw backing, compressed writeback, monitor and ZRAM-only `vm.swappiness=100` | Kernel support/ordering verified; effective swappiness 100 only when selected; appropriate emergency behavior, monitor restart and no independent swap |
 
-**All optional profiles are independently selectable**, subject to verified compatibility. Unapproved implicit dependencies or profile selections are prohibited.
+**All four optional profiles are separately displayed and initially unchecked.** The ZRAM profile requires Debian tweaks: if ZRAM is chosen without Debian tweaks, prompt to **select Debian tweaks too or deselect ZRAM**. Never auto-select another option or continue with an unconfirmed dependency. Other compatibility checks remain mandatory.
 
 ## Blocking verification issues
 
@@ -33,7 +33,7 @@
 
 - **Broad firmware coverage approved:** exact package names proposed and cross-checked against Debian's published package list; final installable set, dependencies and user confirmation **not yet finished**.
 - Installation-media verification workflow (deferred to USB preparation).
-- **Confirmed:** all four optional profiles are **unchecked by default**; the user explicitly selects and confirms desired components. Validate empty-selection behavior and all combinations.
+- **Confirmed:** all four optional profiles are **unchecked by default**; the user explicitly selects and confirms desired components. Validate empty-selection behavior, the **ZRAM requires Debian tweaks** interaction (add explicitly or deselect ZRAM), and all otherwise permissible combinations.
 - **Resolved:** if the user makes a swap partition and ZRAM is unselected, use ordinary swap; if ZRAM is selected, use the same partition exclusively as its raw backing. If no swap is created, ordinary Debian's no-swap warning applies; ZRAM must prompt to return or be deselected. Technical integration of the two roles remains unverified.
 - Precise validated method for date/number formatting beyond base `en_US.UTF-8`.
 - Native system snapshot/rollback requirement (earlier deferred; ext4 root selected, so native Btrfs root snapshots are not available without a future migration).
