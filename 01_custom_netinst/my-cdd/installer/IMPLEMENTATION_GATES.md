@@ -1,6 +1,6 @@
 # Implementation requirements still outstanding
 
-**Status (2026-11-14): implementation incomplete.** The simple `build.sh` entry point invokes upstream `build-simple-cdd` and refuses to build while any of the seven selected-profile hooks are still explicit fail-closed placeholders. There are **no extra build modes, marker files, or offline test harnesses**. Once the required source functionality exists, its actual behavior must be confirmed in Debian Installer and on the installed system before any production claim.
+**Status (2026-11-15): source-level selected-profile executor and completion checks added, not tested in a live installer.** The minimal `build.sh` invokes upstream `build-simple-cdd`. It has no fabricated offline test harness or artificial release flags. The seven selected-profile postinst files now verify actual installer-stage completion records rather than blindly succeeding. **A successful ISO build is not a functional validation.**
 
 ## 1. Early selected-profile confirmation
 
@@ -26,12 +26,12 @@ Keep ordinary keyboard, locale/time, account/password, network/mirror, partman, 
 
 ## 3. Profile transaction execution
 
-Simple-CDD 0.6.9 runs each executable `*.postinst` **in-target**, in the order returned by the Debconf selection, not necessarily the design order. Replace the current fail-closed .postinst sources with a verified **single ordered dispatcher**:
+Simple-CDD 0.6.9 runs each executable `*.postinst` **in-target**, in the order returned by the Debconf selection, not necessarily the design order. The newly written native Debian Installer `preseed/late_command` calls the **single ordered dispatcher** ([`run-selected.sh`](run-selected.sh)):
 Backports → Ensure 7.x → Extended device support → ZRAM → Debian tweaks → OMV 8 → Docker.
 
 The current `*.packages` files for optional profiles intentionally **queue no packages**: automatic queueing would bypass required simulation/approval and, for Docker or ZRAM, violate service and conversion timing.
 
-Implement and test the exact package/repository changes, interactive approval and omission UI, safe log persistence, ZRAM partition conversion, Docker service suppression and OMV SSH/update behavior. All critical failures must fail-stop, without rollback or skipped profiles.
+The [`profile-actions.sh`](profile-actions.sh) source includes package/repository changes, native review and omission questions, target logging, ZRAM GPT conversion, Docker startup suppression and OMV SSH/update handling. **These remain untested implementations**, not proof of compatibility. Verify that early/late command execution order, package candidates, GUI interaction and critical failure handling actually work, without rollback or skipped profiles.
 
 ## 4. Boot and functional release tests
 
