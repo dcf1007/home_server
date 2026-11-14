@@ -17,7 +17,18 @@ The source design describes setting up an existing system. The custom Debian ins
 7. **Critical initialization failure:** If the **ZRAM device fails to initialize**, **stop normal boot and enter systemd emergency mode**. A separate local root password must have been set interactively during installation for emergency recovery. The systemd dependency/failure mechanism implementing this must be tested; the service unit in the original source **does not alone establish this guarantee**.
 8. **Monitor failure is different:** If the pressure monitor dies while ZRAM is correctly initialized, **log the error and restart the monitor**; **do not enter emergency mode merely for a monitor failure**.
 9. **No silent fallback.** If a selected profile cannot satisfy critical dependency, generator, writeback, credential or boot-order checks, the installation must stop with diagnostics; do not substitute independent swap, disable ZRAM, change the memory policy or claim success without explicit approval.
-10. **No other tuning by assumption.** The optional `vm.swappiness=100` in the uploaded source was not separately confirmed as a required value. Do **not** apply it as an unapproved default.
+10. **Approved ZRAM-only reclaim tuning:** Set `vm.swappiness=100` in a **dedicated** file `/etc/sysctl.d/90-zram-swappiness.conf` **only when ZRAM is selected**. Leave Debian's effective swappiness unchanged when ZRAM is not selected. The original source below describes this setting as optional; this subsequent decision explicitly approves it for the selected installation profile. Verify the effective value after first boot.
+
+## Approved ZRAM-only sysctl configuration
+
+During installation, **only if the ZRAM profile is selected**, create `/etc/sysctl.d/90-zram-swappiness.conf` with:
+
+```ini
+# Applied only by the independently selected ZRAM profile.
+vm.swappiness = 100
+```
+
+Ensure the intended target system loads this setting on first boot. Confirm with `sysctl vm.swappiness` (expected `vm.swappiness = 100`). **If ZRAM is not selected**, do not create this file or otherwise override `vm.swappiness` as part of the ZRAM profile. Test both profile-selection paths; do not assume an existing local sysctl override is absent without inspecting it. The original uploaded source, reproduced below, remains unchanged.
 
 ## Deployment checklist specific to the customized installer
 
@@ -27,6 +38,7 @@ The source design describes setting up an existing system. The custom Debian ins
 - [ ] Confirm the source's `set!backingBytes` expression, `zram-size` and `zram-resident-limit` are supported by the installed generator version and evaluate as intended; early generation may report zero temporarily.
 - [ ] Verify the `compressed_writeback` sysfs switch is set **before** initializing `disksize`, and the service drop-in is effective (inspect `systemctl cat`).
 - [ ] Ensure ZSTD compression is selected on first device initialization; disable `zswap` via `zswap.enabled=0`.
+- [ ] When ZRAM is selected, create `/etc/sysctl.d/90-zram-swappiness.conf` with `vm.swappiness = 100` and verify it is effective on first boot. When unselected, neither create this file nor apply a ZRAM-specific swappiness override.
 - [ ] Verify `writeback_limit_enable=0`, actual monitoring sysfs files, PSI parsing and one synchronous writeback pass at a time.
 - [ ] Install the Bash monitor with mode 0755; verify `bash -n`; configure and enable its systemd service; test automatic restarts and logging.
 - [ ] Validate two **distinct** service failure modes in disposable test environments: initialization failure enters emergency mode; monitor failure causes restart but permits ordinary boot.
