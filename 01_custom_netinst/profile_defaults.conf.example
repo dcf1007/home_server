@@ -1,0 +1,7 @@
+# Example values for an interactive Debian 13 custom installer.
+# These are suggested defaults, not unattended/preseeded answers.
+# The graphical installer MUST display both values in editable fields,
+# allow changing them, and require user confirmation before applying.
+DEFAULT_HOSTNAME="dcf1007-server"
+DEFAULT_ADMIN_USERNAME="david"
+# Do not embed passwords or password hashes in the USB or in this file.
