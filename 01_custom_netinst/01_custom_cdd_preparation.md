@@ -69,7 +69,7 @@ sudo apt install simple-cdd
 build-simple-cdd --help
 ```
 
-**Implementation sources are now being generated in [`my-cdd/`](my-cdd/README.md):** build configuration, minimal default preseed, seven selectable profile descriptions, guarded `.postinst` files, native Debconf integration source, firmware inventory and untested ZRAM source assets exist. **They are not an installed, tested or release-ready installer.** The exact profile executor and early integration remain implementation gates.
+**Implementation source progress (2026-11-15):** [`my-cdd/`](my-cdd/README.md) now contains the seven selectable native Simple-CDD profiles, approved early profile-summary hook, normal late-command ordered profile executor, reviewed package/ZRAM/OMV/Docker routines and target-side completion checks. **No ISO has been built or tested**; this is not a validated installer. Early/late Debconf timing, ZRAM conversion, OMV networking, package transactions, boot menu and first-boot behavior remain actual engineering checks.
 
 Source layout (the planned production executor, native installer packaging and release tests are still missing):
 
