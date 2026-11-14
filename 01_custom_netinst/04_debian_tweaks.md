@@ -1,6 +1,6 @@
 # 04 — Optional Debian tweaks profile
 
-**Status:** requirements documented and a fail-closed selectable Simple-CDD source stub created; the Debian tweaks executor and installation have not been implemented or tested. **Updated:** 2026-11-14. **Provenance:** installation choices, updated to omit settings already implemented by Debian's normal defaults. All optional profiles remain unchecked unless explicitly selected.
+**Status:** Debian tweaks installer-stage routine is now written in `my-cdd/installer/profile-actions.sh`, with its separate completion checker. **Not installed, executed or verified on Debian 13.** **Updated:** 2026-11-14. **Provenance:** installation choices, updated to omit settings already implemented by Debian's normal defaults. All optional profiles remain unchecked unless explicitly selected.
 
 ## Scope
 
