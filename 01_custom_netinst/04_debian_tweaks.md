@@ -16,7 +16,7 @@
 ## Filesystem, failure recovery and journaling
 
 - ext4 root: 5% reserved blocks; `noatime,errors=panic`; default `data=ordered`; do not enable continuous discard.
-- No filesystem encryption, LVM, separate `/boot` or application partition.
+- **Do not alter native disk-layout choices here.** The decisions not to use encryption, LVM, a separate `/boot`, or a separate application partition belong to [05 — Base installation](05_base_installation.md) and are confirmed through normal partitioning screens.
 - `kernel.panic=0`: do **not** automatically reboot after kernel panic.
 - `fsck.mode=auto` (default) and **`fsck.repair=no`** (explicit): check if needed, never repair automatically.
 - Persistent `systemd-journald` storage, with **Debian's default size limits**; do **not** explicitly install `rsyslog`.
