@@ -10,6 +10,17 @@ fail() { printf >&2 'my-cdd: %s\n' "$*"; exit 1; }
 command -v sh >/dev/null 2>&1 || fail "POSIX shell missing"
 sh scripts/verify-source-layout.sh || fail "source layout validation failed"
 
+# These are safe source-level checks. No APT install, GPT write, ISO or
+# new user-facing policy is introduced by running them.
+for script in build.sh installer/*.sh scripts/apt-simulate.sh scripts/inspect-zram-backing.sh scripts/verify-source-layout.sh profiles/*.postinst; do
+  sh -n "$script" || fail "POSIX shell syntax error: $script"
+done
+command -v bash >/dev/null 2>&1 || fail "bash is required to syntax-check the approved ZRAM monitor source"
+bash -n scripts/zram-pressure.sh || fail "Bash syntax error in extracted ZRAM monitor"
+command -v python3 >/dev/null 2>&1 || fail "python3 is required by simple-cdd and source unit tests"
+python3 -m unittest discover -s tests -p 'test_*.py' || fail "firmware planner offline tests failed"
+sh installer/test-ordered-selection.sh || fail "profile selection source tests failed"
+
 case "${1:-}" in
   --check)
     printf '%s\n' 'my-cdd: source checks passed; NOT evidence of working installer.'
