@@ -6,7 +6,7 @@ The base installation is Debian 13 Trixie **amd64**, minimal/headless, with **SS
 
 ## Disk layout
 
-The reference design uses a **dedicated 256 GB SSD/NVMe**, separate from **nine NAS HDDs**. These are example hardware values, not requirements for reuse; verify and confirm the actual target devices during setup. Select disk and confirm partition writes **manually**; do not preselect a device by name. Whether to physically disconnect NAS HDDs remains deferred. The SSD is not encrypted and does not use LVM.
+The reference design uses a **256 GB SSD/NVMe** for the OS. This is an example capacity, not a requirement for reuse. Select the intended OS installation disk and confirm partition writes **manually**; do not preselect a device by name. The OS installation does not use encryption or LVM.
 
 | Partition | Purpose |
 |---|---|
