@@ -41,7 +41,7 @@ The normal Debian Installer questions use **[profile_defaults.conf](profile_defa
 
 The matching [`profile_defaults.conf.example`](profile_defaults.conf.example) is a reference example, not a second source of truth. No GUI-editable setting should be implemented only inside Debian tweaks. Prompt the user on the normal installer screens, allow edits, require confirmation, and propagate the confirmed values throughout the installed system. **Do not silently preseed answers, bypass installer screens or freeze values in profile post-install scripts**; the exact mapping from these symbolic config names to Debian Installer questions requires engineering validation.
 
-**Do not store passwords, hashes, disk targets or selected-profile flags** in either defaults file. Only non-default boot, filesystem, recovery, SSH and update-policy settings remain in the optional Debian tweaks profile. CPU microcode and additional proactive firmware belong to the separate optional [Extended device support](10_extended_device_support.md) profile. The requested custom date/number display formats are **not** native locale/timezone GUI questions; they remain a documented, unverified implementation requirement.
+**Do not store passwords, hashes, disk targets or selected-profile flags** in either defaults file. Only non-default boot, filesystem, recovery, SSH and update-policy settings remain in the optional Debian tweaks profile. CPU microcode and additional proactive firmware belong to the separate optional [Extended device support](10_extended_device_support.md) profile.
 
 ## Planned build-host setup
 
