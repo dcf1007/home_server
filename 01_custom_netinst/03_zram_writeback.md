@@ -4,9 +4,9 @@
 
 ## Exclusive scope
 
-ZRAM configuration belongs **only here**; it must not be part of the Debian tweaks profile. If this profile is selected, the installed system must use `systemd-zram-generator` to provide compressed swap with **ZSTD**, backed by a **dedicated 16 GB raw SSD partition**. That partition is not mounted, not formatted as a normal filesystem and **not** independently enabled with `swapon`. Identify it by stable **PARTUUID** and inspect measured physical capacity.
+ZRAM configuration belongs **only here**; it must not be part of Debian tweaks. The user creates a partition designated for swap **manually in Debian Installer's ordinary partitioning interface** (suggested size **16 GB**, but the user can choose and confirm a different size). When this profile is selected, **that same partition** is converted or reserved for **exclusive raw ZRAM compressed-writeback backing**; it must not be active as conventional swap, mounted or present as conventional swap in the installed system's `/etc/fstab`. Identify the partition by its **PARTUUID** and measure its actual capacity at runtime. When ZRAM is not selected, the partition retains its ordinary Linux swap role.
 
-**Critical planning dependency:** the ZRAM profile is selected interactively but requires partitioning the SSD. The profile decision must therefore be available *before* the disk layout is committed or the custom installer must explicitly present the conditional partition for approval. No automatic repartitioning is permitted.
+**Mandatory partition availability check:** If ZRAM is selected but there is **no manually created swap partition**, the profile must offer **(1) return to Debian partitioning and create one, or (2) deselect ZRAM**. Do not silently create a new partition, substitute a swapfile, or proceed with ZRAM. Confirm partition identity, size and re-purposing. Debian Installer has a normal no-swap warning, but ZRAM-specific validation is required separately. **Implementation gate:** verify when partman may create a swap signature, enable swap or write `/etc/fstab`. Prefer intercepting before initialization; if a swap signature has already been created, any controlled conversion to raw backing must be explicitly confirmed, ensure swap is inactive and remove conventional swap activation. If safe return-navigation or conversion cannot be implemented, **stop and request manual intervention**.
 
 ## Architecture requested
 
@@ -17,7 +17,7 @@ ZRAM configuration belongs **only here**; it must not be part of the Debian twea
 | Compressed writeback | Kernel `compressed_writeback` enabled before initializing zram |
 | Physical resident memory limit | Half of actual `MemTotal`; for installed 32 GB RAM, about 16 GB |
 | ZRAM logical size | Adaptive formula approximately installed RAM + raw backing partition capacity |
-| Backing capacity | **16 GB**, measured from actual PARTUUID device |
+| Backing capacity | **16 GB example target**, or the actual user-created, confirmed swap-partition size; always measure the PARTUUID device |
 | Independent swap | **None**; do not create/activate one |
 | zswap | Disabled (proposed kernel argument `zswap.enabled=0`) |
 | Writes to SSD | Triggered by pressure monitor rather than ordinary second swap device |
@@ -70,7 +70,7 @@ The user explicitly requires:
 1. Prepare and configure the selected ZRAM system **during the Debian installation**, to become active on the **first boot**, but only if the compatibility checks pass.
 2. If **ZRAM device initialization** fails, stop ordinary boot, enter **systemd emergency mode**, and require manual recovery. The separate local root password must have been set interactively during installation.
 3. If the **writeback monitor** fails after ZRAM has initialized, **log and restart** the monitor via systemd; **do not** enter emergency mode solely because of monitor failure.
-4. No fallback to independent SSD swap; the raw backing partition cannot simultaneously be ordinary swap.
+4. When ZRAM is selected, the manually assigned swap partition is **re-purposed as raw backing**; no fallback to independent SSD swap, no second swap partition and no simultaneous conventional `swapon` of the backing device. If ZRAM is not selected, the partition is conventional swap.
 5. Monitor unit must not run against a failed/partial ZRAM setup. Design a reliable dependency and failure propagation mechanism; do not assume a simple Wants/After relationship forces emergency mode.
 
 **Important:** This stringent first-boot failure policy means an unsupported kernel feature or incorrect systemd wiring can prevent unattended startup. A different live installer kernel cannot conclusively validate the installed kernel's runtime ZRAM features.
