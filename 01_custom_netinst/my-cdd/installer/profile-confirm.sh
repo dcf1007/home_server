@@ -94,6 +94,11 @@ while :; do
         # be confirmed against actual Trixie GTK/text installer frontends.
         db_fset simple-cdd/profiles seen true ||
             stop 'cannot preserve approved selection for upstream Simple-CDD'
+        # Preserve the exact user-approved set for the late native installer
+        # executor; it must never reconstruct or expand selections by guesswork.
+        umask 077
+        printf '%s\n' "$ordered" > /tmp/my-cdd-confirmed-profiles ||
+            stop 'Cannot persist the confirmed selection for finish-install'
         if [ -n "$ordered" ]; then
             printf '%s\n' "my-cdd early profile gate: confirmed profiles: $ordered"
         else
