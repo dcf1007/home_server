@@ -40,6 +40,7 @@ The table follows the **actual optional installer-profile menu order**, not the 
 - Docker packages install if selected, **without activating Docker daemon/socket** during installation or on first boot.
 - The ZRAM profile alone sets `vm.swappiness=100` using `/etc/sysctl.d/90-zram-swappiness.conf`; no ZRAM-specific swappiness change when the profile is unchecked.
 - If a selected profile fails critical checks, **stop**, retain available diagnostics and require **manual recovery or reinstallation**; no silent alternative or false success. **No installer-managed snapshots, backup images or automatic rollback** are created.
+- **No separate installer-media verification:** no checksum/signature verification of the Debian source image, no generated-ISO hash, no USB read-back/comparison and no verification-only media boot test. This does not disable signed APT package metadata checks or change the required USB boot capabilities.
 - ZRAM initialization failure must enter emergency mode; ZRAM monitor failure must be logged and retried without emergency mode.
 - **Backports uses the default priority 100, not 900.** No blanket preference for backported packages. Explicit kernel selections and necessary dependencies still require APT compatibility validation, particularly with OMV.
 
