@@ -21,7 +21,7 @@ The USB supports UEFI and BIOS booting, highlights **Graphical install**, and wa
 
 [Editable installation identity defaults](profile_defaults.conf.example)
 
-**All four optional profiles start unchecked:** Debian tweaks, OpenMediaVault 8, Docker and ZSTD ZRAM compressed writeback. The user must explicitly select and confirm any desired component. **If ZRAM is selected without Debian tweaks, prompt to select Debian tweaks or deselect ZRAM; never silently enable it.** The **02 backports guide is not an additional selectable profile**: its non-menu APT policy belongs to the **Debian tweaks** profile. Normal Debian Installer settings are separate.
+**All four optional profiles start unchecked:** Debian tweaks, OpenMediaVault 8, Docker and ZSTD ZRAM compressed writeback. The user must explicitly select and confirm any desired component. **ZRAM is independently selectable without Debian tweaks**, but must validate its own kernel 7.x, generator, backports and upgrade prerequisites. Never silently select any other profile. The **02 backports guide is not an additional selectable profile**: the Debian tweaks profile applies its own APT pinning policy; a ZRAM-only install must explicitly validate the effective APT policy. Normal Debian Installer settings are separate.
 
 ## Key constraints
 
