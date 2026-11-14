@@ -1,6 +1,6 @@
-# Mandatory integration gates — production build intentionally blocked
+# Implementation requirements still outstanding
 
-**Status (2026-11-14): all gates open / untested.** Do not create any milestone markers as shortcuts. The entry point has three modes: `sh build.sh --check` validates source structure; `sh build.sh --test-build` requires `INTEGRATION_IMPLEMENTED` after all mandatory installer hooks and scripts exist; `sh build.sh --release` additionally requires `INTEGRATION_VALIDATED` and `FIRST_BOOT_TESTED` after actual functional tests. **First-boot tests follow a test image; they do not precede the first image build.** Markers must correspond to concrete evidence recorded in this repository. Until then, a test/release build fails closed.
+**Status (2026-11-14): implementation incomplete.** The simple `build.sh` entry point invokes upstream `build-simple-cdd` and refuses to build while any of the seven selected-profile hooks are still explicit fail-closed placeholders. There are **no extra build modes, marker files, or offline test harnesses**. Once the required source functionality exists, its actual behavior must be confirmed in Debian Installer and on the installed system before any production claim.
 
 ## 1. Early selected-profile confirmation
 
