@@ -1,6 +1,6 @@
 # Mandatory integration gates — production build intentionally blocked
 
-**Status (2026-11-14): all gates open / untested.** Do not create `INTEGRATION_TESTED` or `FIRST_BOOT_TESTED` as a shortcut. Those named markers are only for a future reproducible, documented verification process; their absence currently blocks `sh build.sh`.
+**Status (2026-11-14): all gates open / untested.** Do not create any milestone markers as shortcuts. The entry point has three modes: `sh build.sh --check` validates source structure; `sh build.sh --test-build` requires `INTEGRATION_IMPLEMENTED` after all mandatory installer hooks and scripts exist; `sh build.sh --release` additionally requires `INTEGRATION_VALIDATED` and `FIRST_BOOT_TESTED` after actual functional tests. **First-boot tests follow a test image; they do not precede the first image build.** Markers must correspond to concrete evidence recorded in this repository. Until then, a test/release build fails closed.
 
 ## 1. Early selected-profile confirmation
 
