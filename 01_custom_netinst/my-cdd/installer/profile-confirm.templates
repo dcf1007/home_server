@@ -1,7 +1,6 @@
-# Native Debconf templates for the early Simple-CDD confirmation gate.
-# NOT AUTOMATICALLY LOADED by vanilla Simple-CDD 0.6.9.
-# A future reviewed udeb integration must run:
-# debconf-loadtemplate my-cdd /cdrom/simple-cdd/profile-confirm.templates
+# Native Debconf templates for the user-approved early preseed confirmation.
+# Loaded by /cdrom/simple-cdd/profile-confirm.sh BEFORE the original
+# anna-install simple-cdd-profiles command; the upstream udeb is unmodified.
 
 Template: my-cdd/profile-summary
 Type: note
