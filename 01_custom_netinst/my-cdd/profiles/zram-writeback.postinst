@@ -1,0 +1,10 @@
+#!/bin/sh
+# Fail-closed placeholder for the zram-writeback profile.
+# Upstream Simple-CDD 0.6.9 executes executable .postinst inside /target
+# during finish-install. Implementation must dispatch profiles in the
+# agreed order regardless of the order returned by the selected multiselect.
+set -eu
+printf >&2 '%s\n' 'my-cdd zram-writeback: STOP — not production ready.'
+printf >&2 '%s\n' 'ZRAM must convert the positively identified, explicitly confirmed partition as its first operation and validate kernel 7.x sysfs and boot dependencies.'
+printf >&2 '%s\n' 'No automatic fallback, package install, or success state is permitted.'
+exit 1
