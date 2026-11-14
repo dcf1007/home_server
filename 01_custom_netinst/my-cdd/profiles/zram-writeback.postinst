@@ -1,10 +1,11 @@
 #!/bin/sh
-# Fail-closed placeholder for the zram-writeback profile.
-# Upstream Simple-CDD 0.6.9 executes executable .postinst inside /target
-# during finish-install. Implementation must dispatch profiles in the
-# agreed order regardless of the order returned by the selected multiselect.
+# Simple-CDD finish-install verification only.
+# The selected profile was performed beforehand by the native Debian
+# Installer late command, where its Debconf approvals were visible.
+# Never execute the profile twice or claim success from mere selection.
 set -eu
-printf >&2 '%s\n' 'my-cdd zram-writeback: STOP — not production ready.'
-printf >&2 '%s\n' 'ZRAM must convert the positively identified, explicitly confirmed partition as its first operation and validate kernel 7.x sysfs and boot dependencies.'
-printf >&2 '%s\n' 'No automatic fallback, package install, or success state is permitted.'
-exit 1
+marker="/var/log/installer/my-cdd-completed/zram-writeback"
+if [ ! -f "$marker" ]; then
+    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'zram-writeback'
+    exit 1
+fi
