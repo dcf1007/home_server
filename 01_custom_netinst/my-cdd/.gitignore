@@ -1,0 +1,6 @@
+# Local Simple-CDD build outputs and disposable test artifacts
+/images/
+/tmp/
+/*.iso
+/qemu-test.hd.img
+/qemu-test.hd.img.*
