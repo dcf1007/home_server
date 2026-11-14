@@ -2,14 +2,14 @@
 
 **Status:** approved settings and implementation requirements; no installed scripts/ISO are claimed. **Recorded:** 2026-11-14. **Provenance:** all Debian customizations outside regular installer menus as requested by the user.
 
-**Boundary:** This profile includes non-menu Debian configuration only. **Do not include ZRAM**: it belongs to [03_zram_writeback.md](03_zram_writeback.md). Standard installer questions remain interactive, see [05_base_installation.md](05_base_installation.md).
+**Boundary:** This profile contains **non-GUI customizations only**, such as GRUB settings, kernel-independent boot/filesystem/journaling options, firmware packages, SSH hardening and APT unattended-update suppression. Do **not** include ZRAM or Linux 7.x kernel installation; those belong to [03 ZRAM](03_zram_writeback.md) and [09 Ensure 7.x](09_ensure_7x_kernel.md). **All settings entered in the normal Debian Installer GUI** (language, locale, keyboard, timezone/RTC, hostname, username, domain, DHCP and task selection) are sourced as **editable suggestions** from [profile_defaults.conf](profile_defaults.conf) and handled by [05 base installation](05_base_installation.md), independently of whether Debian tweaks is selected.
 
-**Independent optional profiles:** ZRAM is separate from Debian tweaks; **Ensure 7.x kernel branch** is now the separate, dedicated kernel installation profile. **Backports** also remains optional and has the default APT priority **100**, not a global preference for all backported packages. Debian tweaks never automatically selects another profile. Whether Debian tweaks itself should require Ensure 7.x remains a **separate open decision**; do not impose a new automatic dependency.
+**Approved independence:** Debian tweaks does **not require Ensure 7.x kernel branch** and applies all of its approved settings on Debian's ordinary installed kernel, including when Ensure 7.x is unchecked. It neither installs nor checks a mandatory 7.x kernel. Backports and ZRAM also remain separately selectable; do not implicitly check another profile. **Profile menu order:** Backports → Ensure 7.x → Debian tweaks → ZRAM → OMV → Docker (skip unchecked entries).
 
 ## APT, kernel and firmware
 
 - Retain official signed stable, updates and security sources. **Do not enable `trixie-backports` or create an APT pin in Debian tweaks.** Backports uses Debian's **default priority 100** and is enabled only through the explicitly selected [Backports profile](02_backports_apt.md).
-- **Kernel package installation is now owned by the separately selectable [Ensure 7.x kernel branch](09_ensure_7x_kernel.md) profile**, not duplicated inside Debian tweaks. Preserve the previously chosen **GRUB menu, five-second timeout and normal kernel cleanup settings** below. If this profile is selected without Ensure 7.x, do not silently enable the kernel profile; whether to prompt for it as a dependency is pending the next explicit user decision.
+- **Kernel independence:** do not require Linux 7.x, install Linux kernel image/headers, add Backports, or prompt for Ensure 7.x from this profile. **GRUB menu, five-second timeout and normal kernel cleanup settings apply to whichever kernel(s) were separately installed.** Only the [Ensure 7.x kernel](09_ensure_7x_kernel.md) profile owns optional 7.x installation.
 - Automatically detect CPU vendor and install `intel-microcode` or `amd64-microcode` from the Debian firmware component.
 - Preserve Debian Installer's automatic firmware lookup and install **broad additional firmware coverage**, including wired networking, storage/HBA controllers, Wi-Fi, Bluetooth, graphics, audio and miscellaneous common hardware families. The user specifically selected broad coverage, **not just detected hardware**. The following is a **provisional package-name inventory**, checked against published Debian 13 (Trixie) package listings, **not yet an approved or simulated install transaction**.
 
@@ -57,13 +57,14 @@ Package names below exist in Debian 13 package listings for firmware. Exact vers
 - All package upgrades and reboots remain manual.
 - Do not install/enable Debian `popularity-contest`.
 
-## Time, account ordering, and review
+## Installer GUI settings are not Debian tweaks
 
-- Retain `systemd-timesyncd`, UTC RTC and `Europe/Berlin` time zone.
-- Validate the requested date/number formatting (YYYY/MM/DD, 24-hour, decimal dot, grouping space) against locale mechanisms and application behavior; do not assume `en_US.UTF-8` produces all requested formats.
-- Ensure the installer-confirmed administrator account has sudo, prompt for a separate root password **after** creating the installer-confirmed administrator account and **before** first reboot, without passwords/hashes on the USB.
+- **Do not set or override the installer-facing timezone, RTC, language, locale, keyboard, hostname, administrator username, DNS domain, DHCP method or software-selection defaults here.** Their canonical suggested values are in [profile_defaults.conf](profile_defaults.conf), must be editable/confirmed in normal setup screens, and apply even when Debian tweaks is unchecked.
+- Keep `systemd-timesyncd` available for time synchronization as previously approved, but do not use this profile to silently override the GUI-selected timezone or UTC RTC setting.
+- The desired **YYYY/MM/DD**, 24-hour, decimal-dot and space-grouping formats require a separately validated implementation; these are **not equivalent to installer timezone/locale GUI choices** and must not be assumed to follow automatically from `en_US.UTF-8`.
+- The graphical installer's account/password questions, separate root credential after sudo setup, and default task selections are documented in [05 base installation](05_base_installation.md). Debian tweaks must **preserve**, not re-answer, the confirmed values and must not embed secrets.
 - No firewall filtering during installer setup.
-- Display a meaningful configuration review/confirmation before non-menu customization where practical; log what was applied.
+- Display a review/confirmation before non-GUI customization where practical; log applied changes.
 
 ## Conditional profile semantics
 
