@@ -1,16 +1,36 @@
-# Debconf templates for an EARLY custom profile-selection integration.
-# These are NOT automatically loaded by vanilla simple-cdd 0.6.9.
+# Native Debconf templates for the early Simple-CDD confirmation gate.
+# NOT AUTOMATICALLY LOADED by vanilla Simple-CDD 0.6.9.
+# A future reviewed udeb integration must run:
+# debconf-loadtemplate my-cdd /cdrom/simple-cdd/profile-confirm.templates
+
 Template: my-cdd/profile-summary
 Type: note
-Description: Review selected custom installation profiles
- The following seven options will be applied in the documented order:
- ${MYCDD_SUMMARY}
+Description: Review the selected custom installation profiles
+ All seven optional profiles are shown in their required execution order.
  .
- This summary does not replace disk, ZRAM conversion, package or other approvals.
+ Backports: ${MYCDD_BACKPORTS}
+ Ensure Linux 7.x kernel: ${MYCDD_KERNEL}
+ Extended device support: ${MYCDD_FIRMWARE}
+ ZSTD ZRAM writeback: ${MYCDD_ZRAM}
+ Debian tweaks: ${MYCDD_TWEAKS}
+ OpenMediaVault 8: ${MYCDD_OMV}
+ Docker: ${MYCDD_DOCKER}
+ .
+ Selection does not grant permission for destructive partition changes,
+ package transactions, individual firmware omissions or service activation.
+ The installer will request their separate approvals as applicable.
+
+Template: my-cdd/profile-invalid
+Type: note
+Description: Invalid or incomplete custom profile selection
+ The selected profiles could not be validated. ZRAM requires the Ensure
+ Linux 7.x profile to be separately selected; unknown profile names are
+ not accepted. Return to profile selection and correct the choice.
+ Nothing has been enabled automatically.
 
 Template: my-cdd/profile-confirm
 Type: boolean
 Default: false
-Description: Proceed with these selected installation profiles?
- Choose No to stop before custom profile actions. Use the installer Back
- navigation to revise selections when available.
+Description: Proceed with exactly these selected installation profiles?
+ Select No to return to the profile selection screen. The default is No.
+ Other required operation-specific confirmations still apply.
