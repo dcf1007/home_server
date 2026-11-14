@@ -16,7 +16,7 @@ The integrated source must:
 - blocks when ZRAM was selected but Ensure 7.x was not separately selected;
 - does not silently change any profile selection.
 
-See [profile-confirm.templates](profile-confirm.templates) and [profile-confirm.sh](profile-confirm.sh). They are **source components, not yet connected to any executable early installer stage**. The revised template displays seven selected/unselected states through separate Debconf substitutions, so no newline is passed through the line-oriented Debconf protocol. Declining confirmation returns to the original profile question, without altering the selection; any error or Back/cancel must stop profile loading.
+See [profile-confirm.templates](profile-confirm.templates) and [profile-confirm.sh](profile-confirm.sh). The files are **connected in the source `preseed/early_command`**, but no Debian Installer runtime validation has occurred. The template displays seven selected/unselected states through separate Debconf substitutions, without embedding newlines in the line-oriented protocol. Declining confirmation returns to the original profile question, without changing selections; any error or Back/cancel must prevent profile queuing.
 
 **Integration method not authorized/selected yet:** investigate whether the existing `preseed/early_command` can safely load the template and ask the already-available `simple-cdd/profiles` question **before** `anna-install simple-cdd-profiles`, so the unmodified upstream udeb can consume the approved answer without showing a duplicate prompt; otherwise a revised udeb may be required. Do not silently adopt either method. Confirm the exact supported ordering, cdebconf `seen` flag and no-package-queue-before-approval behavior in a disposable installer.
 
