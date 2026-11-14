@@ -48,7 +48,7 @@ Pin-Priority: 900
 **New user requirement:** whenever `trixie-backports` is **newly enabled as part of the customized installation**, the process must **complete all available installed-package upgrades under the approved APT policy before continuing**. Updating package lists alone does not satisfy this requirement.
 
 1. Run `apt-get update`; verify signed repository metadata and effective pinning/candidates.
-2. Simulate `apt-get -s full-upgrade` and show the complete transaction to the user, including any dependency installs, proposed removals and version changes. Confirm upgrade scope, dependencies and security effects. With the provisional global backports priority 900, a large number of package replacements may be proposed.
+2. Simulate `apt-get -s dist-upgrade` and show the complete transaction to the user, including any dependency installs, proposed removals and version changes. Confirm upgrade scope, dependencies and security effects. With the provisional global backports priority 900, a large number of package replacements may be proposed.
 3. **Ask for explicit approval** before performing the real upgrade. Preserve the prior no-unattended-upgrade policy (this is a one-time, interactive installation action).
 4. Apply the reviewed transaction and confirm that package configuration succeeds, there are no broken/partially configured packages, and nothing eligible for upgrade is left under the chosen policy. If full completion is impossible, **stop for manual intervention**; do not silently proceed, disable backports, skip upgrades, force package removals or modify the pin.
 5. Revalidate OMV, networking/SSH and Docker package compatibility after the upgrade and prior to their profile installations.
