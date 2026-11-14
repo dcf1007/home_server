@@ -1,6 +1,6 @@
 # 07 — Selectable **Docker Engine** profile
 
-**Status:** design only; no installed or tested Docker stack claimed. **Recorded:** 2026-11-14. **Provenance:** user approval of Docker as independent installer option, with service/socket kept inactive through first boot.
+**Status:** official Docker signed-repository install and temporary Docker unit suppression are implemented as untested source. **No Docker installation or first-boot verification claimed.** **Recorded:** 2026-11-14. **Provenance:** user approval of Docker as independent installer option, with service/socket kept inactive through first boot.
 
 ## Purpose
 
