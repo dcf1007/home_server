@@ -11,6 +11,7 @@
 - [`scripts/`](scripts/) — read-only APT/ZRAM inspections, firmware inventory, and **untested source-extracted ZRAM assets**.
 - [`profile_defaults.conf`](profile_defaults.conf) — original canonical, editable native Debian Installer suggestions, moved here byte-for-byte from the former root-level file.
 - [`profile_defaults.conf.example`](profile_defaults.conf.example) — original example/reference, not another source of truth.
+- [`SOURCE_MANIFEST.md`](SOURCE_MANIFEST.md) — creation provenance, source categories and current blocked implementation status.
 
 ## Important engineering boundaries
 
