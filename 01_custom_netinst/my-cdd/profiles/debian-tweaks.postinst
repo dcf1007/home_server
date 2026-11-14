@@ -1,0 +1,10 @@
+#!/bin/sh
+# Fail-closed placeholder for the debian-tweaks profile.
+# Upstream Simple-CDD 0.6.9 executes executable .postinst inside /target
+# during finish-install. Implementation must dispatch profiles in the
+# agreed order regardless of the order returned by the selected multiselect.
+set -eu
+printf >&2 '%s\n' 'my-cdd debian-tweaks: STOP — not production ready.'
+printf >&2 '%s\n' 'Debian tweaks must only change approved effective settings after state inspection and keep native setup choices untouched.'
+printf >&2 '%s\n' 'No automatic fallback, package install, or success state is permitted.'
+exit 1
