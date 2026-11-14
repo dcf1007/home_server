@@ -27,7 +27,7 @@ The USB supports UEFI and BIOS booting, highlights **Graphical install**, and wa
 
 - **No unapproved actions on NAS HDDs.** Whether to physically disconnect them is deferred.
 - Root filesystem: **ext4**, 5% reserved blocks, `noatime,errors=panic`, ordinary ordered journaling; weekly TRIM; no LVM, encryption or separate `/boot`.
-- Installer EFI partition **1 GiB**; ZRAM option requires a **dedicated 16 GB raw PARTUUID partition**, **not ordinary swap**. SSD layout when ZRAM is not selected still needs a decision.
+- Installer EFI partition **1 GiB**; the user may create a swap partition in manual partitioning (**16 GB suggested**). **Without ZRAM**, use it as ordinary swap; **with ZRAM**, re-purpose that same partition exclusively as raw PARTUUID-backed writeback storage, never ordinary swap. If none was created and ZRAM is selected, offer to return to partitioning or deselect ZRAM. No swap and no ZRAM is permitted after Debian Installer's normal warning.
 - Kernel 7.x and corresponding headers from backports before first reboot; stable kernel available initially. GRUB menu visible **5 seconds**, newest kernel by default.
 - the installer-confirmed administrator account: sudo and initial SSH password login. Separate local root password before first reboot; root SSH login prohibited.
 - **Manual software updates and reboots only**. Explicitly disable Debian unattended upgrades in Debian tweaks, and disable OMV's scheduled cron-apt when OMV is selected.
