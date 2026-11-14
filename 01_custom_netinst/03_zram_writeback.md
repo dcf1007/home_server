@@ -1,56 +1,84 @@
-# 03 — Selectable **ZSTD ZRAM with compressed SSD writeback** profile
+# 03 — ZSTD ZRAM with compressed SSD writeback
 
-**Status:** uploaded proposed design accepted as target architecture, **subject to full technical validation**. No tested kernel setup or monitor claimed. **Recorded:** 2026-11-14. **Provenance:** uploaded `zram_zstd_writeback_design(1).md` and explicit decisions replacing earlier 16 GB LZ4 ZRAM + 16 GB independent swap.
+**Scope:** optional, independently selectable Debian 13 installation profile. **Status:** documented design and source code, **not a deployed, validated or tested profile**. **Documentation revision:** 2026-11-14. **Provenance:** complete uploaded `zram_zstd_writeback_design(1).md` (included below), plus user-approved installation decisions made afterward.
 
-## Exclusive scope
+> **Source fidelity:** Sections under **“Original design — complete source”** reproduce the uploaded design, including the complete generator configuration, Bash monitor, systemd units, commands, operating policy, limitations and upstream links. Its proposed kernel version and unit names are examples **not proofs that Debian 13 supplies these interfaces**. The later installation decisions in this introduction **supersede** any conflicting original operational assumptions.
 
-ZRAM configuration belongs **only here**; it must not be part of Debian tweaks. The user creates a partition designated for swap **manually in Debian Installer's ordinary partitioning interface** (suggested size **16 GB**, but the user can choose and confirm a different size). When this profile is selected, **that same partition** is converted or reserved for **exclusive raw ZRAM compressed-writeback backing**; it must not be active as conventional swap, mounted or present as conventional swap in the installed system's `/etc/fstab`. Identify the partition by its **PARTUUID** and measure its actual capacity at runtime. When ZRAM is not selected, the partition retains its ordinary Linux swap role.
+## Installation-profile behavior (approved after the source document)
 
-**Mandatory partition availability check:** If ZRAM is selected but there is **no manually created swap partition**, the profile must offer **(1) return to Debian partitioning and create one, or (2) deselect ZRAM**. Do not silently create a new partition, substitute a swapfile, or proceed with ZRAM. Confirm partition identity, size and re-purposing. Debian Installer has a normal no-swap warning, but ZRAM-specific validation is required separately. **Implementation gate:** verify when partman may create a swap signature, enable swap or write `/etc/fstab`. Prefer intercepting before initialization; if a swap signature has already been created, any controlled conversion to raw backing must be explicitly confirmed, ensure swap is inactive and remove conventional swap activation. If safe return-navigation or conversion cannot be implemented, **stop and request manual intervention**.
+The source design describes setting up an existing system. The custom Debian installer must integrate it without silently making destructive choices:
 
-## Architecture requested
+1. **Explicit opt-in.** The ZRAM profile is initially **unchecked**, independently of **Debian tweaks**, **OMV** and **Docker**. No ZRAM setup is part of Debian tweaks. The user must select and confirm the ZRAM profile.
+2. **Ordinary interactive disk partitioning.** The user manually selects an OS disk and may create a **Linux swap partition** in the standard Debian partitioning screens. The example suggested size is **16 GB**, but the user may choose another and confirm it. The installer must never automatically select, create or resize the backing partition.
+3. **One partition, two roles.** With the ZRAM profile **unchecked**, any user-created swap partition stays **conventional swap**. With ZRAM **selected**, the **same user-created partition** is re-purposed as **exclusive raw ZRAM compressed-writeback backing**; it must not be mounted, enabled by `swapon`, or listed for conventional swap activation in the installed system's `/etc/fstab`. The installer records the confirmed **PARTUUID** and the exact measured byte capacity.
+4. **ZRAM selected, no swap partition.** The ZRAM profile must interrupt configuration and ask the user to choose **return to manual partitioning and create a swap partition**, or **deselect ZRAM**. Do not silently continue with no backing partition or add a swapfile/another device. Debian Installer's own warning about having no swap does not replace this profile-specific check.
+5. **Partman integration is an open implementation requirement.** Validate whether Debian Installer has initialized, formatted or activated the partition before the profile stage. Avoid double activation and stale fstab entries. If safe conversion and navigation cannot be guaranteed, **stop for manual intervention**; do not assume a generator running later makes the partition safe.
+6. **Installer provisioning and first boot.** Install and configure the chosen generator, kernel prerequisites, service drop-in and monitor **before the first reboot**. The selected ZRAM must initialize on the installed system's **first boot**, not wait for later manual configuration. Confirm the target kernel exposes `compressed_writeback`, `zram-resident-limit`, `writeback` and relevant sysfs interfaces and that their ordering works on the **actual Debian packages**.
+7. **Critical initialization failure:** If the **ZRAM device fails to initialize**, **stop normal boot and enter systemd emergency mode**. A separate local root password must have been set interactively during installation for emergency recovery. The systemd dependency/failure mechanism implementing this must be tested; the service unit in the original source **does not alone establish this guarantee**.
+8. **Monitor failure is different:** If the pressure monitor dies while ZRAM is correctly initialized, **log the error and restart the monitor**; **do not enter emergency mode merely for a monitor failure**.
+9. **No silent fallback.** If a selected profile cannot satisfy critical dependency, generator, writeback, credential or boot-order checks, the installation must stop with diagnostics; do not substitute independent swap, disable ZRAM, change the memory policy or claim success without explicit approval.
+10. **No other tuning by assumption.** The optional `vm.swappiness=100` in the uploaded source was not separately confirmed as a required value. Do **not** apply it as an unapproved default.
 
-| Parameter | Proposed/approved target |
-|---|---|
-| Compression algorithm | **ZSTD** from first swap-out |
-| Generator | `systemd-zram-generator` |
-| Compressed writeback | Kernel `compressed_writeback` enabled before initializing zram |
-| Physical resident memory limit | Half of actual `MemTotal`; for installed 32 GB RAM, about 16 GB |
-| ZRAM logical size | Adaptive formula approximately installed RAM + raw backing partition capacity |
-| Backing capacity | **16 GB example target**, or the actual user-created, confirmed swap-partition size; always measure the PARTUUID device |
-| Independent swap | **None**; do not create/activate one |
-| zswap | Disabled (proposed kernel argument `zswap.enabled=0`) |
-| Writes to SSD | Triggered by pressure monitor rather than ordinary second swap device |
-| Background daemon | One Bash monitor, supervised/restarted by systemd; no additional dedicated daemon |
+## Deployment checklist specific to the customized installer
 
-Note: each written-back zram entry still consumes a full backing slot even if payload compression is effective; compressed writeback does **not** pack multiple entries into one SSD sector.
+- [ ] Detect and confirm the chosen disk/partition **before** any destructive conversion; display its device identity, capacity, FSTYPE and PARTUUID.
+- [ ] Verify the partition will not be used as ordinary swap when ZRAM is selected; ensure **no fstab, initramfs, systemd or installer-generated swap activation** re-enables it.
+- [ ] Verify the backing path `/dev/disk/by-partuuid/<confirmed-PARTUUID>` exists at device setup time, and that `blockdev --getsize64` yields its actual byte capacity.
+- [ ] Confirm the source's `set!backingBytes` expression, `zram-size` and `zram-resident-limit` are supported by the installed generator version and evaluate as intended; early generation may report zero temporarily.
+- [ ] Verify the `compressed_writeback` sysfs switch is set **before** initializing `disksize`, and the service drop-in is effective (inspect `systemctl cat`).
+- [ ] Ensure ZSTD compression is selected on first device initialization; disable `zswap` via `zswap.enabled=0`.
+- [ ] Verify `writeback_limit_enable=0`, actual monitoring sysfs files, PSI parsing and one synchronous writeback pass at a time.
+- [ ] Install the Bash monitor with mode 0755; verify `bash -n`; configure and enable its systemd service; test automatic restarts and logging.
+- [ ] Validate two **distinct** service failure modes in disposable test environments: initialization failure enters emergency mode; monitor failure causes restart but permits ordinary boot.
+- [ ] Verify no independent swap is active, backing writes/failed writes are observable, and documented memory/SSD write-exhaustion limits are understood.
 
-## Monitor policy from uploaded proposal — NOT YET VERIFIED
+**Do not interpret this checklist as executed.** Source-provided code appears below **unchanged**, for accurate implementation and review. It must not be run against a non-disposable partition or promoted to a production ISO before validation.
 
-The uploaded document proposes polling kernel virtual files every **1 second**:
+---
 
-- `/proc/pressure/memory`, memory PSI `some avg10`;
-- `/sys/block/zram0/mm_stat` for resident usage.
+## Original design — complete source
 
-Trigger normal writeback when **resident usage is at least 80%** of its limit **and** PSI `some avg10` is at least **5%**. Continue while pressure persists; stop passes once resident usage is **under 70%** or PSI is below 5%, except in emergencies.
+The following is the **full uploaded** `zram_zstd_writeback_design(1).md`. It remains as written, including version-specific assertions, a reference to a disposable backing partition and the optional swappiness suggestion. The decisions above determine how it will eventually be incorporated into the selectable installer.
 
-Increase eligibility over successive synchronous passes using time-since-last-use thresholds:
+# Debian 7.2.12 — adaptive zram with compressed SSD writeback
 
-1. 24 hours;
-2. 6 hours;
-3. 1 hour;
-4. 5 minutes;
-5. 1 minute.
+**Goal:** Keep swapped pages ZSTD-compressed in RAM; write them to a dedicated SSD partition only when the kernel reports memory pressure **and** zram is relatively full. No zswap, VDO, recompression, writeback budget, custom kernel or additional daemon. Retain `systemd-zram-generator`; supervise one Bash monitor with systemd.
 
-If resident usage reaches **95%**, writeback may proceed without the PSI threshold and can broaden selection to remaining pages. There is no per-pass `writeback_limit` in the proposed design. Consequently one pass can cause large SSD write I/O, and pages are **eligible by age**, not globally sorted oldest-first. A background monitor cannot guarantee relief before a sudden out-of-memory event.
+## 1. Policy
 
-The underlying sysfs operations in the uploaded proposal include writing an age threshold to `/sys/block/zram0/idle` and writing `type=idle` to `/sys/block/zram0/writeback`. **Do not deploy the uploaded Bash script unchanged** until parsers, permissions, failure behavior, concurrency, kernel facilities and test cases have been reviewed.
+- **RAM-adaptive:** at boot, zram's physical-storage limit is `MemTotal / 2`; no hard-coded RAM size.
+- **Backing-device-adaptive:** identify a dedicated partition by **PARTUUID** and measure its actual capacity. It must **not** also be active as ordinary swap or mounted.
+- **Compression:** ZSTD from first swap-out; `compressed_writeback=yes` preserves compressed contents on disk, but each written entry still uses a page-sized backing slot.
+- **Kernel reclaim:** unchanged; do not trigger swapping at a fixed percentage of occupied RAM.
+- **Monitoring:** every **1 second**, read `/proc/pressure/memory` and `/sys/block/zram0/mm_stat`. These are virtual kernel files, not SSD reads.
+- **Normal writeback:** zram at least **80%** of its resident limit **and** PSI `some avg10` at least **5%**.
+- **Escalation:** one complete writeback pass at a time, from 24 h → 6 h → 1 h → 5 min → 1 min since last zram access; re-evaluate after each pass.
+- **Stop further passes:** if zram falls below **70%**, or PSI falls below **5%** (unless the emergency condition applies).
+- **Emergency:** at **95%** of the zram limit, permit writeback without the PSI condition and finally broaden selection to all remaining resident entries.
+- **No `writeback_limit`:** a pass may overshoot the target and may generate substantial disk I/O. Existing pages are age-*eligible*, not strictly sorted oldest-first.
 
-## Generator concept (provisional, not a copy/paste-ready release)
+All thresholds are initial policy choices, **not** Debian defaults. This is a best-effort userspace policy; it cannot guarantee preventing swap-write failure during abrupt memory pressure.
 
-The uploaded design specifies these logical settings:
+## 2. Inspect the system first
+
+```bash
+uname -r
+systemctl cat systemd-zram-setup@zram0.service
+lsblk -o NAME,PATH,TYPE,SIZE,FSTYPE,PARTUUID,MOUNTPOINTS
+swapon --show
+```
+
+Select a **disposable** backing partition and replace `YOUR_PARTUUID` everywhere below. Its previous data will not be preserved. Remove its independent swap entry from `/etc/fstab` **before** rebooting into this design. Do not casually run `swapoff` while RAM is already under pressure.
+
+## 3. Keep `systemd-zram-generator`
+
+`/etc/systemd/zram-generator.conf`:
 
 ```ini
+# Early unit generation may precede creation of the PARTUUID symlink.
+# The generator re-reads the configuration during device setup.
+set!backingBytes = /usr/sbin/blockdev --getsize64 /dev/disk/by-partuuid/YOUR_PARTUUID 2>/dev/null || echo 0
+
 [zram0]
 zram-size = ram + backingBytes / 1048576
 zram-resident-limit = ram / 2
@@ -59,46 +87,156 @@ writeback-device = /dev/disk/by-partuuid/YOUR_PARTUUID
 swap-priority = 100
 ```
 
-`backingBytes` is intended to be populated by a generator command reading the actual block size. The early-boot timing of the PARTUUID symlink and re-evaluation behavior must be checked against the actual installed `systemd-zram-generator` version. A proposed `ExecStartPre` writes `yes` into the `compressed_writeback` sysfs attribute **before** the device is initialized; this ordering must be verified on the actual kernel and unit.
+`ram` is in MiB; `blockdev` reports bytes. The chosen **logical** zram size is approximately RAM plus measured backing capacity. This is a planning value, **not a guarantee** that compression and backing space can populate every logical slot. The command returning zero during early unit generation is provisional: **verify the actual size after boot**. The second evaluation and backing-device dependency were checked in upstream `zram-generator` **v1.2.1**; verify your installed Debian package supports them.
 
-The original proposal optionally mentions `vm.swappiness=100`; that was **not independently approved as a fixed value**, so do not impose it without consulting the user.
+To enable compressed writeback **before** the generator initializes `disksize`, create:
 
-## Startup / failure behavior
+`/etc/systemd/system/systemd-zram-setup@zram0.service.d/10-compressed-writeback.conf`
 
-The user explicitly requires:
+```ini
+[Service]
+ExecStartPre=/bin/sh -c 'echo yes > /sys/block/zram0/compressed_writeback'
+```
 
-1. Prepare and configure the selected ZRAM system **during the Debian installation**, to become active on the **first boot**, but only if the compatibility checks pass.
-2. If **ZRAM device initialization** fails, stop ordinary boot, enter **systemd emergency mode**, and require manual recovery. The separate local root password must have been set interactively during installation.
-3. If the **writeback monitor** fails after ZRAM has initialized, **log and restart** the monitor via systemd; **do not** enter emergency mode solely because of monitor failure.
-4. When ZRAM is selected, the manually assigned swap partition is **re-purposed as raw backing**; no fallback to independent SSD swap, no second swap partition and no simultaneous conventional `swapon` of the backing device. If ZRAM is not selected, the partition is conventional swap.
-5. Monitor unit must not run against a failed/partial ZRAM setup. Design a reliable dependency and failure propagation mechanism; do not assume a simple Wants/After relationship forces emergency mode.
+The generator still handles zram initialization, swap formatting, startup and teardown. Set the kernel boot argument `zswap.enabled=0`. Optionally start with `vm.swappiness=100` in `/etc/sysctl.d/90-memory.conf` and tune only after measurements.
 
-**Important:** This stringent first-boot failure policy means an unsupported kernel feature or incorrect systemd wiring can prevent unattended startup. A different live installer kernel cannot conclusively validate the installed kernel's runtime ZRAM features.
+## 4. Complete Bash monitor
 
-## Acceptance tests on installed kernel
+`/usr/local/sbin/zram-pressure.sh`:
 
-```sh
-uname -r
-lsblk -o NAME,PATH,TYPE,SIZE,FSTYPE,PARTUUID,MOUNTPOINTS
-swapon --show
-zramctl
-cat /sys/block/zram0/compressed_writeback
-cat /sys/block/zram0/backing_dev
-cat /sys/block/zram0/disksize
-cat /sys/block/zram0/mm_stat
-cat /sys/block/zram0/bd_stat
-cat /sys/block/zram0/io_stat
-cat /proc/pressure/memory
+```bash
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+Z=/sys/block/zram0
+POLL=1
+START=80
+TARGET=70
+EMERGENCY=95
+PSI_MIN=500                  # 5.00% as hundredths of a percent
+AGES=(86400 21600 3600 300 60)
+
+state() {
+    local kind avg whole fraction
+    read -r _ _ used limit _ < "$Z/mm_stat" || return 1
+    (( limit > 0 )) || return 1
+    read -r kind avg _ < /proc/pressure/memory || return 1
+    [[ $kind == some && $avg =~ ^avg10=([0-9]+)\.([0-9]{2})$ ]] || return 1
+    whole=${BASH_REMATCH[1]}
+    fraction=${BASH_REMATCH[2]}
+    psi=$(( 10#$whole * 100 + 10#$fraction ))
+    occupancy=$(( used * 100 / limit ))
+}
+
+for name in mm_stat idle writeback bd_stat compressed_writeback writeback_limit_enable; do
+    [[ -e $Z/$name ]] || { echo "Missing $Z/$name" >&2; exit 1; }
+done
+read -r value < "$Z/compressed_writeback"
+[[ $value == 1 ]] || { echo 'Compressed writeback is not enabled' >&2; exit 1; }
+read -r value < "$Z/writeback_limit_enable"
+[[ $value == 0 ]] || { echo 'Disable writeback_limit before starting' >&2; exit 1; }
+
+while :; do
+    state || { echo 'Cannot read PSI/zram state' >&2; exit 1; }
+    if (( occupancy < EMERGENCY && (occupancy < START || psi < PSI_MIN) )); then
+        sleep "$POLL"
+        continue
+    fi
+
+    echo "Writeback triggered: zram=${occupancy}% PSI=${psi}bp"
+    read -r _ _ before < "$Z/bd_stat"
+    failed=0
+
+    for age in "${AGES[@]}"; do
+        state || exit 1
+        # Once started, continue only while pressure + insufficient
+        # headroom persist, or the emergency threshold is reached.
+        if (( occupancy < EMERGENCY && (occupancy < TARGET || psi < PSI_MIN) )); then
+            break
+        fi
+        if ! printf '%s\n' "$age" > "$Z/idle" ||
+           ! printf '%s\n' 'type=idle' > "$Z/writeback"; then
+            echo "Writeback failed for age=${age}s" >&2
+            failed=1
+            break
+        fi
+        echo "Writeback completed: age=${age}s"
+    done
+
+    state || exit 1
+    if (( failed == 0 && occupancy >= EMERGENCY )); then
+        echo 'Emergency writeback: all remaining eligible entries'
+        if ! printf '%s\n' all > "$Z/idle" ||
+           ! printf '%s\n' 'type=idle' > "$Z/writeback"; then
+            echo 'Emergency writeback failed' >&2
+            failed=1
+        fi
+    fi
+
+    read -r _ _ after < "$Z/bd_stat"
+    echo "Cycle complete; backing writes delta=$((after - before))"
+    if (( failed || after == before )); then
+        sleep 30                 # Avoid rapid retries on full/ineffective backing
+    else
+        sleep "$POLL"
+    fi
+done
+```
+
+**The actual writeback is** `printf 'type=idle\n' > "$Z/writeback"`. The sysfs operation completes before Bash moves to the next pass. No process is forked to supervise individual writes. The service checks conditions **between** passes, not during one.
+
+## 5. systemd supervision
+
+`/etc/systemd/system/zram-pressure.service`:
+
+```ini
+[Unit]
+Description=Pressure-triggered zram writeback
+BindsTo=dev-zram0.swap
+After=dev-zram0.swap
+
+[Service]
+Type=exec
+ExecStart=/usr/local/sbin/zram-pressure.sh
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+```
+
+After confirming the PARTUUID, backing-device ownership and installed generator version:
+
+```bash
+sudo chmod 755 /usr/local/sbin/zram-pressure.sh
+sudo bash -n /usr/local/sbin/zram-pressure.sh
+sudo systemctl daemon-reload
+sudo systemctl enable zram-pressure.service
+# Reboot in a controlled maintenance window; do not reset active zram.
+```
+
+## 6. Verify after boot
+
+```bash
 systemctl status dev-zram0.swap zram-pressure.service
+swapon --show                       # Only /dev/zram0 should own this swap hierarchy
+zramctl
+cat /sys/block/zram0/compressed_writeback  # Expect 1
+cat /sys/block/zram0/backing_dev
+cat /sys/block/zram0/disksize        # Confirm measured backing size was included
+cat /sys/block/zram0/mm_stat
+cat /sys/block/zram0/bd_stat         # Third field: cumulative backing writes (4 KiB units)
+cat /sys/block/zram0/io_stat        # Monitor failed_writes
+cat /proc/pressure/memory
 journalctl -b -u systemd-zram-setup@zram0.service -u zram-pressure.service
 ```
 
-Test emergency activation for intentional ZRAM initialization failure **in a disposable VM first**, and test monitor restart separately. Confirm that `swapon --show` reports only the selected ZRAM swap hierarchy and that the raw partition is not mounted or independently swapped.
+**Limitations:** This approach does not provide a kernel-native pressure-to-writeback trigger. A one-second Bash monitor is low-overhead but cannot intercept reclaim synchronously. `compressed_writeback=yes` does **not** pack several compressed entries into one SSD block or reduce host-write size per entry. An unrestricted `type=idle` pass can write much more than strictly necessary. Backing exhaustion and sudden memory pressure remain possible.
 
-## References
+## Sources
 
-- [Linux ZRAM kernel documentation](https://docs.kernel.org/admin-guide/blockdev/zram.html)
-- [Memory PSI documentation](https://docs.kernel.org/accounting/psi.html)
-- [Debian ZRAM generator configuration](https://manpages.debian.org/unstable/systemd-zram-generator/zram-generator.conf.5.en.html)
-- [Upstream ZRAM generator](https://github.com/systemd/zram-generator)
-- **User-provided source:** `zram_zstd_writeback_design(1).md` (uploaded in this planning conversation; not yet copied into this GitHub directory).
+- [Linux 7.2 zram interfaces](https://docs.kernel.org/7.2/admin-guide/blockdev/zram.html)
+- [Linux PSI semantics](https://docs.kernel.org/accounting/psi.html)
+- [Debian zram-generator configuration](https://manpages.debian.org/unstable/systemd-zram-generator/zram-generator.conf.5.en.html)
+- [Upstream zram-generator v1.2.1 source](https://github.com/systemd/zram-generator/tree/v1.2.1/src)
+- [Linux v7.2.12 zram driver](https://github.com/gregkh/linux/blob/v7.2.12/drivers/block/zram/zram_drv.c)
