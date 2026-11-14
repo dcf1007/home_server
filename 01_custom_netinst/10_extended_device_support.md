@@ -1,6 +1,6 @@
 # 10 — Selectable **Extended device support** profile
 
-**Status:** documented and **independently selectable**, initially unchecked; no installer script, dependency transaction or device-specific driver test has yet been completed. **Recorded:** 2026-11-14. **Provenance:** the hardware-related settings moved without losing the approved package inventory from [04 — Debian tweaks](04_debian_tweaks.md), as requested in the current installation-planning conversation.
+**Status:** documented and independently selectable in generated Simple-CDD **description-only sources**, initially unchecked; dynamic package installer, dependency transaction and device-specific driver tests are **not implemented or completed**. **Recorded:** 2026-11-14. **Provenance:** the hardware-related settings moved without losing the approved package inventory from [04 — Debian tweaks](04_debian_tweaks.md), as requested in the current installation-planning conversation.
 
 ## Scope and profile independence
 
@@ -92,4 +92,4 @@ dpkg --audit
 
 **Boundaries:** [04 — Debian tweaks](04_debian_tweaks.md) handles deliberate operating-system overrides; [09 — Ensure 7.x](09_ensure_7x_kernel.md) handles kernel image and headers; [03 — ZRAM](03_zram_writeback.md) handles compressed swap. This hardware profile has no generic OS-tuning duties.
 
-**No implementation claim:** This documentation split changes the *planned selectable profiles*. The corresponding Simple-CDD profile definitions, package lists, post-install scripts and installer review screens have not been generated or tested.
+**Implementation status:** an initial `my-cdd/` tree now includes the profile description, an intentionally empty optional-package queue, a **fail-closed `.postinst` stub**, a broad package candidate list and an early confirmation source prototype. The **actual approved firmware/microcode install transaction, individual omission UI, complete installer review integration and device tests have not been implemented or validated**. Do not treat the source stubs as functioning installer profiles.
