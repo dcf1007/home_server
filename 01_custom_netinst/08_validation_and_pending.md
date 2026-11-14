@@ -31,7 +31,7 @@
 10. **Extended device support:** broad proactive firmware coverage was approved; its candidate inventory and microcode selection are in [10 Extended device support](10_extended_device_support.md). Final package transactions require simulation under the actual repository policy (Backports priority **100**, if selected), with explicit review of dependencies and removals.
 11. **OS installation target selection:** require explicit confirmation of the installation disk and destructive partition writes; validate the selection procedure using disposable test disks.
 12. **Installer media verification — resolved: none.** Do not require Debian source-image checksum/signature verification, generated ISO hashes, USB read-back or media verification-only boot tests. Keep the requested UEFI/BIOS and installer functionality as design requirements; signed APT repository metadata and package compatibility checks are separate.
-13. **Manual failure recovery:** induce critical optional-profile failures in disposable tests; verify installation stops, diagnostics can be retrieved and no snapshot/backup/rollback/reinstall action is performed automatically. Determine which logs survive failed installations and hard reboots.
+13. **Manual failure recovery and diagnostics:** induce critical optional-profile failures in disposable tests; verify installation stops, **always displays diagnostics and offers manual export**, attempts to save a custom log bundle under **`/target/var/log/installer/`** if the target is safely mounted/writable, and independently attempts a **second copy to a positively identified writable area of the installer USB**. If either destination is unsafe/unavailable, report the limitation without destructive workarounds. No snapshot/backup/rollback/reinstall action is automatic. Determine which logs survive failed installations and hard reboots.
 
 ## Deferred / still open
 
@@ -49,11 +49,12 @@
 
 ## Failure policy and evidence
 
-- **Critical selected-profile failure:** stop, preserve available logs, give diagnostics and leave recovery or reinstallation **manual**. No installer-generated snapshot, system-image backup, restore point, automatic rollback or fallback to a different profile; never falsely report success.
+- **Critical selected-profile failure:** stop, **always display diagnostics and offer manual export**. Attempt a controlled log copy at **`/target/var/log/installer/`** only if the correct target filesystem is mounted/writable, and independently copy the diagnostics to the **installer USB when a safe writable area is available**. Report each save path or failure separately; do not modify media or repartition for logging. Recovery or reinstallation remains **manual**. No installer-generated snapshot, system-image backup, restore point, automatic rollback or fallback to a different profile; never falsely report success.
 - **ZRAM init failure:** enter systemd emergency mode for local recovery, requiring a root password set during installation.
 - **ZRAM monitor failure:** log and restart the monitor; do not independently trigger emergency mode.
 - **Update installation:** user approval only (security included); no automatic reboots. Permitted package removals require explicit review and approval; after an approved full upgrade, separately review and approve `apt-get autoremove --purge` and any residual-configuration purges. Preserve the initially available stable fallback kernel.
-- Keep logs of `apt-cache policy`, simulated transactions, profile selections, partition identification and installer exit status in the installer/build evidence bundle.
+- **Log scope:** retain available Debian Installer and custom-profile messages, `apt-cache policy`, simulated transactions, profile selections, confirmed partition identifiers and exit status, without deliberately logging passwords or hashes. Use restrictive local file permissions and warn that removable copies may contain sensitive details; exact credential-redaction policy is a separate decision.
+- **Persistence tests:** check missing/unmounted/read-only target, read-only/absent/full installer USB, and both destinations failing. Do not assume the installer USB is writable or claim a copy saved until confirmed. Always present a manual export option, including Debian Installer's existing **Save debug logs** path where applicable.
 
 ## Reference index
 
