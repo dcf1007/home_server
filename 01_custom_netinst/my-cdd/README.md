@@ -7,7 +7,7 @@
 - [`simple-cdd.conf`](simple-cdd.conf) — actual Trixie/amd64 Simple-CDD 0.6.9 build variables; seven optional profiles, no auto-selection; official Debian mirror components.
 - [`build.sh`](build.sh) — `sh build.sh --check` for safe static source checks. `--test-build` and `--release` are **blocked** until their respective documented integration and test milestones are completed.
 - [`profiles/`](profiles/) — default preseed/udebs/base packages and seven selectable profile descriptions plus deliberate fail-closed postinst sources.
-- [`installer/`](installer/) — early GTK/text Debconf confirmation prototypes, deterministic selection handling, and mandatory implementation gates.
+- [`installer/`](installer/) — the **authorized early-preseed Debconf confirmation source**, wired from the default preseed before the unmodified Simple-CDD udeb, plus deterministic selection handling and mandatory verification gates. **Runtime GUI behavior is untested.**
 - [`scripts/`](scripts/) — read-only APT/ZRAM inspections, **new Backports-first joint firmware planner**, firmware inventory, signed Backports and selected-ZRAM configuration templates, and **untested source-extracted ZRAM assets**.
 - [`tests/`](tests/) — offline planner unit-test sources and selection checks; source-level test execution is configured in `build.sh --check` but has not been run in a Debian 13 installer environment.
 - [`profile_defaults.conf`](profile_defaults.conf) — original canonical, editable native Debian Installer suggestions, moved here byte-for-byte from the former root-level file.
@@ -16,7 +16,7 @@
 
 ## Important engineering boundaries
 
-**Do not run an installable test image on a real OS installation disk from this tree.** Building a coherent final ISO still requires a reviewed early Simple-CDD profile gate, target-side ordered profile execution, interactive transaction approvals, safe ZRAM conversion, OMV 8 repository/service verification, Docker daemon suppression, logs/export and bootloader menu integration. The source files intentionally fail closed rather than silently skip work.
+**Do not run an installable test image on a real OS installation disk from this tree.** Building a coherent final ISO still requires **runtime verification of the early preseed profile gate**, target-side ordered profile execution, interactive transaction approvals, safe ZRAM conversion, OMV 8 repository/service verification, Docker daemon suppression, logs/export and bootloader menu integration. The source files intentionally fail closed rather than silently skip work.
 
 The minimal default preseed only bootstraps Simple-CDD and deliberately leaves **normal Debian Installer prompts native** (hostname, language/locale, keyboard, time, accounts, selected OS installation disk and partitions, networking, tasksel). Canonical default suggestions have not yet been mapped to real installer Debconf questions in a tested manner. Neither the planned kernel 7.x nor its ZRAM features have been shown to be available at image-build time.
 
