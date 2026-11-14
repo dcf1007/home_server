@@ -1,0 +1,10 @@
+#!/bin/sh
+# Fail-closed placeholder for the ensure-7x-kernel profile.
+# Upstream Simple-CDD 0.6.9 executes executable .postinst inside /target
+# during finish-install. Implementation must dispatch profiles in the
+# agreed order regardless of the order returned by the selected multiselect.
+set -eu
+printf >&2 '%s\n' 'my-cdd ensure-7x-kernel: STOP — not production ready.'
+printf >&2 '%s\n' 'Kernel selection requires dynamic 7.x metapackage inspection, matching headers, explicit dependency approvals and fallback validation.'
+printf >&2 '%s\n' 'No automatic fallback, package install, or success state is permitted.'
+exit 1
