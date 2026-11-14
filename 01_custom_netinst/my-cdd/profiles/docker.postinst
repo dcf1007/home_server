@@ -1,10 +1,11 @@
 #!/bin/sh
-# Fail-closed placeholder for the Docker profile.
-# Upstream Simple-CDD runs this inside the installed target at finish-install.
-# Docker must not start during maintainer scripts or at first boot; until the
-# reviewed service-suppression and signed-repository installer is integrated,
-# no Docker package transaction may occur.
+# Simple-CDD finish-install verification only.
+# The selected profile was performed beforehand by the native Debian
+# Installer late command, where its Debconf approvals were visible.
+# Never execute the profile twice or claim success from mere selection.
 set -eu
-printf >&2 '%s\n' 'my-cdd docker: STOP — Docker early service suppression is not implemented/tested.'
-printf >&2 '%s\n' 'Never silently install, enable, or activate the daemon/socket.'
-exit 1
+marker="/var/log/installer/my-cdd-completed/docker"
+if [ ! -f "$marker" ]; then
+    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'docker'
+    exit 1
+fi
