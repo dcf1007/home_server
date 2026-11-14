@@ -38,11 +38,11 @@ Root ext4: 5% reserved blocks, `noatime`, `errors=panic`, ordinary `data=ordered
 ## Repositories and ordinary package options
 
 - Base Debian repositories: `trixie`, `trixie-updates` and `trixie-security`; components `main contrib non-free non-free-firmware`; binary package sources only. **`trixie-backports` is enabled only if the user explicitly selects the separate Backports profile**.
-- Official HTTPS mirrors, no APT proxy. [02 — Backports](02_backports_apt.md) documents the optional repository, priority 900 and the mandatory reviewed upgrade inside that profile.
+- Official HTTPS mirrors, no APT proxy. [02 — Backports](02_backports_apt.md) documents optional repository enablement at **Debian default priority 100**, with explicit approval for package upgrades and subsequent autoremove/purge. The independently selectable [Ensure 7.x kernel branch](09_ensure_7x_kernel.md) profile requests only kernel-related packages from Backports if ordinary repositories lack a suitable Linux 7.x kernel.
 - Standard APT package policy: install `Recommends`, not `Suggests`.
 - No `popularity-contest`.
 - Install automatic firmware identified by Debian plus a broader set; exact extra package list deferred.
-- Do not run unattended upgrades or automatically reboot for updates. The **separately selected Backports profile** is the only special install-stage full-upgrade operation and requires explicit transaction confirmation.
+- Do not run unattended upgrades or automatically reboot for updates. The **separately selected Backports profile** owns the reviewed full-upgrade and post-upgrade cleanup steps, including explicit approval for proposed removals and purges.
 
 ## Finish
 
