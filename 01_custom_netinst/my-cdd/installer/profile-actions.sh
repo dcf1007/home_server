@@ -10,11 +10,19 @@ suite_version() {
     }' "$WORK/output"
 }
 normal_suite() {
+    best_suite=''
+    best_version=''
     for suite in trixie-security trixie-updates trixie; do
         v="$(suite_version "$1" "$suite")"
-        if [ -n "$v" ]; then printf '%s\n' "$suite"; return 0; fi
+        [ -n "$v" ] || continue
+        if [ -z "$best_version" ] ||
+            in-target dpkg --compare-versions "$v" gt "$best_version"; then
+            best_suite=$suite
+            best_version=$v
+        fi
     done
-    return 1
+    [ -n "$best_suite" ] || return 1
+    printf '%s\n' "$best_suite"
 }
 backports_is_selected() {
     case " $ordered " in *' backports '*) return 0;; *) return 1;; esac
@@ -174,7 +182,9 @@ profile_firmware() {
                     selector=$candidate
                     if backports_is_selected; then
                         [ -n "$reason" ] || reason='No published Backports version'
-                        printf '%s/%s: %s\n' "$pkg" "$stable" "$reason" >> "$WORK/firmware-fallbacks"
+                        stable_version="$(suite_version "$pkg" "$stable")"
+                        printf '%s: version=%s, origin=%s, fallback reason=%s\n' \
+                            "$pkg" "$stable_version" "$stable" "$reason" >> "$WORK/firmware-fallbacks"
                     fi
                 fi
             fi
