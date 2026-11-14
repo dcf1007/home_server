@@ -23,6 +23,8 @@ The backports activation and preference policy has its own guide: [02_backports_
 
 **Approved default profile selection:** all four optional profiles (**ZSTD ZRAM writeback**, **Debian tweaks**, **OpenMediaVault 8**, **Docker**) start **unchecked**. The installer must show all options and require the user to explicitly select and confirm each desired profile. Selecting none means base Debian only; no profile is silently added.
 
+**ZRAM requires Debian tweaks:** The two profiles are displayed as separate options, both unchecked by default. If ZRAM is selected without Debian tweaks, show an explicit choice: **select Debian tweaks too** or **deselect ZRAM**. Never automatically enable Debian tweaks, never proceed with ZRAM alone, and re-confirm the resulting selection. Test that the Simple-CDD installer interface can support this interaction.
+
 ## Editable installation identity defaults
 
 The initial hostname and administrator username are defined in [profile_defaults.conf.example](profile_defaults.conf.example) as **suggestions**, not fixed values. The installer must present each in an editable question, allow changes, and require explicit confirmation. Changed values must propagate consistently into the hostname, user account, sudo and SSH configurations.
