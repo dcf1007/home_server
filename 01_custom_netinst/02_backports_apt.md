@@ -12,7 +12,7 @@ This optional profile:
 4. After successful upgrading, performs **reviewed autoremove and purge cleanup** with explicit approval for every proposed removal.
 5. Revalidates package/database state before any selected dependent profile proceeds.
 
-The **[09 — Ensure 7.x kernel branch](09_ensure_7x_kernel.md)** profile asks the user to select Backports **only when ordinary repositories do not provide a suitable Linux 7.x kernel**. It then selectively installs the kernel image and headers from Backports. **ZRAM depends on Ensure 7.x, not directly on Backports.** No profile is selected silently.
+The **[09 — Ensure 7.x kernel branch](09_ensure_7x_kernel.md)** profile prefers a compatible Linux 7.x **Backports** kernel and matching headers **when Backports is explicitly selected**. Otherwise it searches normal Debian repositories first, offering explicit Backports selection only if needed. The separate [10 — Extended device support](10_extended_device_support.md) profile likewise **prefers eligible Backports versions of its firmware and both microcode packages when Backports is already selected**, falling back to suitable normal-repository packages after review; an unresolvable package requires individually approved omission. **ZRAM depends on Ensure 7.x, not directly on Backports.** No profile is selected silently.
 
 ## 1. Repository configuration
 
@@ -59,7 +59,7 @@ apt-cache policy linux-image-amd64 linux-headers-amd64
 apt-config dump | grep -E 'Default-Release|Periodic|Unattended'
 ```
 
-This policy **does not automatically select newer backports versions** over stable. An explicitly selected kernel 7.x profile may request `linux-image-amd64/trixie-backports` and `linux-headers-amd64/trixie-backports` when needed. Normal stable dependencies remain preferred unless a necessary backported dependency is specifically required.
+This global APT policy **does not automatically select newer Backports versions** over Stable. **Selected downstream profiles deliberately request particular versions**: if Backports is selected, Ensure 7.x prefers eligible `linux-image-amd64/trixie-backports` and `linux-headers-amd64/trixie-backports`; Extended device support similarly prefers `<firmware-or-microcode-package>/trixie-backports` where available and compatible. Use per-package suite selection, **not blanket `-t trixie-backports` or a global priority override**; normal Stable dependencies remain preferred unless specific Backports dependencies are necessary and explicitly reviewed. If no usable Backports candidate exists, review a normal-repository version before considering individual omission of firmware/microcode. If Backports is unselected, leave both profiles on their established normal-repository-first paths.
 
 ## 3. Full upgrade of eligible installed packages — inside Backports
 
@@ -89,7 +89,7 @@ Perform cleanup **after** the successful upgrade, before declaring this profile 
 
 **Stable kernel fallback nuance:** an earlier decision requires the original stable kernel to remain selectable **at first boot**, but no permanent custom kernel-retention policy. An immediate autoremove/purge must **not** remove that initial fallback. The final behavior when APT wants to purge the fallback is subject to explicit review, not silent permanent locking.
 
-These actions belong to the Backports profile's **upgrade and cleanup** workflow. A selective kernel package installation done by [Ensure 7.x](09_ensure_7x_kernel.md) is a separate transaction; if it causes an upgrade, the same reviewed cleanup safeguards apply.
+These actions belong to the Backports profile's **upgrade and cleanup** workflow. Selective Backports-first package installations by [Ensure 7.x](09_ensure_7x_kernel.md) and [Extended device support](10_extended_device_support.md) are **separate reviewed transactions after this profile**, not permission to alter its ordinary `full-upgrade` policy. Apply the same review/cleanup safeguards if those later transactions introduce dependency changes or upgrades.
 
 ## 5. Package management remains manual
 
