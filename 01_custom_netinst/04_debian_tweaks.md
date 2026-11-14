@@ -1,66 +1,71 @@
-# 04 — Selectable **Debian tweaks** profile
+# 04 — Optional Debian tweaks profile
 
-**Status:** approved settings and implementation requirements; no installed scripts/ISO are claimed. **Recorded:** 2026-11-14. **Provenance:** all Debian customizations outside regular installer menus as requested by the user.
+**Status:** requirements only; profile scripts and installation have not been built or tested. **Updated:** 2026-11-14. **Provenance:** installation choices, updated to omit settings already implemented by Debian's normal defaults. All optional profiles remain unchecked unless explicitly selected.
 
-**Boundary:** This profile contains **non-GUI customizations only**, such as GRUB settings, kernel-independent filesystem/recovery and journaling policies, SSH hardening, and APT unattended-update suppression. Do **not** include ZRAM, Linux 7.x installation, microcode, proactive firmware, initramfs driver coverage, or SSD TRIM verification. Those belong to [03 ZRAM](03_zram_writeback.md), [09 Ensure 7.x](09_ensure_7x_kernel.md), and the separately selectable [10 Extended device support](10_extended_device_support.md). **All settings entered in the normal Debian Installer GUI** (language, locale, keyboard, timezone/RTC, hostname, username, domain, DHCP and task selection) are sourced as **editable suggestions** from [profile_defaults.conf](profile_defaults.conf) and handled by [05 base installation](05_base_installation.md), independently of whether Debian tweaks is selected.
+## Scope
 
-**Approved independence:** Debian tweaks does **not require Ensure 7.x kernel branch** and applies all of its approved settings on Debian's ordinary installed kernel, including when Ensure 7.x is unchecked. It neither installs nor checks a mandatory 7.x kernel. Backports and ZRAM also remain separately selectable; do not implicitly check another profile. **Profile menu order:** Backports → Ensure 7.x → Debian tweaks → Extended device support → ZRAM → OMV → Docker (skip unchecked entries).
+Apply only the **non-default operating-system changes** below. Do **not** duplicate ordinary Debian Installer answers in this profile. Normal GUI questions and editable suggested values are in [profile_defaults.conf](profile_defaults.conf); disk layout is in [05 — Base installation](05_base_installation.md).
 
-## APT sources, boot configuration and access
+The following are **independently selected** and never activated by Debian tweaks:
 
-- Retain official signed stable, updates and security sources. **Do not enable `trixie-backports` or create an APT pin in Debian tweaks.** Backports uses Debian's **default priority 100** and is enabled only through the explicitly selected [Backports profile](02_backports_apt.md).
-- **Kernel independence:** do not require Linux 7.x, install Linux kernel image/headers, add Backports, or prompt for Ensure 7.x from this profile. **GRUB menu, five-second timeout and normal kernel cleanup settings apply to whichever kernel(s) were separately installed.** Only the [Ensure 7.x kernel](09_ensure_7x_kernel.md) profile owns optional 7.x installation.
-- Update GRUB: `GRUB_TIMEOUT_STYLE=menu`, `GRUB_TIMEOUT=5`, `GRUB_DEFAULT=0`; remove `quiet` but do not enable debug logging.
-- Preserve root SSH prohibition `PermitRootLogin no`; preserve initial SSH password access for the installer-confirmed administrator account. Validate after OMV installation if OMV selected.
+- [02 — Backports](02_backports_apt.md): optional repository, priority 100 and reviewed package upgrade/cleanup.
+- [09 — Ensure 7.x kernel branch](09_ensure_7x_kernel.md): optional Linux 7.x kernel and matching headers.
+- [10 — Extended device support](10_extended_device_support.md): additional CPU microcode and firmware.
+- [03 — ZRAM](03_zram_writeback.md): compressed swap/writeback with its own explicit kernel-profile dependency.
+- [06 — OpenMediaVault](06_openmediavault.md) and [07 — Docker](07_docker.md).
 
-## Filesystem, failure recovery and journaling
+**Menu order:** Backports → Ensure 7.x kernel branch → Extended device support → ZRAM → Debian tweaks → OMV → Docker.
 
-- ext4 root: 5% reserved blocks; `noatime,errors=panic`; default `data=ordered`; do not enable continuous discard.
-- **Do not alter native disk-layout choices here.** The decisions not to use encryption, LVM, a separate `/boot`, or a separate application partition belong to [05 — Base installation](05_base_installation.md) and are confirmed through normal partitioning screens.
-- `kernel.panic=0`: do **not** automatically reboot after kernel panic.
-- `fsck.mode=auto` (default) and **`fsck.repair=no`** (explicit): check if needed, never repair automatically.
-- Persistent `systemd-journald` storage, with **Debian's default size limits**; do **not** explicitly install `rsyslog`.
-- Mount the root and EFI using filesystem UUIDs; do not depend on changing `/dev/sdX` device names.
+## Deliberate changes beyond Debian's defaults
 
-## Debian updates and privacy
+### Boot messages
 
-Microcode, broad firmware coverage, initramfs driver policy and SSD TRIM validation are handled by the [Extended device support profile](10_extended_device_support.md). They are **not** installed or modified by Debian tweaks. Ordinary Debian Installer hardware detection remains available with either profile selection.
+- **Remove the `quiet` kernel command-line parameter** to retain normal boot messages; do not enable extra debug logging.
+- The earlier requirement for a **visible GRUB menu, five-second timeout and first (newest) kernel** remains an installation acceptance condition. **Do not rewrite `GRUB_DEFAULT=0`, `GRUB_TIMEOUT=5` or `GRUB_TIMEOUT_STYLE=menu` if Debian already provides that behavior.** If the installed GRUB configuration differs, show the necessary change for confirmation rather than silently altering it.
 
-- **No unattended upgrades, including security upgrades.** Explicit effective APT setting:
-  
+### Filesystem mount and repair policy
+
+- Add **`noatime`** for the ext4 root filesystem and **`errors=panic`** for detected ext4 filesystem errors. Review the actual generated `/etc/fstab` and apply only these non-default mount options; keep ordinary ext4 defaults otherwise.
+- Require **`fsck.repair=no`** instead of systemd's normal `preen` (which automatically fixes errors considered safe). This preserves the approved **manual-only filesystem repair** policy. Do **not** redundantly set `fsck.mode=auto`, which is already systemd's default. Test the selected bootloader/kernel-command-line integration before implementation.
+
+### SSH access
+
+- Explicitly enforce **`PermitRootLogin no`**, stronger than the common Debian/OpenSSH default `prohibit-password`; verify effective `sshd -T` after installation and, if selected, after OMV.
+- Administrator identity, sudo permissions and initial password-based SSH access are decided in the base installation; **preserve** those confirmed values rather than overriding them here.
+
+### Package-update guard
+
+- Enforce the approved **manual-only update policy**: no unattended package installation, including security upgrades, and no automatic reboot for updates.
+- Debian's baseline normally does not mandate unattended upgrades. **Do not install a redundant override merely to restate that default.** If another selected package enables unattended upgrades, explicitly disable the effective behavior, using a dedicated APT setting where necessary:
+
   ```text
   APT::Periodic::Unattended-Upgrade "0";
   ```
-  
-  Verify `apt-config dump` and effective service/timer behavior; if `unattended-upgrades` is absent, ensure it does not become active from other profile dependencies. Scheduled package-index checks are distinct from installations and were not exhaustively configured.
-- All package upgrades and reboots remain manual.
-- Do not install/enable Debian `popularity-contest`.
 
-## Installer GUI settings are not Debian tweaks
+- Check `apt-config dump` and relevant timers/services after selected profiles run. The explicitly approved **one-time, user-confirmed Backports upgrade** is separate and remains permitted.
 
-- **Do not set or override the installer-facing timezone, RTC, language, locale, keyboard, hostname, administrator username, DNS domain, DHCP method or software-selection defaults here.** Their canonical suggested values are in [profile_defaults.conf](profile_defaults.conf), must be editable/confirmed in normal setup screens, and apply even when Debian tweaks is unchecked.
-- Keep `systemd-timesyncd` available for time synchronization as previously approved, but do not use this profile to silently override the GUI-selected timezone or UTC RTC setting.
-- The desired **YYYY/MM/DD**, 24-hour, decimal-dot and space-grouping formats require a separately validated implementation; these are **not equivalent to installer timezone/locale GUI choices** and must not be assumed to follow automatically from `en_US.UTF-8`.
-- The graphical installer's account/password questions, separate root credential after sudo setup, and default task selections are documented in [05 base installation](05_base_installation.md). Debian tweaks must **preserve**, not re-answer, the confirmed values and must not embed secrets.
-- No firewall filtering during installer setup.
-- Display a review/confirmation before non-GUI customization where practical; log applied changes.
+### Custom date/number presentation (unvalidated)
 
-## Conditional profile semantics
+- Preserve the user's requested **YYYY/MM/DD** date display, **24-hour** time, decimal separator **`.`**, and thousands grouping **a space**. These are not automatically produced by the GUI-selected `en_US.UTF-8` locale.
+- Do not claim this is implemented without determining which locale/application settings can produce the combination, then obtaining any necessary confirmation. Do not override the selected timezone, keyboard or locale without approval.
 
-If Debian tweaks is not selected, do not silently apply its unique configuration or claim the installation includes the complete Debian tweaks design. **Extended device support, ZRAM, Ensure 7.x, Backports, OMV and Docker remain independently selectable**, and the ZRAM profile provides its own technical prerequisites if selected alone. Never silently enable another profile. Compatibility checks still apply. See [08_validation_and_pending.md](08_validation_and_pending.md).
+## Default behaviors deliberately left untouched
 
-## Acceptance checks (examples)
+The profile makes **no** changes for Debian's ordinary filesystem layout, reserved ext4 blocks, ext4 ordered journaling, GRUB default-entry selection, normal kernel panic timeout, default filesystem-check scheduling, journal-size defaults, default package recommendations, normal NTP behavior, standard hardware detection or baseline privacy/firewall choices. Those do not justify new settings in this optional profile.
+
+All disk targeting/formatting remains in the normal Debian Installer. No automatic kernel selection, Backports activation, unrelated hardware packages or other optional profiles.
+
+## Acceptance (illustrative, not completed)
 
 ```sh
-apt-cache policy
+cat /proc/cmdline
+findmnt -no FSTYPE,OPTIONS /
+grep -E '^GRUB_(TIMEOUT|TIMEOUT_STYLE|DEFAULT)=' /etc/default/grub
+sudo sshd -T | grep -i permitrootlogin
 apt-config dump | grep -E 'Periodic|Unattended'
 journalctl --list-boots
-findmnt -no FSTYPE,OPTIONS /
-sysctl kernel.panic
-cat /proc/cmdline
-ADMIN_USER="<confirmed-administrator-username>"
-sudo -l -U "$ADMIN_USER"
-sudo sshd -T | grep -i permitrootlogin
 ```
 
-These checks alone are **not** proof that every proposed integration succeeds. Do not run or assume results until the corresponding profile is actually installed.
+Verify `fsck.repair=no` is effective in the booted target system, and that the GRUB menu behavior is correct without unnecessary overrides. If the custom date/number display requirement is unsatisfied, retain it as an open implementation checkpoint.
+
+**No implementation claim:** documentation is updated, but no resulting ISO, profile, booted kernel or service state has been tested.
