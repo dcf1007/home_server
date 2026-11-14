@@ -2,6 +2,8 @@
 
 **Status:** open engineering checklist; no installer artifact built or tested. **Recorded:** 2026-11-14. **Provenance:** conversation decisions and uploaded ZRAM compressed-writeback proposal.
 
+**Implementation progress (2026-11-14):** The [`my-cdd/`](my-cdd/README.md) project now contains **48 tracked source/configuration/provenance files**, including an initial Simple-CDD build configuration, default preseed/udebs, seven selectable profiles, early native Debconf confirmation source, read-only APT/ZRAM inspections and extracted ZRAM design assets. **This is not a working installer:** optional `.packages` queues are deliberately empty, selected `.postinst` hooks fail closed, and test/release ISO builds are gated on implementing and validating the early profile-selection and ordered transaction executor. See [mandatory integration gates](my-cdd/installer/IMPLEMENTATION_GATES.md) and [source manifest](my-cdd/SOURCE_MANIFEST.md).
+
 ## Installation profile acceptance matrix
 
 | Choice | Install-time action | Validation |
