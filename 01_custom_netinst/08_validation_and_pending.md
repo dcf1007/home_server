@@ -17,7 +17,7 @@
 ## Blocking verification issues
 
 1. **Global APT pin 900 versus OMV 8:** official OMV guidance warns of incompatible backports dependencies. Simulate intended package set and ask before any policy change.
-2. **Kernel availability:** confirm a suitable kernel 7.x and matching `linux-headers-amd64` from actual `trixie-backports` at build time.
+2. **Kernel availability and package upgrade:** require the newest eligible Linux 7.x kernel (matching headers; moving metapackages; no fixed version), using standard Debian repos if possible or explicitly approved `trixie-backports` if necessary. If backports is newly enabled, require full, explicitly reviewed completion of all eligible package upgrades **before proceeding**; stop on package removals/conflicts that have not been approved. Check effective pinning and the installed target-kernel boot entry.
 3. **ZRAM API compatibility:** verify selected kernel and Debian generator support resident limit, compressed writeback, early device setup and dynamic backing-size measurement; inspect uploaded monitor for logic/errors.
 4. **User-controlled swap partition, conditional role:** user creates swap in ordinary Debian Installer partitioning (16 GB suggested). Without ZRAM, use as conventional swap. With ZRAM, re-purpose the **same** partition exclusively for raw PARTUUID writeback and prevent normal swap activation. If absent and ZRAM selected, explicitly offer **return to partitioning** or **deselect ZRAM**. Validate partman stage/order, swap signatures, `/etc/fstab`, user confirmation and safe navigation before shipping.
 5. **Emergency recovery:** ensure systemd *really enters* emergency mode for a failed ZRAM initialization, with usable local root credentials; test this in a disposable environment.
