@@ -1,0 +1,10 @@
+#!/bin/sh
+# Fail-closed placeholder for the openmediavault profile.
+# Upstream Simple-CDD 0.6.9 executes executable .postinst inside /target
+# during finish-install. Implementation must dispatch profiles in the
+# agreed order regardless of the order returned by the selected multiselect.
+set -eu
+printf >&2 '%s\n' 'my-cdd openmediavault: STOP — not production ready.'
+printf >&2 '%s\n' 'OMV 8 repository/key/packaging, cron-apt behavior and SSH/network changes require validated signed install and post-install checks.'
+printf >&2 '%s\n' 'No automatic fallback, package install, or success state is permitted.'
+exit 1
