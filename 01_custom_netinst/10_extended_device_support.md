@@ -1,6 +1,6 @@
 # 10 — Selectable **Extended device support** profile
 
-**Status:** documented and independently selectable in generated Simple-CDD **description-only sources**, initially unchecked; dynamic package installer, dependency transaction and device-specific driver tests are **not implemented or completed**. **Recorded:** 2026-11-14. **Provenance:** the hardware-related settings moved without losing the approved package inventory from [04 — Debian tweaks](04_debian_tweaks.md), as requested in the current installation-planning conversation.
+**Status:** independently selectable in Simple-CDD, initially unchecked, with a source routine for Backports-first selection, Stable fallbacks, individual omissions and a final combined package review. The original 37-package inventory is unchanged. **No actual transaction, installer dialog or driver compatibility has been validated.** **Recorded:** 2026-11-14. **Provenance:** the hardware-related settings moved without losing the approved package inventory from [04 — Debian tweaks](04_debian_tweaks.md), as requested in the current installation-planning conversation.
 
 ## Scope and profile independence
 
