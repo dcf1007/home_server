@@ -69,9 +69,9 @@ sudo apt install simple-cdd
 build-simple-cdd --help
 ```
 
-**Project scaffold has been created at [`my-cdd/`](my-cdd/README.md).** The configuration pair is already there; the build configuration and actual profile source files are still to be written.
+**Implementation sources are now being generated in [`my-cdd/`](my-cdd/README.md):** build configuration, minimal default preseed, seven selectable profile descriptions, guarded `.postinst` files, native Debconf integration source, package-inventory/preflight helpers and untested ZRAM source assets exist. **They are not an installed, tested or release-ready installer.** The exact profile executor and early integration remain implementation gates.
 
-Planned *source* layout (lines other than the existing directories and moved defaults are not yet created):
+Source layout (the planned production executor, native installer packaging and release tests are still missing):
 
 ```text
 my-cdd/
