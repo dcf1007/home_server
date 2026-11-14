@@ -1,42 +1,38 @@
 #!/bin/sh
-# my-cdd build entry point — never bypass the safety/integration gate.
-# Run as: sh build.sh --check  (safe source preflight)
-#         sh build.sh          (production build ONLY after integration gate)
+# my-cdd build entry point — source check, test image, then verified release.
+# sh build.sh --check       non-destructive local source validation
+# sh build.sh --test-build  create a disposable test ISO AFTER integration
+# sh build.sh --release     create release ISO AFTER full functional validation
 set -eu
 cd "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-
-profiles="backports ensure-7x-kernel extended-device-support zram-writeback debian-tweaks openmediavault docker"
 fail() { printf >&2 'my-cdd: %s\n' "$*"; exit 1; }
 
-[ -f simple-cdd.conf ] || fail "missing simple-cdd.conf"
-[ -f profile_defaults.conf ] || fail "missing canonical profile_defaults.conf"
-[ -f profiles/default.preseed ] || fail "missing default preseed"
-[ -f profiles/default.udebs ] || fail "missing Simple-CDD default udeb"
+command -v sh >/dev/null 2>&1 || fail "POSIX shell missing"
+sh scripts/verify-source-layout.sh || fail "source layout validation failed"
+
 case "${1:-}" in
   --check)
-    for profile in $profiles; do
-      [ -f "profiles/$profile.description" ] || fail "missing $profile.description"
-      [ -f "profiles/$profile.packages" ] || fail "missing $profile.packages"
-    done
-    printf 'my-cdd: source layout is present; this is NOT installer validation.\n'
+    printf '%s\n' 'my-cdd: source checks passed; NOT evidence of working installer.'
     exit 0 ;;
-  '') ;;
-  *) fail "usage: sh build.sh [--check]" ;;
+  --test-build)
+    # Test images must still contain all intended installer functionality
+    # to exercise it meaningfully. Do not test a misleading partial image.
+    [ -f installer/INTEGRATION_IMPLEMENTED ] || fail "early profile selection, custom-profile transactions and boot menu NOT IMPLEMENTED; refusing to build a misleading test ISO"
+    ;;
+  --release)
+    [ -f installer/INTEGRATION_IMPLEMENTED ] || fail "integration not implemented"
+    [ -f installer/INTEGRATION_VALIDATED ] || fail "GTK/text, package and installer integration not yet validated"
+    [ -f installer/FIRST_BOOT_TESTED ] || fail "required first boot and functional tests not yet validated"
+    ;;
+  *) fail "usage: sh build.sh --check | --test-build | --release" ;;
 esac
 
-# A genuine release block, not a flag that permits untested media generation.
-# The early GTK/text profile-summary gate, exact selected profile execution,
-# dynamic package approval, ZRAM conversion, services and boot menu MUST
-# be integrated and tested before this build may be enabled.
-[ -e installer/INTEGRATION_TESTED ] || fail "UNSAFE TO BUILD: early installer integration, profile execution and boot menu have not been validated (see installer/IMPLEMENTATION_GATES.md)"
-[ -e installer/FIRST_BOOT_TESTED ] || fail "UNSAFE TO BUILD: required first-boot and functional installer tests remain incomplete"
-command -v build-simple-cdd >/dev/null 2>&1 || fail "simple-cdd build-simple-cdd is not installed"
-command -v dpkg >/dev/null 2>&1 || fail "dpkg missing"
-[ "$(id -u)" -ne 0 ] || fail "build-simple-cdd should be run as a non-root build user"
+command -v build-simple-cdd >/dev/null 2>&1 || fail "install Debian 13 simple-cdd"
+[ "$(id -u)" -ne 0 ] || fail "run the builder as a non-root user"
 
-# GitHub's file-creation API stores text as non-executable; simple-cdd's
-# finish-install hook executes ONLY .postinst files with the executable bit.
-# Review the upstream integration AND chmod these after checkout.
+# The GitHub files API creates 0644 text files. Simple-CDD 0.6.9 only runs
+# executable .postinst files. The integration MUST replace the current
+# fail-closed placeholder hooks before setting INTEGRATION_IMPLEMENTED.
 for p in profiles/*.postinst; do
   [ -f "$p" ] || continue
   chmod 0755 "$p"
