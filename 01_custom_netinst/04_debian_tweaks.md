@@ -21,12 +21,12 @@ The following are **independently selected** and never activated by Debian tweak
 ### Boot messages
 
 - **Remove the `quiet` kernel command-line parameter** to retain normal boot messages; do not enable extra debug logging.
-- The earlier requirement for a **visible GRUB menu, five-second timeout and first (newest) kernel** remains an installation acceptance condition. **Do not rewrite `GRUB_DEFAULT=0`, `GRUB_TIMEOUT=5` or `GRUB_TIMEOUT_STYLE=menu` if Debian already provides that behavior.** If the installed GRUB configuration differs, show the necessary change for confirmation rather than silently altering it.
+- The previously approved **visible GRUB menu with a five-second timeout**, booting the newest installed kernel by default, remains a **validation requirement**, not a reason to rewrite settings already supplied by Debian. Only propose corrections if actual installed behavior differs, with explicit approval.
 
 ### Filesystem mount and repair policy
 
 - Add **`noatime`** for the ext4 root filesystem and **`errors=panic`** for detected ext4 filesystem errors. Review the actual generated `/etc/fstab` and apply only these non-default mount options; keep ordinary ext4 defaults otherwise.
-- Require **`fsck.repair=no`** instead of systemd's normal `preen` (which automatically fixes errors considered safe). This preserves the approved **manual-only filesystem repair** policy. Do **not** redundantly set `fsck.mode=auto`, which is already systemd's default. Test the selected bootloader/kernel-command-line integration before implementation.
+- Require **`fsck.repair=no`** instead of systemd's default `preen`, which can automatically repair errors considered safe. This preserves the explicit **manual-only filesystem repair** policy. Validate the effective kernel-command-line setting before implementation.
 
 ### SSH access
 
@@ -49,12 +49,6 @@ The following are **independently selected** and never activated by Debian tweak
 - Preserve the user's requested **YYYY/MM/DD** date display, **24-hour** time, decimal separator **`.`**, and thousands grouping **a space**. These are not automatically produced by the GUI-selected `en_US.UTF-8` locale.
 - Do not claim this is implemented without determining which locale/application settings can produce the combination, then obtaining any necessary confirmation. Do not override the selected timezone, keyboard or locale without approval.
 
-## Default behaviors deliberately left untouched
-
-The profile makes **no** changes for Debian's ordinary filesystem layout, reserved ext4 blocks, ext4 ordered journaling, GRUB default-entry selection, normal kernel panic timeout, default filesystem-check scheduling, journal-size defaults, default package recommendations, normal NTP behavior, standard hardware detection or baseline privacy/firewall choices. Those do not justify new settings in this optional profile.
-
-All disk targeting/formatting remains in the normal Debian Installer. No automatic kernel selection, Backports activation, unrelated hardware packages or other optional profiles.
-
 ## Acceptance (illustrative, not completed)
 
 ```sh
@@ -63,7 +57,6 @@ findmnt -no FSTYPE,OPTIONS /
 grep -E '^GRUB_(TIMEOUT|TIMEOUT_STYLE|DEFAULT)=' /etc/default/grub
 sudo sshd -T | grep -i permitrootlogin
 apt-config dump | grep -E 'Periodic|Unattended'
-journalctl --list-boots
 ```
 
 Verify `fsck.repair=no` is effective in the booted target system, and that the GRUB menu behavior is correct without unnecessary overrides. If the custom date/number display requirement is unsatisfied, retain it as an open implementation checkpoint.
