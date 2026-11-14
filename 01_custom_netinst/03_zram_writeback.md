@@ -33,7 +33,7 @@ The source design describes setting up an existing system. The custom Debian ins
 ```sh
 apt-get update
 apt-cache policy linux-image-amd64 linux-headers-amd64
-apt-get -s full-upgrade
+apt-get -s dist-upgrade
 apt-mark showhold
 dpkg --audit
 apt list --upgradable
