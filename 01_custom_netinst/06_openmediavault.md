@@ -8,15 +8,15 @@ If selected, install **OpenMediaVault 8** into the minimal Debian 13 system **du
 
 This is a separate selectable profile. The **Debian tweaks** profile and the optional Docker and ZRAM profiles must remain distinct.
 
-## Critical compatibility gate: backports pin 900
+## Critical compatibility gate: Backports profile (if selected)
 
-The requested global preference for `trixie-backports` at **900** and stable/security at **500** can select newer dependencies that OMV does not support. OMV explicitly warns against inadvertently drawing core dependencies from Backports.
+**Only if the Backports profile is explicitly selected**, its global preference for `trixie-backports` at **900** (versus stable/security **500**) may select newer dependencies incompatible with OMV. OMV explicitly warns against inadvertently drawing core dependencies from Backports. If Backports is not selected, **do not activate the repository or pin it on OMV's behalf**.
 
 Before installing OMV:
 
 1. Inspect effective `apt-cache policy` and simulate the OMV package transaction.
 2. Inspect all proposed package changes, downgrades, package removals, and critical dependencies (especially networking, SSH, Python, systemd, web server and OMV plugins).
-3. Resolve unsupported combinations by asking the user; do not silently alter the chosen global backports pin, force dependencies, skip OMV or mark profile success.
+3. Resolve unsupported combinations by asking the user; do not silently select Backports, alter a selected pin, force dependencies, skip OMV or mark profile success.
 4. Verify repository signatures and supported OMV 8 release. **Do not blindly execute remote network scripts** during unattended installation. Use the official documented repository/key/package procedure, validated for the exact release.
 
 ## One explicitly approved OMV configuration change: no scheduled updates
