@@ -1,0 +1,8 @@
+# Only install into /etc/apt/sources.list.d/ AFTER the Backports
+# profile has been explicitly selected and approved. Build-time presence
+# of this template MUST NOT enable Backports in the target system.
+Types: deb
+URIs: https://deb.debian.org/debian
+Suites: trixie-backports
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
