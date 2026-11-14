@@ -16,7 +16,7 @@ Simple-CDD supports selectable profiles, typically expressed using files such as
 |---|---|---|
 | **Backports** | [02_backports_apt.md](02_backports_apt.md) | Enable Backports at **Debian default priority 100**; perform user-reviewed eligible-package upgrade and autoremove/purge cleanup |
 | **Ensure 7.x kernel branch** | [09_ensure_7x_kernel.md](09_ensure_7x_kernel.md) | Use newest suitable Linux 7.x from standard repos, or request selective backported kernel packages when approved |
-| **Extended device support** | [10_extended_device_support.md](10_extended_device_support.md) | CPU microcode and additional proactively installed device firmware |
+| **Extended device support** | [10_extended_device_support.md](10_extended_device_support.md) | Request **both Intel and AMD microcode** plus proactive device firmware; any unavailable/conflicting package requires individually approved omission |
 | **ZSTD ZRAM writeback** | [03_zram_writeback.md](03_zram_writeback.md) | ZRAM with raw writeback backing and monitor; explicitly requires Ensure 7.x |
 | **Debian tweaks** | [04_debian_tweaks.md](04_debian_tweaks.md) | Only non-default Debian operating-system adjustments; independent of Ensure 7.x |
 | **OpenMediaVault 8** | [06_openmediavault.md](06_openmediavault.md) | Optional OMV installation, approved cron-apt shutdown |
@@ -41,7 +41,7 @@ The normal Debian Installer questions use **[profile_defaults.conf](profile_defa
 
 The matching [`profile_defaults.conf.example`](profile_defaults.conf.example) is a reference example, not a second source of truth. No GUI-editable setting should be implemented only inside Debian tweaks. Prompt the user on the normal installer screens, allow edits, require confirmation, and propagate the confirmed values throughout the installed system. **Do not silently preseed answers, bypass installer screens or freeze values in profile post-install scripts**; the exact mapping from these symbolic config names to Debian Installer questions requires engineering validation.
 
-**Do not store passwords, hashes, disk targets or selected-profile flags** in either defaults file. Only non-default boot, filesystem, recovery, SSH and update-policy settings remain in the optional Debian tweaks profile. CPU microcode and additional proactive firmware belong to the separate optional [Extended device support](10_extended_device_support.md) profile.
+**Do not store passwords, hashes, disk targets or selected-profile flags** in either defaults file. Only non-default boot, filesystem, recovery, SSH and update-policy settings remain in the optional Debian tweaks profile. Both Intel/AMD microcode packages and additional proactive firmware belong to the separate optional [Extended device support](10_extended_device_support.md) profile. Simulate all requested packages together; require specific reasons and individual user approval for any omissions.
 
 ## Planned build-host setup
 
