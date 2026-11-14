@@ -417,7 +417,10 @@ profile_tweaks() {
     # The user approved only removal of quiet and fsck.repair=no; retain
     # all other kernel arguments and normal GRUB behavior.
     sed -i -E '/^GRUB_CMDLINE_LINUX_DEFAULT=/ {
-        s/(^|[[:space:]])quiet([[:space:]"])/\1\2/g
+        s/"quiet([[:space:]]|")/"\1/g
+        s/[[:space:]]quiet([[:space:]]|")/ \1/g
+        s/="[[:space:]]+/="/
+        s/[[:space:]]+"$/"/
         /fsck\.repair=no/! s/"$/ fsck.repair=no"/
     }' /target/etc/default/grub
     run_target update-grub
