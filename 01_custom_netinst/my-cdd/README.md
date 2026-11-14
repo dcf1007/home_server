@@ -5,11 +5,10 @@
 ## Entry points
 
 - [`simple-cdd.conf`](simple-cdd.conf) — actual Trixie/amd64 Simple-CDD 0.6.9 build variables; seven optional profiles, no auto-selection; official Debian mirror components.
-- [`build.sh`](build.sh) — `sh build.sh --check` for safe static source checks. `--test-build` and `--release` are **blocked** until their respective documented integration and test milestones are completed.
+- [`build.sh`](build.sh) — invokes the standard `build-simple-cdd --conf ./simple-cdd.conf --dist trixie` command; until the unfinished profile hooks are replaced, the script stops instead of creating a misleading image.
 - [`profiles/`](profiles/) — default preseed/udebs/base packages and seven selectable profile descriptions plus deliberate fail-closed postinst sources.
 - [`installer/`](installer/) — the **authorized early-preseed Debconf confirmation source**, wired from the default preseed before the unmodified Simple-CDD udeb, plus deterministic selection handling and mandatory verification gates. **Runtime GUI behavior is untested.**
-- [`scripts/`](scripts/) — read-only APT/ZRAM inspections, **new Backports-first joint firmware planner**, firmware inventory, signed Backports and selected-ZRAM configuration templates, and **untested source-extracted ZRAM assets**.
-- [`tests/`](tests/) — offline planner unit-test sources and selection checks; source-level test execution is configured in `build.sh --check` but has not been run in a Debian 13 installer environment.
+- [`scripts/`](scripts/) — approved firmware package inventory, selected-only Backports and ZRAM configuration inputs, and untested ZRAM source assets.
 - [`profile_defaults.conf`](profile_defaults.conf) — original canonical, editable native Debian Installer suggestions, moved here byte-for-byte from the former root-level file.
 - [`profile_defaults.conf.example`](profile_defaults.conf.example) — original example/reference, not another source of truth.
 - [`SOURCE_MANIFEST.md`](SOURCE_MANIFEST.md) — creation provenance, source categories and current blocked implementation status.
