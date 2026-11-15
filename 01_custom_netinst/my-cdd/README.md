@@ -1,6 +1,6 @@
 # my-cdd — Debian 13 (Trixie) amd64 custom Simple-CDD sources
 
-**Stage (2026-11-15):** the corrected two-stage **netinst** ISO built successfully (408 MiB, 509 packages). A graphical VM test progressed past the earlier incomplete debootstrap stage, installed `busybox`, but failed because the target's CD-only APT sources offered **no `zstd` installation candidate**. The default package list now explicitly includes `zstd`, and `build.sh` verifies its ISO package-index entry and `.deb` before reporting success. **This specific correction has not yet been rebuilt or tested in the installer.** The profile workflow and end-to-end install are not validated; do not use on a real installation disk. Source development began 2026-11-14.
+**Stage (2026-11-15):** the corrected two-stage **netinst** ISO built successfully (408 MiB, 509 packages). A graphical VM test progressed past the earlier incomplete debootstrap stage, installed `busybox`, but failed because the target's CD-only APT sources offered **no `zstd` installation candidate**. `profiles/default.downloads` now requests `zstd` **for the installation medium**, rather than installing it as a default target package; `build.sh` verifies its ISO package-index entry and `.deb` before reporting success. **This specific correction has not yet been rebuilt or tested in the installer.** The profile workflow and end-to-end install are not validated; do not use on a real installation disk. Source development began 2026-11-14.
 
 ## Entry points
 
