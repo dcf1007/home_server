@@ -4,7 +4,11 @@
 # swapoff/wipefs operation. That wrapper mounts target /dev, /proc and /sys.
 # Never run /target binaries directly with the installer's libraries or PATH.
 zram_target_tool() {
-    in-target --pass-stdout "$@"
+    # Some callers run inside 'while read ... < file' loops or pipelines.
+    # in-target reserves fd 0 for Debconf passthrough; these block utilities
+    # never ask Debconf questions. Isolate their stdin so they cannot consume
+    # the partition-selection input or corrupt loop iteration.
+    in-target --pass-stdout "$@" </dev/null
 }
 zram_lsblk() { zram_target_tool lsblk "$@"; }
 zram_blkid() { zram_target_tool blkid "$@"; }
