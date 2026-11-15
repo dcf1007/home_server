@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, asked: “now that you know what was hapenning, can you fix it without having to do a two stage build?” The build was converted to one Simple-CDD invocation using a build-local reprepro executable wrapper that corrects the generated udeb components before the first import. Earlier on 2026-11-15, the user reported a graphical Debian Installer debootstrap failure and missing locale/keyboard presets. The build was changed to include the base system and to render editable installer defaults from `profile_defaults.conf`. Earlier on 2026-11-15, the user uploaded a screenshot of the early-command failure; the missing installer assets were traced to relative `all_extras` paths and packaging was corrected. Earlier on 2026-11-15, the user requested replacement of legacy package-manager commands throughout the repository with `apt`. Earlier authorization: “i authorise”, following the user's agreement to support reused swap partitions, automatic target-assigned selection, native GTK/text manual fallback and separately confirmed targeted swapoff. The previous cleanup and 37-firmware inventory decisions remain in force.  
+**Nearest user prompt (latest change):** “prioritize simplicity and maintainability over reducing two commands to one. remove the wrapper and leave the two stage build”. This restores the two Simple-CDD stages and deletes the project-owned reprepro interception wrapper while retaining the generated local-mirror stale-database cleanup, Debian 13 netinst mode, editable defaults, ISO asset checks, and diagnostic logs. Earlier prompts and implementation history are preserved below.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -124,12 +124,19 @@ remain open. The original embedded ZRAM source is retained.
 - **Correction:** `build.sh` sources `profile_defaults.conf` and validates values. It writes `tmp/generated/simple-cdd.conf` with early editable `?=` locale/language/country/keyboard kernel parameters and `tmp/generated/defaults.preseed` for hostname, administrator username, time zone, UTC and headless tasksel, with Debconf `seen false` resets. `profiles/default.preseed` includes the rendered defaults and `profiles/default.extra` packages the generated file. Normal DHCP and an empty domain remain native; passwords, device identifiers, disk changes, and optional profile selections are not preseeded.
 - **Tests/boundary:** a representative preseed grammar sample was accepted by `debconf-set-selections --checkonly` in the assistant environment. The `build.sh` wrapper now validates generated preseed syntax and staged ISO inclusion, but **no Simple-CDD ISO build or live installer retest has yet been performed using these changes**. As before, selected-profile runtime, security and destructive operation behavior remains unverified.
 
-## Single-invocation mirror build change (2026-11-15)
+## Historical single-invocation experiment (2026-11-15; reverted)
 
 - **Nearest user prompt:** “now that you know what was hapenning, can you fix it without having to do a two stage build?”
 - **Upstream behavior examined:** Simple-CDD 0.6.9/0.6.10 generates `UDebComponents: main` independently of `mirror_components`. The earlier split invocation first imported only `main` installer udebs, then explicitly changed the generated repository and imported `contrib` and `non-free-firmware`. Its next run could fail with a stale reprepro database target (`u|trixie|contrib|amd64`).
-- **Changes made:** `build.sh` runs `build-simple-cdd` **once** without `--mirror-only` or `--build-only`. The source `scripts/reprepro-udeb-wrapper.sh` is copied to `tmp/generated/bin/reprepro` with mode 0755 and prepended to PATH for this build invocation only. It validates and changes the generated local `UDebComponents: main` value before invoking the actual `/usr/bin/reprepro`, without modifying either installed tool. The existing explicit installer udeb index checks, asset comparisons and default-generation steps remain.
-- **Testing:** The wrapper passed an ephemeral local simulation for its first import, subsequent import, unexpected-configuration rejection, and POSIX shell syntax. No live Simple-CDD build or ISO boot using the single-invocation approach has been verified. No permanent mock/test files were introduced.
+- **Historical implementation (now removed):** for one commit series, `build.sh` called `build-simple-cdd` once and installed the project-owned `scripts/reprepro-udeb-wrapper.sh` as a temporary `PATH` wrapper to change `UDebComponents` just before invoking `/usr/bin/reprepro`. This wrapper is no longer present or invoked.
+- **Historical testing:** the wrapper passed a local simulation, but no live Simple-CDD build or installer boot using the wrapper was verified before it was removed.
+
+## Restored two-stage build (2026-11-15)
+
+- **Nearest user prompt:** “prioritize simplicity and maintainability over reducing two commands to one. remove the wrapper and leave the two stage build”.
+- **Change:** deleted `scripts/reprepro-udeb-wrapper.sh` and removed all temporary PATH interception from `build.sh`. The build runs `build-simple-cdd --mirror-only`, expands the generated local `UDebComponents` to include `contrib` and `non-free-firmware`, runs `reprepro update`, checks both udeb indexes, and then runs `build-simple-cdd --build-only`. Separate `build-mirror-debug.log`, `build-debug.log` and combined `build-terminal.log` are retained.
+- **Repeat-build cleanup:** if a previous build's reprepro database exists, the script accepts only the expected local `UDebComponents` configuration, resets it to `main` and invokes `reprepro --delete clearvanished` on `tmp/mirror` before Simple-CDD's first stage. It does not delete the mirror package cache. This cleanup has not been validated in a successful repeat build.
+- **Unchanged:** `INSTALLER_CD="2"`, `profile_defaults.conf` and its generated editable boot/preseed files, all selected-profile scripts, ISO file comparisons, and executable-mode checks. The previously successful two-stage build used `INSTALLER_CD="1"`; the newly configured netinst still needs real build and installation tests.
 
 ## Actual implementation state
 
@@ -145,7 +152,7 @@ OMV/Docker package service behavior, boot-menu changes and first-boot
 behavior remain unverified. That earlier source-writing turn did not perform an ISO build. Later on 2026-11-15, the user successfully built the ISO and tried the graphical installer, which failed at preseed loading. No installed-target package transaction or disk modification has been demonstrated. No mock/offline
 test harness was added.
 
-## Current tracked files (51)
+## Current tracked files (50)
 
 - `.gitignore`
 - `README.md`
@@ -191,7 +198,6 @@ test harness was added.
 - `scripts/10-compressed-writeback.conf`
 - `scripts/90-zram-swappiness.conf`
 - `scripts/README.md`
-- `scripts/reprepro-udeb-wrapper.sh`
 - `scripts/debian-backports.sources`
 - `scripts/firmware-candidates.txt`
 - `scripts/zram-generator.conf.template`
