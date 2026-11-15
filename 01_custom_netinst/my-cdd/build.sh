@@ -49,4 +49,23 @@ done
         --build-only \
         --debug \
         --logfile ./build-debug.log
+
+    # An ISO must not be reported as ready if an early/late installer
+    # script was silently omitted from its staged /simple-cdd directory.
+    iso_extras_dir="$PWD/tmp/cd-build/trixie/CD1/simple-cdd"
+    while IFS= read -r asset || [ -n "$asset" ]; do
+        case "$asset" in
+            ''|\#*) continue ;;
+        esac
+        name="${asset##*/}"
+        if [ ! -f "$iso_extras_dir/$name" ] ||
+           ! cmp -s "$asset" "$iso_extras_dir/$name"; then
+            printf >&2 'my-cdd: missing or mismatched ISO asset: %s\n' "$name"
+            exit 1
+        fi
+    done < ./profiles/default.extra
+    [ -s "$iso_extras_dir/simple-cdd.templates" ] || {
+        printf >&2 'my-cdd: generated Simple-CDD Debconf template missing from ISO tree.\n'
+        exit 1
+    }
 } 2>&1 | tee ./build-terminal.log
