@@ -181,6 +181,15 @@ remain open. The original embedded ZRAM source is retained.
 - **Policy scope:** Existing OMV cron-apt *scheduled update* disabling remains as previously approved; it is not a Docker/OMV systemd service startup suppression. All seven profile IDs and the authorized `UDebComponents` workaround remain unchanged.
 - **Validation:** These source changes have **not** been ISO-built or executed in a Debian 13 GTK/text installer. Password prompts, cdebconf clearing, target `chpasswd`, selected-profile ordering, and first-boot services must be tested in a disposable VM before merge.
 
+## Native installer service policy and OMV 8 updates (2026-11-15)
+
+**Nearest user prompt:** “You should prevent the execution of unnecessary services coming from the custom profiles during the installation phase. Is that necessary or they won't interfere? Keep omv updates off.”
+
+- Verified from Trixie `debian-installer-utils` 1.155 that `in-target` already temporarily rejects normal service starts using `policy-rc.d` status 101 and diverts `start-stop-daemon`. Added a preflight to confirm this native policy before selected operations, without persistent systemd masks or disablement.
+- OMV 8.6.2 source changed from older `cronapt` settings to `conf.system.apt.updates`, APT notification settings and `apt`/`apticron` Salt. Updated the selected OMV profile to turn off unattended upgrades and generated scheduled update notifications via OMV's configuration database, plus both Debian periodic APT settings. No OMV-generated files were directly modified.
+- Docker and OMV remain independent, with normal first-boot service settings. The prior conditional root recovery preflight and authorized `UDebComponents` mirror workaround remain unchanged.
+- **Unverified:** OMV Salt DNS/service interactions and complete new ISO installer tests remain release blockers.
+
 ## Actual implementation state
 
 **Not a validated ISO.** The seven optional profiles are described; their

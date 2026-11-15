@@ -19,18 +19,15 @@ Before installing OMV:
 3. Resolve unsupported combinations by asking the user; do not silently select Backports or the kernel profile, alter repository priority, force dependencies, skip OMV or mark profile success.
 4. Verify repository signatures and supported OMV 8 release. **Do not blindly execute remote network scripts** during unattended installation. Use the official documented repository/key/package procedure, validated for the exact release.
 
-## One explicitly approved OMV configuration change: no scheduled updates
+## Approved OMV 8 update policy: scheduled updates off
 
-The **previously approved OMV automatic-update policy remains separate from service startup**: the OMV profile shall disable OMV's entire scheduled cron-apt workflow, not just unattended installation of security patches. This removes scheduled OMV update checks/notifications too; manual refreshes and manual installations remain available.
+Leave OpenMediaVault's services at normal package-defined startup settings. Independently, the selected OMV profile disables automated updates and scheduled update notifications; manual updates remain available.
 
-Proposed command sequence, to confirm against the actually installed OMV 8 release:
+**Current source basis (2026-11-15):** OMV 8.6.2 uses the configuration model `conf.system.apt.updates` (`unattendedupgrade`) and the `apt` notification record (`enable`). It deploys the `apt` and `apticron` Salt states. The earlier `OMV_CRON_APT_ENABLED`/`cronapt` implementation is obsolete for that source version, even though some public OMV documentation still mentions cron-apt.
 
-```sh
-omv-env set -- OMV_CRON_APT_ENABLED false
-omv-salt deploy run cronapt
-```
+The selected OMV profile now sets both model values to false with `omv-confdbadm`, preserving other settings and unrelated notifications. It redeploys `apt` and `apticron` through `omv-salt`, checks that daily/weekly apticron jobs are absent, and sets both Debian periodic APT package-list refreshes and unattended upgrades to `0`. It does not manually edit OMV-generated cron files or mask/disable OMV services.
 
-Before reporting success, inspect generated cron-apt configuration and ensure the job is genuinely disabled. Do not directly edit OMV-generated files if its supported environment-setting mechanism works. Independently verify Debian's automatic installation is disabled via [Debian tweaks](04_debian_tweaks.md), or a global installation guard if tweaks is not selected; OMV cron-apt is not equivalent to Debian unattended-upgrades.
+**Validation gap:** The updated OMV configuration and service behavior have not yet been exercised in a Debian 13 installer or at first boot. OMV's network and systemd-resolved requirements remain critical.
 
 ## Preserve access settings within the explicitly selected OMV profile
 
@@ -47,7 +44,7 @@ OMV's documented Debian installation can change network configuration and enable
 ## First boot / acceptance
 
 - OMV package and web interface installed; further OMV setup is left to the user after first boot.
-- OMV cron-apt scheduled checks and security auto-installs disabled.
+- OMV apticron notifications, scheduled APT refreshes, and unattended security upgrades disabled; manual updates remain available.
 - the installer-confirmed administrator account SSH and sudo work; root SSH refused.
 - Networking works; inspect routes, DNS, interfaces and OMV configuration.
 - No silent partial install; failure policy is stop/diagnose/obtain approval.
@@ -59,4 +56,4 @@ OMV's documented Debian installation can change network configuration and enable
 - [OMV configuration management](https://docs.openmediavault.org/en/stable/various/advset.html)
 - [OMV SSH behavior](https://docs.openmediavault.org/en/stable/administration/services/ssh.html)
 
-**Unverified:** the exact availability and semantics of `OMV_CRON_APT_ENABLED` and the `cronapt` Salt deployment target in the final installed OMV version; both are hard gates.
+**Unverified:** OMV 8 configuration-database writes, `apt`/`apticron` deployment, DNS continuity, and absence of scheduled update jobs after first boot.

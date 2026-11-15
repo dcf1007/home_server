@@ -22,7 +22,7 @@ The table follows the **actual optional installer-profile menu order**, not the 
 | **[10 — Extended device support](10_extended_device_support.md)** | Attempt **both** Intel and AMD microcode packages plus broad device firmware |
 | **[03 — ZSTD ZRAM writeback](03_zram_writeback.md)** | ZSTD compressed swap and raw PARTUUID writeback backing; requires Ensure 7.x |
 | **[04 — Debian tweaks](04_debian_tweaks.md)** | Non-default boot, filesystem-repair, SSH and update-policy changes |
-| **[06 — OpenMediaVault 8](06_openmediavault.md)** | Optional OMV packages and disabled cron-apt scheduling |
+| **[06 — OpenMediaVault 8](06_openmediavault.md)** | Optional OMV packages; scheduled APT checks and unattended updates off |
 | **[07 — Docker](07_docker.md)** | Independent official Docker packages; native service startup defaults |
 | [05 — Base Debian installation](05_base_installation.md) | Native installer GUI, disk partitioning and account confirmation |
 | [08 — Validation and pending](08_validation_and_pending.md) | Integration checks and remaining choices |

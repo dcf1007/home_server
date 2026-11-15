@@ -1,5 +1,8 @@
 # Implementation requirements still outstanding
 
+**Native installer service handling (2026-11-15):** Debian Installer 1.155 automatically sets a temporary `policy-rc.d` returning 101 when the `in-target` wrapper runs and diverts `start-stop-daemon`. The selected-profile runner verifies this upstream protection; it does not duplicate it or disable first-boot services. OMV 8's source uses `apt` and `apticron`, not the old `cronapt` deployment; its scheduled update/notification policy is now disabled via the OMV configuration database and Salt. OMV DNS and third-party Salt operations require live testing.
+
+
 **Additional approved policy (2026-11-15):** The common late-command preflight must verify/set a local root password if the installed root account is locked or passwordless **before any selected profile changes files, packages or partitions**. The native user-setup Debconf password questions are reused and cleared afterward; no password may enter a log or package manifest. Test root already enabled, locked root with sudo user, password mismatch and cancellation, including the zero-profile path. Docker and OMV remain independent; no OMV-Extras/Compose install and no Docker service masking/disabling. Existing OMV cron-apt update policy is unchanged.
 
 **Current source revision (2026-11-15):** Optional operations were reorganized into selected-only modules, with no unselected base account/SSH/update overrides. `profiles/default.packages` now falls back to CDD's upstream file. The source was not revalidated in a live installer, so all runtime gates below remain open. The latest recovery preflight and Docker-default-startup changes also await actual GTK/text installer validation.
@@ -35,13 +38,13 @@ Backports → Ensure 7.x → Extended device support → ZRAM → Debian tweaks 
 
 Optional `.packages` files have been removed to leave **no automatic package queue**: automatic queueing would bypass required simulation/approval and, for Docker or ZRAM, violate service and conversion timing.
 
-The selected-only `profile-*.sh` modules and shared [`profile-common.sh`](profile-common.sh) source include package/repository changes, native review and omission questions, target logging, ZRAM GPT conversion, Docker startup suppression and OMV SSH/update handling. **These remain untested implementations**, not proof of compatibility. Verify that early/late command execution order, package candidates, GUI interaction and critical failure handling actually work, without rollback or skipped profiles.
+The selected-only `profile-*.sh` modules and shared [`profile-common.sh`](profile-common.sh) source include package/repository changes, native review and omission questions, target logging, ZRAM GPT conversion, and OMV SSH/update handling. **These remain untested implementations**, not proof of compatibility. Verify that early/late command execution order, package candidates, GUI interaction and critical failure handling actually work, without rollback or skipped profiles.
 
 ## 4. Boot and functional release tests
 
 Confirm generated USB boots UEFI **and** legacy BIOS, with **Graphical install** highlighted and an indefinite manual Enter wait; text and rescue remain available. The BOOT_TIMEOUT config alone is not proof of this. Confirm target UEFI/GPT and normal Debian manual partman.
 
-Test profile combinations, conditional Backports-first kernel/firmware, first boot, 7.x headers, generator sysfs features, ZRAM writeback/emergency path, OMV 8 and Docker inactive state. Test diagnostic display, full-log copies/permissions and export. Follow [the validation checklist](../../08_validation_and_pending.md).
+Test profile combinations, conditional Backports-first kernel/firmware, first boot, 7.x headers, generator sysfs features, ZRAM writeback/emergency path, OMV 8 and Docker normal startup state. Test diagnostic display, full-log copies/permissions and export. Follow [the validation checklist](../../08_validation_and_pending.md).
 
 **Explicitly excluded by user choice:** source ISO/file hashes, output ISO hashes, USB read-back comparison and media-integrity-only tests. Functional tests and signed APT metadata verification are still required.
 
