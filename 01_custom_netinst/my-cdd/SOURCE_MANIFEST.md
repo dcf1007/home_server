@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, uploaded graphical Debian Installer screenshots showing “Unable to install zstd” at base-system installation and `E: Package 'zstd' has no installation candidate`. Corrected the default package list and added a fail-closed check for the package's entry and archive in the staged ISO. Earlier on the same day, explicitly chose to remove the single-run wrapper and retain the simpler two-stage build; that choice remains in force.  
+**Nearest user prompt (latest change):** “shouldn't zstd be a requirement in the zram profile and not in default?” The source was refined to distinguish a base-installer media dependency from an optional ZRAM runtime dependency: `zstd` moved from `profiles/default.packages` to the new `profiles/default.downloads` so it can appear on the ISO without an unconditional Simple-CDD target install. The existing media index/archive gate, two-stage builder, and kernel-backed ZRAM profile remain. Earlier reasons for the initial `default.packages` decision are retained below as history.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -142,9 +142,17 @@ remain open. The original embedded ZRAM source is retained.
 
 - **Nearest user prompt:** uploaded two screenshots of the graphical Debian Installer and virtual console at “Install the base system,” showing `base-installer/kernel/failed-package-install` and `E: Package 'zstd' has no installation candidate`.
 - **Observed:** the new two-stage `INSTALLER_CD="2"` netinst built successfully (408 MiB, 509 packages). During its VM installation, target APT installed `busybox` from `cdrom:` but could not find the distinct `zstd` command-line package. Earlier logs showed `libzstd1` and `libzstd1-udeb` downloads, neither of which substitutes for `zstd`. The official Debian 13 `zstd` package exists in `main`. The CD package subset omission is the evidence-backed immediate reason; no additional installer syslog was provided.
-- **Source correction:** appended `zstd` to `profiles/default.packages` for unconditional inclusion via the existing Simple-CDD profile packaging. After `--build-only`, `build.sh` reads the staged `CD1/dists/trixie/main/binary-amd64/Packages.gz`, extracts the exact `Package: zstd` record's `Filename`, and requires that the corresponding `.deb` exists and is nonempty. This avoids another deceptively successful ISO if the package is omitted.
+- **Initial source correction (later refined):** first appended `zstd` to `profiles/default.packages`. This ensured media inclusion but also queued its automatic installation with the always-present default profile, unnecessarily broadening the target baseline. The later correction moved it to `profiles/default.downloads`, documented separately below. After `--build-only`, `build.sh` reads the staged `CD1/dists/trixie/main/binary-amd64/Packages.gz`, extracts the exact `Package: zstd` record's `Filename`, and requires that the corresponding `.deb` exists and is nonempty.
 - **Unchanged:** the documented two-stage mirror-build process, `INSTALLER_CD="2"`, editable installer defaults, seven unselected optional profiles and pre-existing ISO asset checks.
 - **Validation boundary:** source-only changes; the corrected `zstd` ISO has not been rebuilt or install-tested. A successful rebuilt ISO/package check would not by itself prove the whole installation, including locale/keyboard GUI values and optional profiles.
+
+## Installer-media `zstd` dependency refinement (2026-11-15)
+
+- **Nearest user prompt:** “shouldn't zstd be a requirement in the zram profile and not in default?”
+- **Evidence:** Debian Installer requested `zstd` during `base-installer/kernel` while performing the standard base installation, before any optional ZRAM work. The installed-target ZRAM code uses `systemd-zram-generator` with the Linux kernel's ZSTD compression algorithm; it does not directly invoke the user-space `zstd` command.
+- **Simple-CDD semantics verified:** upstream 0.6.9 includes both `default.packages` and `default.downloads` in CD package selection. `*.packages` is automatically installed for a selected profile, while `*.downloads` places files on the media without automatically installing them through Simple-CDD (Debian Installer may still install them for its own reasons).
+- **Revised implementation:** new `profiles/default.downloads` lists `zstd`. Removed `zstd` and its installation requirement comment from `profiles/default.packages`. The separate `build.sh` requirement for an actual `zstd` index entry and archive in staged CD1 remains; the optional `zram-writeback` profile package queue remains empty.
+- **Validation boundary:** source changes checked, but not yet rebuilt or tested in a graphical installer. This change does not prove the installed system's final package set or successful base installation.
 
 ## Actual implementation state
 
@@ -160,7 +168,7 @@ OMV/Docker package service behavior, boot-menu changes and first-boot
 behavior remain unverified. That earlier source-writing turn did not perform an ISO build. Later on 2026-11-15, the user successfully built the ISO and tried the graphical installer, which failed at preseed loading. No installed-target package transaction or disk modification has been demonstrated. No mock/offline
 test harness was added.
 
-## Current tracked files (50)
+## Current tracked files (51)
 
 - `.gitignore`
 - `README.md`
@@ -184,6 +192,7 @@ test harness was added.
 - `profiles/debian-tweaks.packages`
 - `profiles/debian-tweaks.postinst`
 - `profiles/default.description`
+- `profiles/default.downloads`
 - `profiles/default.extra`
 - `profiles/default.packages`
 - `profiles/default.preseed`
