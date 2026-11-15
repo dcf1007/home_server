@@ -114,30 +114,22 @@ review_plan() {
     approve "$1"
 }
 run_target() {
-    # Preserve reviewed APT transactions while showing real download/dpkg
-    # progress in the existing Debian Installer GTK/text Debconf frontend.
-    # Debian Installer's own apt-install uses this target helper.
-    if [ "$1" = apt ]; then
+    # Profiles call apt-get directly. For approved package transactions,
+    # show native Debian Installer GTK/text progress via Debconf.
+    # Preserve their exact arguments; no implicit APT command translation.
+    if [ "$1" = apt-get ]; then
         shift
         case "$1" in
             update)
-                shift
-                [ "$#" -eq 0 ] || fatal 'Unexpected apt update arguments'
-                set -- update
+                [ "$#" -eq 1 ] || fatal 'Unexpected apt-get update arguments'
                 ;;
             -y)
-                shift
-                case "$1" in
-                    full-upgrade)
-                        shift
-                        set -- dist-upgrade "$@"
-                        ;;
-                    install|autoremove) : ;;
-                    *) fatal "Unsupported reviewed APT transaction: $*" ;;
+                case "${2-}" in
+                    dist-upgrade|install|autoremove) : ;;
+                    *) fatal "Unsupported reviewed apt-get transaction: $*" ;;
                 esac
-                set -- -y "$@"
                 ;;
-            *) fatal "Unexpected APT operation: $*" ;;
+            *) fatal "Unexpected apt-get operation: $*" ;;
         esac
         # Never force DEBIAN_FRONTEND=noninteractive for package installs.
         capture in-target debconf-apt-progress --logstderr -- apt-get "$@" ||
@@ -147,14 +139,9 @@ run_target() {
     fi
 }
 simulate_target() {
-    # Simulate with the same APT frontend/command as the live progress path
-    # so the approved package/removal plan cannot differ by frontend.
+    # APT simulations and real operations both use apt-get directly.
     case "$1" in
-        full-upgrade)
-            shift
-            set -- dist-upgrade "$@"
-            ;;
-        install|autoremove) : ;;
+        dist-upgrade|install|autoremove) : ;;
         *) fatal "Unsupported APT simulation: $*" ;;
     esac
     capture in-target apt-get -s "$@" ||
@@ -173,16 +160,16 @@ review_install() {
     simulate_target install "$@"
     check_critical_removals
     review_plan "$name" "$WORK/plan"
-    run_target apt -y install "$@"
+    run_target apt-get -y install "$@"
     run_target dpkg --audit
 }
 reviewed_upgrade() {
-    simulate_target full-upgrade
+    simulate_target dist-upgrade
     check_critical_removals
     review_plan 'Backports: complete eligible-package full-upgrade' "$WORK/plan"
-    run_target apt -y full-upgrade
+    run_target apt-get -y dist-upgrade
     run_target dpkg --audit
-    simulate_target full-upgrade
+    simulate_target dist-upgrade
     if grep -E '^Inst |^Remv ' "$WORK/plan" >/dev/null; then
         fatal 'Eligible upgrades/removals remain following approved full-upgrade'
     fi

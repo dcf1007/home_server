@@ -71,7 +71,7 @@ profile_kernel() {
         cat "$WORK/plan"
     } > "$WORK/kernel-review"
     review_plan 'Linux 7.x image, matching headers and complete APT simulation' "$WORK/kernel-review"
-    run_target apt -y install "linux-image-amd64/$KERNEL_SUITE" "linux-headers-amd64/$KERNEL_SUITE"
+    run_target apt-get -y install "linux-image-amd64/$KERNEL_SUITE" "linux-headers-amd64/$KERNEL_SUITE"
     run_target update-initramfs -u -k all
     run_target update-grub
     paired=0
