@@ -152,28 +152,95 @@ mark_complete() {
     chmod 600 "$LOG_DIR/my-cdd-completed/$1"
     log "PROFILE COMPLETE: $1"
 }
-[ -r "$MEDIA/profile-actions.sh" ] || fatal 'Missing profile action source'
+[ -r "$MEDIA/profile-common.sh" ] || fatal 'Missing shared profile helpers'
 [ -r "$MEDIA/ordered-selection.sh" ] || fatal 'Missing selection validator'
 [ -r "$CONFIRMED" ] || fatal 'No approved early profile selection was recorded'
-. "$MEDIA/profile-actions.sh"
+. "$MEDIA/profile-common.sh"
 
-# Approved BASE-install requirements apply even with zero optional profiles:
-# preserve the installer-confirmed account, separate root emergency password,
-# its sudo access, and the explicit root-SSH prohibition.
-db_get passwd/username || fatal 'Cannot read native Debian Installer administrator'
-admin=$RET
-case "$admin" in ''|*[!a-zA-Z0-9_.-]*) fatal 'Invalid Debian Installer administrator name';; esac
-capture in-target id "$admin" || fatal 'Confirmed Debian administrator not installed'
-run_target usermod -aG sudo "$admin"
-capture in-target passwd -S root || fatal 'Cannot inspect root emergency password status'
-grep -E '^root[[:space:]]+P[[:space:]]' "$WORK/output" >/dev/null ||
-    fatal 'Separate local root password is not configured'
-mkdir -p /target/etc/ssh/sshd_config.d /target/run/sshd
-chmod 755 /target/run/sshd
-printf 'PermitRootLogin no\n' > /target/etc/ssh/sshd_config.d/01-my-cdd-root-login.conf
-capture in-target sshd -T || fatal 'Base OpenSSH configuration is invalid'
-grep -Fx 'permitrootlogin no' "$WORK/output" >/dev/null ||
-    fatal 'Effective OpenSSH setting still allows root login'
+# No unconditional target policy changes in the base-only installation.
+# Optional changes run only after explicitly selected profile confirmation.
+# Check rescue/emergency-console access BEFORE running any selected profile.
+# Debian Installer may create a sudo-capable user while leaving root locked.
+# A local root password is needed by the normal sulogin recovery console.
+# Use the existing Debian Installer password-type Debconf questions; never
+# log or write a password to a preseed, the ISO, or a command argument.
+ensure_root_recovery() {
+    capture in-target passwd -S root ||
+        fatal 'Cannot inspect installed root account for emergency recovery'
+    root_state="$(awk '$1 == "root" { print $2 }' "$WORK/output")"
+    case "$root_state" in
+        P)
+            log 'Emergency recovery preflight: local root password already configured'
+            return 0 ;;
+        L|NP)
+            log 'Emergency recovery preflight: root is locked or has no password' ;;
+        *)
+            fatal 'Unrecognized root account password state; refusing optional operations' ;;
+    esac
+
+    db_get passwd/username || fatal 'Cannot read the native installer username'
+    recovery_user=$RET
+    [ -n "$recovery_user" ] || fatal 'No installer-created user; cannot confirm recovery account'
+    capture in-target id "$recovery_user" ||
+        fatal 'Installer-created user unavailable for root-recovery preflight'
+
+    # These are native user-setup-udeb templates, not project custom files.
+    # Native user-setup clears them after initial account creation; clear them
+    # again before and immediately after each attempt.
+    for recovery_question in passwd/root-password passwd/root-password-again; do
+        db_set "$recovery_question" '' ||
+            fatal 'Cannot clear temporary root-password question'
+    done
+    while :; do
+        for recovery_question in passwd/root-password passwd/root-password-again; do
+            db_fset "$recovery_question" seen false ||
+                fatal 'Cannot show the native root-password prompt'
+            db_input critical "$recovery_question" ||
+                fatal 'Native root-password prompt unavailable'
+        done
+        db_go || fatal 'Root-password prompt was cancelled'
+        db_get passwd/root-password || fatal 'Cannot read the new root password'
+        root_password=$RET
+        db_get passwd/root-password-again || fatal 'Cannot read the confirmation password'
+        root_confirmation=$RET
+        # Never leave credentials in the installer Debconf database.
+        db_set passwd/root-password '' || fatal 'Cannot clear root password from Debconf'
+        db_set passwd/root-password-again '' || fatal 'Cannot clear root password confirmation'
+
+        recovery_error=''
+        if [ -z "$root_password" ]; then
+            recovery_error='A non-empty local root password is required for rescue and emergency access.'
+        elif [ "$root_password" != "$root_confirmation" ]; then
+            recovery_error='The two root passwords did not match. Please re-enter both values.'
+        elif printf '%s' "$root_password" | LC_ALL=C grep -q '[[:cntrl:]]'; then
+            recovery_error='The password contains unsupported control characters. Please choose another.'
+        fi
+        root_confirmation=''
+        if [ -n "$recovery_error" ]; then
+            root_password=''
+            printf '%s\n' "$recovery_error" > "$WORK/root-recovery-explanation"
+            show_note 'Local emergency recovery password required' "$WORK/root-recovery-explanation" ||
+                fatal 'Cannot display password correction request'
+            continue
+        fi
+        # chpasswd reads only standard input, not process arguments or logs.
+        # capture logs the command name and diagnostic output, not its input.
+        if printf 'root:%s\n' "$root_password" | capture in-target chpasswd; then
+            password_changed=true
+        else
+            password_changed=false
+        fi
+        root_password=''
+        [ "$password_changed" = true ] ||
+            fatal 'Failed to establish local root recovery password'
+        capture in-target passwd -S root ||
+            fatal 'Cannot verify new local root password'
+        grep -E '^root[[:space:]]+P[[:space:]]' "$WORK/output" >/dev/null ||
+            fatal 'Root account remains locked after password setup'
+        log 'Emergency recovery preflight: usable local root password confirmed'
+        return 0
+    done
+}
 
 db_get simple-cdd/profiles || fatal 'Cannot read Simple-CDD profile selection'
 ordered="$(/bin/sh "$MEDIA/ordered-selection.sh" "$RET")" ||
@@ -183,22 +250,38 @@ ordered="$(/bin/sh "$MEDIA/ordered-selection.sh" "$RET")" ||
 db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 [ "$RET" = true ] || fatal 'The early profile summary was not approved'
 log "CONFIRMED SELECTION: $ordered"
+ensure_root_recovery
+
+# Debian Installer's in-target wrapper already installs a temporary policy-rc.d
+# that rejects maintainer-script service starts. Check that native protection
+# before any selected custom APT transaction; do not create another policy,
+# mask units, or change target first-boot enablement.
+if [ -n "$ordered" ]; then
+    capture in-target sh -c '
+        [ -x /usr/sbin/policy-rc.d ] || exit 1
+        /usr/sbin/policy-rc.d my-cdd-installer-preflight start
+        [ "$?" -eq 101 ]
+    ' || fatal 'Debian Installer target service-start protection is missing'
+    log 'Confirmed native in-target package-service startup suppression'
+fi
+
 for profile in $ordered; do
     log "PROFILE BEGIN: $profile"
     case "$profile" in
-        backports) profile_backports ;;
-        ensure-7x-kernel) profile_kernel ;;
-        extended-device-support) profile_firmware ;;
-        zram-writeback) profile_zram ;;
-        debian-tweaks) profile_tweaks ;;
-        openmediavault) profile_omv ;;
-        docker) profile_docker ;;
+        backports) module=backports; handler=profile_backports ;;
+        ensure-7x-kernel) module=kernel; handler=profile_kernel ;;
+        extended-device-support) module=firmware; handler=profile_firmware ;;
+        zram-writeback) module=zram; handler=profile_zram ;;
+        debian-tweaks) module=tweaks; handler=profile_tweaks ;;
+        openmediavault) module=omv; handler=profile_omv ;;
+        docker) module=docker; handler=profile_docker ;;
         *) fatal "Unknown selected profile: $profile" ;;
     esac
+    [ -r "$MEDIA/profile-$module.sh" ] || fatal "Missing selected module: $module"
+    . "$MEDIA/profile-$module.sh"
+    "$handler"
     mark_complete "$profile"
 done
-# Other profiles must not re-enable automatic package updates.
-ensure_manual_updates
 log 'All selected optional profiles completed.'
 export_log
 exit 0

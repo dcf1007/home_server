@@ -1,8 +1,0 @@
-# Base/headless server packages. Debian's regular tasksel screen still runs.
-# Do not auto-select desktop, overwrite passwords, or suppress GUI screens.
-# These additions support the agreed SSH, sudo and clock-sync baseline.
-openssh-server
-sudo
-systemd-timesyncd
-# Upstream Simple-CDD default.packages also installs less; keep that baseline.
-less

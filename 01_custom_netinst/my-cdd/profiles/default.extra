@@ -1,18 +1,8 @@
-# Additional ISO files required by the default and optional profiles.
-# Simple-CDD resolves these entries against simple_cdd_dir before changing
-# to the debian-cd build directory, unlike relative all_extras values.
-# Created by build.sh before Simple-CDD reads this list.
+# Common installer source assets for every build; copied by Simple-CDD.
+# Each optional profile declares its own sources via a profile-specific .extra.
 tmp/generated/defaults.preseed
 installer/profile-confirm.sh
 installer/profile-confirm.templates
 installer/ordered-selection.sh
 installer/run-selected.sh
-installer/profile-actions.sh
-installer/zram-selection.sh
-scripts/firmware-candidates.txt
-scripts/debian-backports.sources
-scripts/90-zram-swappiness.conf
-scripts/zram-generator.conf.template
-scripts/10-compressed-writeback.conf
-scripts/zram-pressure.sh
-scripts/zram-pressure.service
+installer/profile-common.sh

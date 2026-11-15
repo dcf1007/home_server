@@ -1,5 +1,7 @@
 # 05 — Base Debian 13 installation: normal installer screens
 
+**Current source policy (2026-11-15):** All nonstandard base-system policies were removed from the default package queue and late command. Country `DE` and domain `dcf1007-world` are suggestions only; native installation prompts remain editable. Earlier design history may describe superseded assumptions.
+
 **Status:** agreed choices, to be entered or confirmed in the interactive installer. **Recorded:** 2026-11-14. **Provenance:** custom server installation-planning decisions.
 
 The base installation is Debian 13 Trixie **amd64**, minimal/headless, with **SSH server** and **Standard system utilities**, **without** a desktop environment. Native GUI suggestions for installer language, localization, identities, networking, time and task selection come from [profile_defaults.conf](my-cdd/profile_defaults.conf) regardless of optional profile selections. The USB boots graphical installer by default, waits for Enter, and retains text/rescue. The target server is UEFI/GPT, Secure Boot disabled. No custom BIOS boot check.
@@ -20,11 +22,10 @@ Root ext4 uses Debian's ordinary filesystem defaults, except for the **optional 
 
 ## Identity, credentials and networking
 
-- The **hostname, administrator username, DNS domain and wired DHCP suggestions** come from [profile_defaults.conf](my-cdd/profile_defaults.conf) and must be displayed in editable Debian Installer questions with explicit confirmation. The default local DNS domain is empty; the network uses router-side IP reservation. **None** of these GUI choices belongs to the Debian tweaks profile.
-- Prompt for the administrator password interactively and configure `sudo` access for the **actual confirmed username**, regardless of whether Debian tweaks or Ensure 7.x was selected.
-- **After** setting the installer-confirmed administrator account and sudo, enter a **separate root password** interactively **before first reboot**. No password or hash embedded in USB.
-- Initial SSH password authentication for the installer-confirmed administrator account. Root SSH login disabled (`PermitRootLogin no`).
-- No firewall filtering policy during installation; any selected Docker daemon remains disabled.
+- The **hostname, administrator username, DNS domain and wired DHCP suggestions** come from [profile_defaults.conf](my-cdd/profile_defaults.conf) and must be displayed in editable Debian Installer questions with explicit confirmation. The default local DNS domain is `dcf1007-world` (editable); the network uses router-side IP reservation. **None** of these GUI choices belongs to the Debian tweaks profile.
+- Use Debian Installer's native account, password, privilege and SSH screens without forcing sudo or SSH. **Recovery exception:** before executing any selected profile (including the empty-selection path), the late installer preflight checks the installed root account. If it is locked or lacks a password, it requires a separate local root password through the native password-type Debconf prompts, applies it securely and verifies the root account is usable. This prevents a sudo-created user with locked root from becoming stranded in systemd rescue/emergency mode. Existing valid root passwords are preserved; root SSH is not enabled by this check.
+- Profile-specific SSH, sudo, update and service policies apply only to the explicitly selected profiles; the root recovery guard is the one independent safety exception.
+- No firewall filtering or explicit Docker/OMV service-startup overrides are added during installation or for first boot.
 
 ## Localization / time — normal installer GUI
 
@@ -40,7 +41,7 @@ Retain `systemd-timesyncd` for time synchronization; use the user-confirmed time
 - Installer software-selection suggestions (**SSH server**, **Standard system utilities**, **no desktop**) live in [profile_defaults.conf](my-cdd/profile_defaults.conf) and must be confirmed via the normal installation GUI; symbolic tasksel identifiers require validation before automation.
 - No `popularity-contest`.
 - Always retain Debian Installer's normal automatic firmware detection. The optional [Extended device support](10_extended_device_support.md) profile attempts **both Intel and AMD microcode packages** (without filtering by actual CPU vendor), plus broad additional firmware. **If Backports was selected, prefer its viable firmware and microcode versions first** using targeted per-package requests without changing the global priority **100**; if Backports offers no usable version, evaluate normal repositories before considering omission. Simulate the combined transaction; any unavailable/conflicting microcode or firmware package may be omitted **only after its reason is shown and the user explicitly approves that individual omission**.
-- Do not run unattended upgrades or automatically reboot for updates. The **separately selected Backports profile** owns the reviewed full-upgrade and post-upgrade cleanup steps, including explicit approval for proposed removals and purges.
+- The unselected base follows Debian's default update policy; selected Debian tweaks/OMV policy applies only to those profiles. Do not impose additional unattended-update/reboot policies globally. The **separately selected Backports profile** owns the reviewed full-upgrade and post-upgrade cleanup steps, including explicit approval for proposed removals and purges.
 
 ## Finish
 

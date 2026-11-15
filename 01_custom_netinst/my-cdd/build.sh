@@ -7,7 +7,7 @@ cd "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
 # In Simple-CDD 0.6.9 the first matching profile file wins. Let the
 # upstream default.downloads and default.udebs lists be used intact.
-for name in default.downloads default.udebs; do
+for name in default.downloads default.udebs default.packages; do
     [ ! -e "./profiles/$name" ] || {
         printf >&2 'my-cdd: local profiles/%s shadows upstream defaults.\n' "$name"
         exit 1
@@ -41,7 +41,7 @@ done
 # Derive both the early boot defaults and later editable Debconf answers from
 # the single canonical profile_defaults.conf. Do not modify tracked source files.
 . ./profile_defaults.conf
-for key in DEFAULT_HOSTNAME DEFAULT_ADMIN_USERNAME DEFAULT_LANGUAGE DEFAULT_LOCALE \
+for key in DEFAULT_HOSTNAME DEFAULT_ADMIN_USERNAME DEFAULT_LANGUAGE DEFAULT_COUNTRY DEFAULT_LOCALE \
            DEFAULT_KEYBOARD_LAYOUT DEFAULT_KEYBOARD_VARIANT DEFAULT_TIMEZONE \
            DEFAULT_RTC_UTC DEFAULT_NETWORK_METHOD DEFAULT_TASKSEL_TASKS DEFAULT_DOMAIN; do
     [ "${!key+x}" = x ] || { printf >&2 'my-cdd: unset default %s\n' "$key"; exit 1; }
@@ -49,6 +49,7 @@ done
 [[ "$DEFAULT_HOSTNAME" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]*$ ]] &&
 [[ "$DEFAULT_ADMIN_USERNAME" =~ ^[a-z_][a-z0-9_-]*$ ]] &&
 [[ "$DEFAULT_LANGUAGE" =~ ^[a-z]{2}$ ]] &&
+[[ "$DEFAULT_COUNTRY" =~ ^[A-Z]{2}$ ]] &&
 [[ "$DEFAULT_LOCALE" =~ ^[a-z]{2}_[A-Z]{2}\.UTF-8$ ]] &&
 [[ "$DEFAULT_KEYBOARD_LAYOUT" =~ ^[a-z]{2}$ ]] &&
 [[ -z "$DEFAULT_KEYBOARD_VARIANT" ]] &&
@@ -64,8 +65,6 @@ done
     printf >&2 'my-cdd: language and locale do not agree\n'
     exit 1
 }
-default_country="${DEFAULT_LOCALE#*_}"
-default_country="${default_country%%.*}"
 mkdir -p ./tmp/generated
 {
     printf '# Generated from profile_defaults.conf; questions remain editable.\n'
@@ -91,7 +90,7 @@ debconf-set-selections --checkonly ./tmp/generated/defaults.preseed
 build_conf=./tmp/generated/simple-cdd.conf
 cp ./simple-cdd.conf "$build_conf"
 printf '\n# Generated from profile_defaults.conf for early editable prompts.\nexport KERNEL_PARAMS="debian-installer/language?=%s debian-installer/country?=%s debian-installer/locale?=%s keyboard-configuration/xkb-keymap?=%s"\n' \
-    "$DEFAULT_LANGUAGE" "$default_country" "$DEFAULT_LOCALE" "$DEFAULT_KEYBOARD_LAYOUT" >> "$build_conf"
+    "$DEFAULT_LANGUAGE" "$DEFAULT_COUNTRY" "$DEFAULT_LOCALE" "$DEFAULT_KEYBOARD_LAYOUT" >> "$build_conf"
 
 # On repeat builds, the previous run leaves contrib/non-free-firmware udeb
 # targets in the local reprepro database. The first Simple-CDD mirror stage
@@ -169,17 +168,21 @@ fi
     # An ISO must not be reported as ready if an early/late installer
     # script was silently omitted from its staged /simple-cdd directory.
     iso_extras_dir="$PWD/tmp/cd-build/trixie/CD1/simple-cdd"
-    while IFS= read -r asset || [ -n "$asset" ]; do
-        case "$asset" in
-            ''|\#*) continue ;;
-        esac
-        name="${asset##*/}"
-        if [ ! -f "$iso_extras_dir/$name" ] ||
-           ! cmp -s "$asset" "$iso_extras_dir/$name"; then
-            printf >&2 'my-cdd: missing or mismatched ISO asset: %s\n' "$name"
-            exit 1
-        fi
-    done < ./profiles/default.extra
+    # All profile-specific .extra manifests are native Simple-CDD inputs.
+    for manifest in profiles/*.extra; do
+        [ -f "$manifest" ] || continue
+        while IFS= read -r asset || [ -n "$asset" ]; do
+            case "$asset" in
+                ''|\#*) continue ;;
+            esac
+            name="${asset##*/}"
+            if [ ! -f "$iso_extras_dir/$name" ] ||
+               ! cmp -s "$asset" "$iso_extras_dir/$name"; then
+                printf >&2 'my-cdd: missing or mismatched ISO asset in %s: %s\n' "$manifest" "$name"
+                exit 1
+            fi
+        done < "$manifest"
+    done
     [ -s "$iso_extras_dir/simple-cdd.templates" ] || {
         printf >&2 'my-cdd: generated Simple-CDD Debconf template missing from ISO tree.\n'
         exit 1

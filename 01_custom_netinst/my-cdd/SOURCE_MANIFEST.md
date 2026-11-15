@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, provided a graphical installer screenshot with seven profile statuses run together, reported another `zstd` failure with no profiles selected on an earlier ISO, and asked whether project-local `default.downloads` was hiding Simple-CDD's standard package list. Confirmed from upstream 0.6.9 source that the first matching profile file wins. Removed accidental `default.downloads` override, restored upstream `default.udebs` fallback, added build-only `installer-media.downloads` with `zstd`, restored the upstream `less` baseline in `default.packages`, and corrected the Debconf summary to preserve line breaks. Earlier build and installer incidents remain documented below.  
+**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, agreed to prepare OMV Salt with `omv-salt stage run prepare` followed by the narrowly scoped `omv-salt deploy run apt apticron`, and authorized integration into `main` after final checks. No broad `stage run all` is introduced; automatic updates stay off. Historical provenance and prior policy constraints remain below.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -163,6 +163,40 @@ remain open. The original embedded ZRAM source is retained.
 - **Display correction:** the seven status lines in `installer/profile-confirm.templates` now start with **two** continuation spaces, making them preformatted per Debian Debconf template conventions rather than joining them into one paragraph. The existing conditional status substitutions, choices, default-No confirmation and installer hook remain unchanged.
 - **Validation:** GitHub source inspection plus official upstream source/specification review; **no rebuilt ISO or GTK/text install test has been performed with this latest source**. The user explicitly reran an older ISO, so its recurring `zstd` error does not test the changed `installer-media.downloads`.
 
+## Authorized source reorganization (2026-11-15)
+
+- **Nearest user request:** Clarify Docker/OMV first-boot semantics and the firmware inventory; eliminate unconditional base policies; add editable German country and `dcf1007-world` domain defaults; streamline redundant Simple-CDD profile inputs; improve installer labels and organize selected-profile helpers. Runtime installation validation was deferred.
+- **Immutable architectural constraint:** Do not edit CDD-generated outputs, except the existing narrowly scoped `UDebComponents: main` -> `main contrib non-free-firmware` generated local mirror workaround and associated reprepro reconciliation. Upstream default downloads/udebs/packages are inherited.
+- **Changes:** removed local default package and descriptive overrides, duplicated sample defaults and seven comment-only optional package lists; separated optional assets into native per-profile `.extra` inputs; split the existing shared action file into a common helper and seven selected-only modules, without changing operation bodies. The unselected late-command path no longer enforces sudo, a root password, SSH root-login policy or manual APT updates.
+- **Defaults:** `DEFAULT_COUNTRY="DE"`; `DEFAULT_DOMAIN="dcf1007-world"`; language English, locale en_US.UTF-8, keyboard Spanish and timezone Europe/Berlin retained.
+- **Unchanged:** the entire Extended device support inventory is attempted regardless of detected hardware; version/source choices and omissions are conditional on signed repository compatibility and explicit approval. The build-only installer-media `zstd` request remains; no global target installation was added. Docker daemon/socket manual-start behavior remains pending clarification and separate authorization.
+- **Follow-up integrity adjustment:** With no unconditional `default.packages` override, the selected OMV profile explicitly reviews/install-checks its required `openssh-server` and `sudo` prerequisites before preserving administrator SSH/sudo access. Debian tweaks applies its SSH hardening only when OpenSSH was actually installed by native task selection. Trailing comments accidentally carried over during the function split were removed; the function bodies otherwise remain intact. These changes have not been installer-tested.
+- **Validation boundary:** Changes were made on a review branch, not merged into main. Neither the revised ISO nor real installer phases have been built or boot-tested.
+
+## Approved root-recovery and native-service follow-up (2026-11-15)
+
+- **Nearest user prompt:** “Leave docker and omv independent and don't attemp any install of OMV-Extras Compose. If I decide to install it from the Web interface it will take care of the sources. Therefore leave everything by default for the first boot and don't deactivate anything. The root account password check should occur before applying any of the custom profiles. I agree with your findings.”
+- **Recovery check:** The common `installer/run-selected.sh` preflight runs before the profile loop, including the zero-profile path. It inspects `passwd -S root`. Existing usable root passwords are preserved. If locked or passwordless, it displays the original Debian Installer password-type questions twice, rejects empty/mismatched/control-character-containing entries, clears the temporary Debconf values, applies the password through target-side `chpasswd` standard input, then verifies root has a usable password. It does not add user sudo privileges or enable root SSH.
+- **Service behavior:** Removed Docker `systemctl mask`, `unmask`, `disable` and desired-disabled checks; official Docker package installation now owns startup behavior. OMV already had no service-start suppression. The optional profiles remain separate, and neither installs OMV-Extras or `openmediavault-compose`. A later web-interface installation of the optional integration belongs to the user.
+- **Policy scope:** Existing OMV cron-apt *scheduled update* disabling remains as previously approved; it is not a Docker/OMV systemd service startup suppression. All seven profile IDs and the authorized `UDebComponents` workaround remain unchanged.
+- **Validation:** These source changes have **not** been ISO-built or executed in a Debian 13 GTK/text installer. Password prompts, cdebconf clearing, target `chpasswd`, selected-profile ordering, and first-boot services must be tested in a disposable VM before merge.
+
+## Native installer service policy and OMV 8 updates (2026-11-15)
+
+**Nearest user prompt:** “You should prevent the execution of unnecessary services coming from the custom profiles during the installation phase. Is that necessary or they won't interfere? Keep omv updates off.”
+
+- Verified from Trixie `debian-installer-utils` 1.155 that `in-target` already temporarily rejects normal service starts using `policy-rc.d` status 101 and diverts `start-stop-daemon`. Added a preflight to confirm this native policy before selected operations, without persistent systemd masks or disablement.
+- OMV 8.6.2 source changed from older `cronapt` settings to `conf.system.apt.updates`, APT notification settings and `apt`/`apticron` Salt. Updated the selected OMV profile to turn off unattended upgrades and generated scheduled update notifications via OMV's configuration database, plus both Debian periodic APT settings. No OMV-generated files were directly modified.
+- Docker and OMV remain independent, with normal first-boot service settings. The prior conditional root recovery preflight and authorized `UDebComponents` mirror workaround remain unchanged.
+- **Unverified:** OMV Salt DNS/service interactions and complete new ISO installer tests remain release blockers.
+
+## Final authorized OMV Salt sequence before main integration (2026-11-15)
+
+- **Nearest user prompt:** “I agree. Then proceed to integrate the changes in main, if there's nothing else to discuss”; immediately preceding agreement: use the supported `omv-salt stage run prepare` before targeted `omv-salt deploy run apt apticron`, not the broad `stage run all`, and keep OMV scheduled updates off.
+- **Code:** The OMV 8 profile refreshes Salt grains/modules/pillar after updating the OMV configuration database and before deploying the two update-related states. It does not redeploy unrelated OMV services or set the obsolete OMV 5 `OMV_CRONAPT_SECURITY_UPGRADES_ENABLED` variable.
+- **Preserved:** The OMV and Docker profiles remain independently selectable, no OMV-Extras/Compose install occurs, the OS root-recovery preflight precedes optional profiles, OMV unattended/scheduled updates remain disabled, and normal first-boot service defaults are retained. The single authorized generated-mirror `UDebComponents` change is unchanged.
+- **Validation:** This is a source-level maintenance change. ISO generation, Debian 13 graphical/text installer execution, OMV DNS/Salt service interactions and first-boot behavior remain unverified pending disposable-VM testing.
+
 ## Actual implementation state
 
 **Not a validated ISO.** The seven optional profiles are described; their
@@ -177,7 +211,9 @@ OMV/Docker package service behavior, boot-menu changes and first-boot
 behavior remain unverified. That earlier source-writing turn did not perform an ISO build. Later on 2026-11-15, the user successfully built the ISO and tried the graphical installer, which failed at preseed loading. No installed-target package transaction or disk modification has been demonstrated. No mock/offline
 test harness was added.
 
-## Current tracked files (50)
+## Current tracked files (54)
+
+Source inventory at commit `c03c95c75429` before the documentation-only follow-up:
 
 - `.gitignore`
 - `README.md`
@@ -186,39 +222,43 @@ test harness was added.
 - `installer/IMPLEMENTATION_GATES.md`
 - `installer/README.md`
 - `installer/ordered-selection.sh`
-- `installer/profile-actions.sh`
+- `installer/profile-backports.sh`
+- `installer/profile-common.sh`
 - `installer/profile-confirm.sh`
 - `installer/profile-confirm.templates`
-- `installer/zram-selection.sh`
+- `installer/profile-docker.sh`
+- `installer/profile-firmware.sh`
+- `installer/profile-kernel.sh`
+- `installer/profile-omv.sh`
+- `installer/profile-tweaks.sh`
+- `installer/profile-zram.sh`
 - `installer/run-selected.sh`
+- `installer/zram-selection.sh`
 - `profile_defaults.conf`
-- `profile_defaults.conf.example`
 - `profiles/README.md`
 - `profiles/backports.description`
-- `profiles/backports.packages`
+- `profiles/backports.extra`
 - `profiles/backports.postinst`
 - `profiles/debian-tweaks.description`
-- `profiles/debian-tweaks.packages`
+- `profiles/debian-tweaks.extra`
 - `profiles/debian-tweaks.postinst`
-- `profiles/default.description`
 - `profiles/default.extra`
-- `profiles/default.packages`
 - `profiles/default.preseed`
 - `profiles/docker.description`
-- `profiles/docker.packages`
+- `profiles/docker.extra`
 - `profiles/docker.postinst`
 - `profiles/ensure-7x-kernel.description`
-- `profiles/ensure-7x-kernel.packages`
+- `profiles/ensure-7x-kernel.extra`
 - `profiles/ensure-7x-kernel.postinst`
 - `profiles/extended-device-support.description`
-- `profiles/extended-device-support.packages`
+- `profiles/extended-device-support.extra`
 - `profiles/extended-device-support.postinst`
 - `profiles/installer-media.downloads`
 - `profiles/openmediavault.description`
-- `profiles/openmediavault.packages`
+- `profiles/openmediavault.extra`
 - `profiles/openmediavault.postinst`
 - `profiles/zram-writeback.description`
-- `profiles/zram-writeback.packages`
+- `profiles/zram-writeback.extra`
 - `profiles/zram-writeback.postinst`
 - `scripts/10-compressed-writeback.conf`
 - `scripts/90-zram-swappiness.conf`

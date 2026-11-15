@@ -1,5 +1,12 @@
 # Implementation requirements still outstanding
 
+**Native installer service handling (2026-11-15):** Debian Installer 1.155 automatically sets a temporary `policy-rc.d` returning 101 when the `in-target` wrapper runs and diverts `start-stop-daemon`. The selected-profile runner verifies this upstream protection; it does not duplicate it or disable first-boot services. OMV 8's source uses `apt` and `apticron`, not the old `cronapt` deployment; its scheduled update/notification policy is now disabled via the OMV configuration database and Salt. OMV DNS and third-party Salt operations require live testing.
+
+
+**Additional approved policy (2026-11-15):** The common late-command preflight must verify/set a local root password if the installed root account is locked or passwordless **before any selected profile changes files, packages or partitions**. The native user-setup Debconf password questions are reused and cleared afterward; no password may enter a log or package manifest. Test root already enabled, locked root with sudo user, password mismatch and cancellation, including the zero-profile path. Docker and OMV remain independent; no OMV-Extras/Compose install and no Docker service masking/disabling. Existing OMV **scheduled-update prohibition** remains, now implemented against current OMV 8's apt/apticron configuration rather than obsolete cronapt settings.
+
+**Current source revision (2026-11-15):** Optional operations were reorganized into selected-only modules, with no unselected base account/SSH/update overrides. `profiles/default.packages` now falls back to CDD's upstream file. The source was not revalidated in a live installer, so all runtime gates below remain open. The latest recovery preflight and Docker-default-startup changes also await actual GTK/text installer validation.
+
 **Status (2026-11-15): source-level selected-profile executor and completion checks added, not tested in a live installer.** The minimal `build.sh` invokes upstream `build-simple-cdd`. It has no fabricated offline test harness or artificial release flags. The seven selected-profile postinst files now verify actual installer-stage completion records rather than blindly succeeding. **A successful ISO build is not a functional validation.**
 
 ## 1. Early selected-profile confirmation
@@ -29,15 +36,15 @@ Keep ordinary keyboard, locale/time, account/password, network/mirror, partman, 
 Simple-CDD 0.6.9 runs each executable `*.postinst` **in-target**, in the order returned by the Debconf selection, not necessarily the design order. The newly written native Debian Installer `preseed/late_command` calls the **single ordered dispatcher** ([`run-selected.sh`](run-selected.sh)):
 Backports → Ensure 7.x → Extended device support → ZRAM → Debian tweaks → OMV 8 → Docker.
 
-The current `*.packages` files for optional profiles intentionally **queue no packages**: automatic queueing would bypass required simulation/approval and, for Docker or ZRAM, violate service and conversion timing.
+Optional `.packages` files have been removed to leave **no automatic package queue**: automatic queueing would bypass required simulation/approval and, for Docker or ZRAM, violate service and conversion timing.
 
-The [`profile-actions.sh`](profile-actions.sh) source includes package/repository changes, native review and omission questions, target logging, ZRAM GPT conversion, Docker startup suppression and OMV SSH/update handling. **These remain untested implementations**, not proof of compatibility. Verify that early/late command execution order, package candidates, GUI interaction and critical failure handling actually work, without rollback or skipped profiles.
+The selected-only `profile-*.sh` modules and shared [`profile-common.sh`](profile-common.sh) source include package/repository changes, native review and omission questions, target logging, ZRAM GPT conversion, and OMV SSH/update handling. **These remain untested implementations**, not proof of compatibility. Verify that early/late command execution order, package candidates, GUI interaction and critical failure handling actually work, without rollback or skipped profiles.
 
 ## 4. Boot and functional release tests
 
 Confirm generated USB boots UEFI **and** legacy BIOS, with **Graphical install** highlighted and an indefinite manual Enter wait; text and rescue remain available. The BOOT_TIMEOUT config alone is not proof of this. Confirm target UEFI/GPT and normal Debian manual partman.
 
-Test profile combinations, conditional Backports-first kernel/firmware, first boot, 7.x headers, generator sysfs features, ZRAM writeback/emergency path, OMV 8 and Docker inactive state. Test diagnostic display, full-log copies/permissions and export. Follow [the validation checklist](../../08_validation_and_pending.md).
+Test profile combinations, conditional Backports-first kernel/firmware, first boot, 7.x headers, generator sysfs features, ZRAM writeback/emergency path, OMV 8 and Docker normal startup state. Test diagnostic display, full-log copies/permissions and export. Follow [the validation checklist](../../08_validation_and_pending.md).
 
 **Explicitly excluded by user choice:** source ISO/file hashes, output ISO hashes, USB read-back comparison and media-integrity-only tests. Functional tests and signed APT metadata verification are still required.
 
@@ -59,7 +66,7 @@ Previously converted raw `zram-writeback` GPT partitions are shown only as
 manual candidates. PARTLABEL alone is not unique proof of identity.
 
 Source: [`zram-selection.sh`](zram-selection.sh),
-[`profile-actions.sh`](profile-actions.sh), and
+[`profile-zram.sh`](profile-zram.sh), and
 [`profile-confirm.templates`](profile-confirm.templates).
 The approved targeted `swapoff` path remains, with memory reserve and
 identity/activity rechecks. No partitioning commands occur in candidate
