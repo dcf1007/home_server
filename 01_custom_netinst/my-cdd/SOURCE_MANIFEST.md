@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (latest change):** “shouldn't zstd be a requirement in the zram profile and not in default?” The source was refined to distinguish a base-installer media dependency from an optional ZRAM runtime dependency: `zstd` moved from `profiles/default.packages` to the new `profiles/default.downloads` so it can appear on the ISO without an unconditional Simple-CDD target install. The existing media index/archive gate, two-stage builder, and kernel-backed ZRAM profile remain. Earlier reasons for the initial `default.packages` decision are retained below as history.  
+**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, provided a graphical installer screenshot with seven profile statuses run together, reported another `zstd` failure with no profiles selected on an earlier ISO, and asked whether project-local `default.downloads` was hiding Simple-CDD's standard package list. Confirmed from upstream 0.6.9 source that the first matching profile file wins. Removed accidental `default.downloads` override, restored upstream `default.udebs` fallback, added build-only `installer-media.downloads` with `zstd`, restored the upstream `less` baseline in `default.packages`, and corrected the Debconf summary to preserve line breaks. Earlier build and installer incidents remain documented below.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -151,8 +151,17 @@ remain open. The original embedded ZRAM source is retained.
 - **Nearest user prompt:** “shouldn't zstd be a requirement in the zram profile and not in default?”
 - **Evidence:** Debian Installer requested `zstd` during `base-installer/kernel` while performing the standard base installation, before any optional ZRAM work. The installed-target ZRAM code uses `systemd-zram-generator` with the Linux kernel's ZSTD compression algorithm; it does not directly invoke the user-space `zstd` command.
 - **Simple-CDD semantics verified:** upstream 0.6.9 includes both `default.packages` and `default.downloads` in CD package selection. `*.packages` is automatically installed for a selected profile, while `*.downloads` places files on the media without automatically installing them through Simple-CDD (Debian Installer may still install them for its own reasons).
-- **Revised implementation:** new `profiles/default.downloads` lists `zstd`. Removed `zstd` and its installation requirement comment from `profiles/default.packages`. The separate `build.sh` requirement for an actual `zstd` index entry and archive in staged CD1 remains; the optional `zram-writeback` profile package queue remains empty.
+- **Intermediate implementation (superseded):** project-local `profiles/default.downloads` listed only `zstd`, replacing rather than merging the upstream default downloads due to Simple-CDD's first-match profile resolution. This file has since been deleted and replaced by a uniquely named build-only profile. The separate staged-ISO `zstd` index/archive gate remains, and the optional ZRAM package queue remains empty.
 - **Validation boundary:** source changes checked, but not yet rebuilt or tested in a graphical installer. This change does not prove the installed system's final package set or successful base installation.
+
+## Upstream default restoration and Debconf summary correction (2026-11-15)
+
+- **Nearest user prompt (paraphrased):** “there are saltos de linea missing ... even when not selecting any of the custom profiles ... why are you not using the default.downloads given by cdd? ... have we overridden some files we should not have touched?”
+- **Confirmed Simple-CDD 0.6.9 behavior:** `build-simple-cdd` resolves a profile file by searching `simple_cdd_dirs` and yielding **only the first match**. A local `profiles/default.downloads` therefore fully obscures the packaged `/usr/share/simple-cdd/profiles/default.downloads`, rather than appending to it. The upstream list contains GRUB variants, console setup, LVM/RAID/cryptsetup, debootstrap, busybox, boot media packages and more. This was an unintended regression in the intermediate `zstd` fix.
+- **Changes:** deleted local `profiles/default.downloads` and the redundant `profiles/default.udebs` (upstream version already requests `simple-cdd-profiles`); added `build_profiles="installer-media"` to `simple-cdd.conf` and `profiles/installer-media.downloads` containing `zstd`. Build-only profiles contribute packages to the CD without becoming installer checkbox choices. Updated `build.sh` to fail if a local `default.downloads` or `default.udebs` reappears, if the upstream installed copies are unavailable, or if the build-only `zstd` profile is not configured. Preserved the existing final ISO `zstd` index/archive gate and the **two-stage** build.
+- **Other defaults audit:** local `default.preseed` intentionally overrides the upstream sample because it must keep interactive Debian Installer questions and manual partitioning (the upstream example specifies automatic/hidden choices). Local `default.packages` is intentional for SSH/sudo/time-sync and now retains upstream `less`; local `default.extra` is project-specific. No installed Simple-CDD file was modified.
+- **Display correction:** the seven status lines in `installer/profile-confirm.templates` now start with **two** continuation spaces, making them preformatted per Debian Debconf template conventions rather than joining them into one paragraph. The existing conditional status substitutions, choices, default-No confirmation and installer hook remain unchanged.
+- **Validation:** GitHub source inspection plus official upstream source/specification review; **no rebuilt ISO or GTK/text install test has been performed with this latest source**. The user explicitly reran an older ISO, so its recurring `zstd` error does not test the changed `installer-media.downloads`.
 
 ## Actual implementation state
 
@@ -168,7 +177,7 @@ OMV/Docker package service behavior, boot-menu changes and first-boot
 behavior remain unverified. That earlier source-writing turn did not perform an ISO build. Later on 2026-11-15, the user successfully built the ISO and tried the graphical installer, which failed at preseed loading. No installed-target package transaction or disk modification has been demonstrated. No mock/offline
 test harness was added.
 
-## Current tracked files (51)
+## Current tracked files (50)
 
 - `.gitignore`
 - `README.md`
@@ -192,11 +201,9 @@ test harness was added.
 - `profiles/debian-tweaks.packages`
 - `profiles/debian-tweaks.postinst`
 - `profiles/default.description`
-- `profiles/default.downloads`
 - `profiles/default.extra`
 - `profiles/default.packages`
 - `profiles/default.preseed`
-- `profiles/default.udebs`
 - `profiles/docker.description`
 - `profiles/docker.packages`
 - `profiles/docker.postinst`
@@ -206,6 +213,7 @@ test harness was added.
 - `profiles/extended-device-support.description`
 - `profiles/extended-device-support.packages`
 - `profiles/extended-device-support.postinst`
+- `profiles/installer-media.downloads`
 - `profiles/openmediavault.description`
 - `profiles/openmediavault.packages`
 - `profiles/openmediavault.postinst`
