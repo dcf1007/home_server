@@ -16,9 +16,9 @@ zram_ref_matches() (
         PARTUUID=*) [ "$(printf '%s' "${zr_ref#PARTUUID=}" | tr '[:upper:]' '[:lower:]')" = "$zr_part" ] ;;
         UUID=*) [ -n "$zr_swap_uuid" ] &&
             [ "$(printf '%s' "${zr_ref#UUID=}" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$zr_swap_uuid" | tr '[:upper:]' '[:lower:]')" ] &&
-            [ "$(blkid -t "UUID=$zr_swap_uuid" -o device 2>/dev/null || true)" = "$zr_dev" ] ;;
+            [ "$(readlink -f -- "$(blkid -t "UUID=$zr_swap_uuid" -o device 2>/dev/null || true)" 2>/dev/null || true)" = "$zr_dev" ] ;;
         LABEL=*) [ -n "$zr_swap_label" ] && [ "${zr_ref#LABEL=}" = "$zr_swap_label" ] &&
-            [ "$(blkid -t "LABEL=$zr_swap_label" -o device 2>/dev/null || true)" = "$zr_dev" ] ;;
+            [ "$(readlink -f -- "$(blkid -t "LABEL=$zr_swap_label" -o device 2>/dev/null || true)" 2>/dev/null || true)" = "$zr_dev" ] ;;
         # PARTLABEL is not unique and cannot prove which raw partition
         # belongs to the target. Do not resolve it automatically.
         PARTLABEL=*) return 1 ;;
@@ -192,12 +192,30 @@ zram_read_active_swap() {
 zram_prepare_fstab() {
     # Build the edited target fstab BEFORE modifying any partition. Preserve
     # every unrelated line byte-for-byte and remove only matching swap lines.
+    cp /target/etc/fstab "$WORK/zram-original-fstab" ||
+        fatal 'Cannot snapshot installed fstab before ZRAM conversion'
     : > "$WORK/zram-safe-fstab"
     while IFS= read -r zf_line || [ -n "$zf_line" ]; do
         zf_ref="$(printf '%s\n' "$zf_line" |
             awk '$0 !~ /^[[:space:]]*#/ && NF >= 3 && $3 == "swap" {print $1}')"
         case "$zf_ref" in
             PARTLABEL=*) fatal 'Ambiguous PARTLABEL swap reference in target fstab; resolve it before ZRAM conversion' ;;
+            UUID=*)
+                case "$former_uuid" in
+                    '') ;;
+                    *) if [ "${zf_ref#UUID=}" = "$former_uuid" ] &&
+                        ! zram_ref_matches "$zf_ref" "$zram_uuid" "$zram_device" "$former_uuid" "$former_label"; then
+                        fatal 'Target fstab swap UUID is duplicated or cannot be resolved uniquely'
+                    fi ;;
+                esac ;;
+            LABEL=*)
+                case "$former_label" in
+                    '') ;;
+                    *) if [ "${zf_ref#LABEL=}" = "$former_label" ] &&
+                        ! zram_ref_matches "$zf_ref" "$zram_uuid" "$zram_device" "$former_uuid" "$former_label"; then
+                        fatal 'Target fstab swap LABEL is duplicated or cannot be resolved uniquely'
+                    fi ;;
+                esac ;;
         esac
         if [ -n "$zf_ref" ] &&
             zram_ref_matches "$zf_ref" "$zram_uuid" "$zram_device" "$former_uuid" "$former_label"; then
@@ -205,5 +223,11 @@ zram_prepare_fstab() {
             continue
         fi
         printf '%s\n' "$zf_line" >> "$WORK/zram-safe-fstab"
-    done < /target/etc/fstab
+    done < "$WORK/zram-original-fstab"
+    # Never leave a second conventionally activated swap configured in the
+    # new target; modifying or deactivating that other device is NOT approved.
+    if awk '$0 !~ /^[[:space:]]*#/ && NF >= 3 && $3 == "swap" {print $1}' \
+        "$WORK/zram-safe-fstab" | grep -q .; then
+        fatal 'Another target swap entry would remain; do not enable independent swap alongside required ZRAM'
+    fi
 }
