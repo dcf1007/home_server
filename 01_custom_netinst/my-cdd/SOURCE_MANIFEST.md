@@ -111,6 +111,7 @@ test harness was added.
 - `installer/profile-actions.sh`
 - `installer/profile-confirm.sh`
 - `installer/profile-confirm.templates`
+- `installer/zram-selection.sh`
 - `installer/run-selected.sh`
 - `profile_defaults.conf`
 - `profile_defaults.conf.example`
