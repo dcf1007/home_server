@@ -106,8 +106,8 @@ run_target() {
     capture in-target "$@" || fatal "Target command failed: $*"
 }
 simulate_target() {
-    capture in-target apt-get -s "$@" ||
-        fatal "APT simulation failed: apt-get -s $*"
+    capture in-target apt -s "$@" ||
+        fatal "APT simulation failed: apt -s $*"
     cp "$WORK/output" "$WORK/plan"
 }
 check_critical_removals() {
@@ -122,14 +122,14 @@ review_install() {
     simulate_target install "$@"
     check_critical_removals
     review_plan "$name" "$WORK/plan"
-    run_target apt-get -y install "$@"
+    run_target apt -y install "$@"
     run_target dpkg --audit
 }
 reviewed_upgrade() {
     simulate_target full-upgrade
     check_critical_removals
     review_plan 'Backports: complete eligible-package full-upgrade' "$WORK/plan"
-    run_target apt-get -y full-upgrade
+    run_target apt -y full-upgrade
     run_target dpkg --audit
     simulate_target full-upgrade
     if grep -E '^Inst |^Remv ' "$WORK/plan" >/dev/null; then

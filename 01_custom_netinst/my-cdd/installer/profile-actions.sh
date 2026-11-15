@@ -28,7 +28,7 @@ backports_is_selected() {
     case " $ordered " in *' backports '*) return 0;; *) return 1;; esac
 }
 update_signed_apt() {
-    run_target apt-get update
+    run_target apt update
     capture in-target apt-cache policy || fatal 'Cannot inspect APT priorities'
 }
 profile_backports() {
@@ -64,7 +64,7 @@ profile_backports() {
                 fatal "Individual removal not approved: $pkg"
             log "USER APPROVED REMOVAL: $pkg"
         done < "$WORK/removal-list"
-        run_target apt-get -y autoremove --purge
+        run_target apt -y autoremove --purge
     fi
     capture in-target dpkg -l || fatal 'Cannot list residual dpkg configuration'
     awk '$1=="rc" {print $2}' "$WORK/output" > "$WORK/residual"
@@ -103,7 +103,7 @@ try_kernel_suite() {
     [ -n "$iv" ] && [ -n "$hv" ] || return 1
     is_7x_metapackage linux-image-amd64 "$iv" || return 1
     is_7x_metapackage linux-headers-amd64 "$hv" || return 1
-    if capture in-target apt-get -s install "linux-image-amd64/$ks" "linux-headers-amd64/$ks"; then
+    if capture in-target apt -s install "linux-image-amd64/$ks" "linux-headers-amd64/$ks"; then
         cp "$WORK/output" "$WORK/plan"
         if grep -E '^Remv (linux-image|linux-headers|grub)' "$WORK/plan" >/dev/null; then
             log "Rejected candidate kernel suite: $ks would remove initial fallback/boot support"
@@ -154,7 +154,7 @@ profile_kernel() {
         cat "$WORK/plan"
     } > "$WORK/kernel-review"
     review_plan 'Linux 7.x image, matching headers and complete APT simulation' "$WORK/kernel-review"
-    run_target apt-get -y install "linux-image-amd64/$KERNEL_SUITE" "linux-headers-amd64/$KERNEL_SUITE"
+    run_target apt -y install "linux-image-amd64/$KERNEL_SUITE" "linux-headers-amd64/$KERNEL_SUITE"
     run_target update-initramfs -u -k all
     run_target update-grub
     paired=0
@@ -186,7 +186,7 @@ profile_firmware() {
         reason=''
         if [ -n "$bpo" ]; then
             candidate="$pkg/trixie-backports"
-            if capture in-target apt-get -s install $(cat "$WORK/firmware-selectors") "$candidate"; then
+            if capture in-target apt -s install $(cat "$WORK/firmware-selectors") "$candidate"; then
                 if ! grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/output" >/dev/null; then
                     selector=$candidate
                 fi
@@ -196,7 +196,7 @@ profile_firmware() {
         fi
         if [ -z "$selector" ] && [ -n "$stable" ]; then
             candidate="$pkg/$stable"
-            if capture in-target apt-get -s install $(cat "$WORK/firmware-selectors") "$candidate"; then
+            if capture in-target apt -s install $(cat "$WORK/firmware-selectors") "$candidate"; then
                 if ! grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/output" >/dev/null; then
                     selector=$candidate
                     if backports_is_selected; then
@@ -237,7 +237,7 @@ profile_firmware() {
         cat "$WORK/plan"
     } > "$WORK/firmware-review"
     review_plan 'Extended support: entire mixed-source firmware transaction' "$WORK/firmware-review"
-    run_target apt-get -y install $(cat "$WORK/firmware-selectors")
+    run_target apt -y install $(cat "$WORK/firmware-selectors")
     run_target dpkg --audit
 }
 
@@ -557,7 +557,7 @@ EOT
     simulate_target install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     check_critical_removals
     review_plan 'Docker: complete official package transaction, daemon/socket suppressed' "$WORK/plan"
-    run_target apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    run_target apt -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     capture in-target systemctl --root=/ unmask docker.service docker.socket ||
         fatal 'Could not remove temporary Docker startup suppression'
     capture in-target systemctl --root=/ disable docker.service docker.socket ||
