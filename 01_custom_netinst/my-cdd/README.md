@@ -1,15 +1,15 @@
 # my-cdd — Debian 13 (Trixie) amd64 custom Simple-CDD sources
 
-**Stage (2026-11-15):** installer-only ISO successfully built in a Debian VM (395 MiB). An initial graphical installer boot reached preseed loading but failed during `preseed/early_command` (exit code 2); **no successful installation or profile workflow has been validated**. A probable missing-extra-file packaging issue has been corrected in source, but **a fresh ISO test is pending**. Source development began 2026-11-14.
+**Stage (2026-11-15):** the prior **installer-only** ISO built at 395 MiB but failed in a graphical installer test (first at the early command, then at debootstrap/base installation). The source now targets a **netinst ISO with the base system** and generates editable installer defaults; **neither correction is yet validated in a rebuilt ISO**. Do not use on a real installation disk. Source development began 2026-11-14.
 
 ## Entry points
 
-- [`simple-cdd.conf`](simple-cdd.conf) — Trixie/amd64 Simple-CDD configuration; seven optional profiles, no auto-selection, `INSTALLER_CD="1"`, official Debian mirror components and `NONFREE_COMPONENTS="non-free-firmware"`. The two-stage mirror fix works with the installed Simple-CDD tooling.
-- [`build.sh`](build.sh) — two-stage Simple-CDD builder that extends reprepro's generated udeb components and verifies both extra installer indexes before constructing an ISO. Saves mirror/debug/terminal logs and propagates failures with Bash `pipefail`. A successful ISO build is **not** proof of installer correctness.
+- [`simple-cdd.conf`](simple-cdd.conf) — Trixie/amd64 Simple-CDD configuration; seven optional profiles, no auto-selection, `INSTALLER_CD="2"`, official Debian mirror components and `NONFREE_COMPONENTS="non-free-firmware"`. The two-stage mirror fix works with the installed Simple-CDD tooling.
+- [`build.sh`](build.sh) — two-stage Simple-CDD builder that extends reprepro's generated udeb components and verifies both extra installer indexes before constructing an ISO. Saves mirror/debug/terminal logs and propagates failures with Bash `pipefail`. A successful ISO build is **not** proof of installer correctness. The wrapper renders defaults from `profile_defaults.conf` at build time.
 - [`profiles/`](profiles/) — native Simple-CDD profile descriptions, empty optional auto-package queues, and seven postinst **completion verifiers**. The actual selected-profile actions run in Debian Installer's normal late-command stage.
 - [`installer/`](installer/) — approved early Debconf selection/confirmation, plus [`run-selected.sh`](installer/run-selected.sh) and [`profile-actions.sh`](installer/profile-actions.sh), invoked from the normal `preseed/late_command` with the agreed ordered operations and individual confirmations. **Actual GUI/installer behavior is untested.**
 - [`scripts/`](scripts/) — approved firmware package inventory, selected-only Backports and ZRAM configuration inputs, and untested ZRAM source assets.
-- [`profile_defaults.conf`](profile_defaults.conf) — original canonical, editable native Debian Installer suggestions, moved here byte-for-byte from the former root-level file.
+- [`profile_defaults.conf`](profile_defaults.conf) — single editable source used by `build.sh` to generate `tmp/generated/defaults.preseed` and boot-parameter defaults; passwords, disk choices and optional-profile flags are intentionally excluded.
 - [`profile_defaults.conf.example`](profile_defaults.conf.example) — original example/reference, not another source of truth.
 - [`SOURCE_MANIFEST.md`](SOURCE_MANIFEST.md) — creation provenance, source categories and current blocked implementation status.
 
@@ -33,13 +33,13 @@ cd 01_custom_netinst/my-cdd
 ./build.sh
 ```
 
-The installer-only ISO is written to `images/debian-13-amd64-CD-1.iso`. It expects a network mirror for the target-system packages.
+The generated netinst ISO is written to `images/debian-13-amd64-CD-1.iso`. With `INSTALLER_CD="2"`, it includes Debian Installer **and the base system**, retrieving additional packages from the network. It will be **larger than the earlier 395 MiB installer-only image**.
 
 The build runs `--mirror-only`, patches the **generated local mirror** from `UDebComponents: main` to `UDebComponents: main contrib non-free-firmware`, runs `reprepro update`, requires the additional installer `Packages.gz` or `Packages.xz` indexes, then runs `--build-only`. This addresses the previously observed missing `amd64/contrib` and `amd64/non-free-firmware` installer-package messages; the 2026-11-15 VM run confirmed their disappearance. It does not add extra user-selected packages or silently enable Backports.
 
-Build diagnostics are in `build-mirror-debug.log`, `build-debug.log`, `build-terminal.log`, and `tmp/log/`. For exact verification commands and the known nonfatal Debian-CD warnings, see the [preparation/build guide](../01_custom_cdd_preparation.md).
+Build diagnostics are in `build-mirror-debug.log`, `build-debug.log`, `build-terminal.log`, and `tmp/log/`. Generated, disposable files in `tmp/generated/` are rebuilt on every run. The `default.preseed` includes `defaults.preseed` from the ISO. Language/locale and keyboard use early `?=` kernel arguments so the normal screens remain editable; hostname, username, timezone, UTC clock and tasksel choices use Debconf values with `seen false`. DHCP remains the native network method and an empty DNS domain is not forced. The build validates generated preseed syntax and ISO file packaging. For exact verification commands and the known nonfatal Debian-CD warnings, see the [preparation/build guide](../01_custom_cdd_preparation.md).
 
-**Installer asset packaging (revised after first graphical boot):** `profiles/default.extra` now lists the 13 supplementary installer assets. Simple-CDD resolves its relative entries against the project before switching into the Debian-CD workspace. The earlier `all_extras="installer/..."` configuration could silently omit the scripts, consistent with an early-command exit status 2 when `/cdrom/simple-cdd/profile-confirm.sh` is absent. `build.sh` now compares each source asset to the staged `tmp/cd-build/trixie/CD1/simple-cdd/` file and rejects a mismatched build. **This correction has not yet been verified by a rebuilt and booted ISO.**
+**Installer asset packaging (revised after first graphical boot):** `profiles/default.extra` now lists the supplementary installer assets, including generated `defaults.preseed`. Simple-CDD resolves its relative entries against the project before switching into the Debian-CD workspace. The earlier `all_extras="installer/..."` configuration could silently omit the scripts, consistent with an early-command exit status 2 when `/cdrom/simple-cdd/profile-confirm.sh` is absent. `build.sh` now compares each source asset to the staged `tmp/cd-build/trixie/CD1/simple-cdd/` file and rejects a mismatched build. **This correction has not yet been verified by a rebuilt and booted ISO.**
 
 ## Important engineering boundaries
 
