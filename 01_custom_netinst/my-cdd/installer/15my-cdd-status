@@ -1,0 +1,25 @@
+#!/bin/sh
+# Run by Debian Installer's unmodified finish-install after 07preseed
+# and Simple-CDD's 14simple-cdd, BEFORE its 20final-message.
+# Exit 10 is the documented finish-install "back up" code, unlike exit 1
+# which finish-install only warns about before continuing to "Complete".
+set -eu
+status=/target/var/log/installer/my-cdd-status
+confirmed=/tmp/my-cdd-confirmed-profiles
+markers=/target/var/log/installer/my-cdd-completed
+
+if [ -f "$status" ] && [ "$(cat "$status")" = COMPLETE ] &&
+   [ -r "$confirmed" ]; then
+    valid=true
+    for profile in $(cat "$confirmed"); do
+        [ -f "$markers/$profile" ] || valid=false
+    done
+    if [ "$valid" = true ]; then
+        exit 0
+    fi
+fi
+
+logger -t my-cdd 'Custom profiles are incomplete; stopping finish-install before its success message' || :
+printf >&2 '%s\n' 'my-cdd: selected profiles did not complete. See /target/var/log/installer/my-cdd.log and my-cdd-status.' \
+    'Returning to Debian Installer main menu instead of reporting Installation complete.'
+exit 10

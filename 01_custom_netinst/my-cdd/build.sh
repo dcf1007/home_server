@@ -209,7 +209,7 @@ fi
         exit 1
     }
     # confmodule may re-execute these scripts through the cdebconf frontend.
-    for script in profile-confirm.sh run-selected.sh; do
+    for script in profile-confirm.sh run-selected.sh 15my-cdd-status; do
         [ -x "$iso_extras_dir/$script" ] || {
             printf >&2 'my-cdd: entry script not executable on ISO: %s\n' "$script"
             exit 1
