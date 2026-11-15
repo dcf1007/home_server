@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, agreed to prepare OMV Salt with `omv-salt stage run prepare` followed by the narrowly scoped `omv-salt deploy run apt apticron`, and authorized integration into `main` after final checks. No broad `stage run all` is introduced; automatic updates stay off. Historical provenance and prior policy constraints remain below.  
+**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, after a successful base Debian installation but a failed `preseed/late_command`, asked to fix the issues so another ISO can be generated. Revised the shared `in-target` capture, secured the root password stdin path, and added explicit status markers. The native tasksel GUI defaults remain a documented exception rather than silently hiding the selection screen. See the dated evidence and prior provenance below.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -196,6 +196,14 @@ remain open. The original embedded ZRAM source is retained.
 - **Code:** The OMV 8 profile refreshes Salt grains/modules/pillar after updating the OMV configuration database and before deploying the two update-related states. It does not redeploy unrelated OMV services or set the obsolete OMV 5 `OMV_CRONAPT_SECURITY_UPGRADES_ENABLED` variable.
 - **Preserved:** The OMV and Docker profiles remain independently selectable, no OMV-Extras/Compose install occurs, the OS root-recovery preflight precedes optional profiles, OMV unattended/scheduled updates remain disabled, and normal first-boot service defaults are retained. The single authorized generated-mirror `UDebComponents` change is unchanged.
 - **Validation:** This is a source-level maintenance change. ISO generation, Debian 13 graphical/text installer execution, OMV DNS/Salt service interactions and first-boot behavior remain unverified pending disposable-VM testing.
+
+## User-reported GTK installer failure and source correction (2026-11-15)
+
+- **Nearest user prompt:** “fix the issues so i can generate a new image”, after screenshots of Debian Installer's late-command failure and an installed system showing empty `/var/log/installer/my-cdd-completed/`, no ZRAM, and no OMV/Docker.
+- **Evidence:** Base Debian completed and booted after inclusion of the missing `zstd` package. The user selected all seven profiles but the common late runner stopped on its initial `passwd -S root` parse because `in-target` by default routes standard output to the installer syslog. This failure occurred before any custom profile could begin.
+- **Source change:** Central `capture()` automatically invokes `in-target --pass-stdout`; this applies to all target APT simulations, candidate/version checks, sshd output and root status parsing, without changing package/profile policy. `chpasswd` receives its secret only on the stdin of a direct target `chroot`, bypassing `in-target`'s Debconf stdin. Target `/var/log/installer/my-cdd-status` explicitly records `INCOMPLETE`, `FAILED` or `COMPLETE` for a later manual check. No password is written to custom logs or source files.
+- **Tasksel status:** Trixie tasksel 3.81's `tasksel-debconf` overrides a preseeded value when marked `seen=false`; setting it true may hide the ordinary editable screen. The project retains the normal screen, and a user must currently select only `ssh-server` and `standard` manually. This is a known outstanding GUI-default defect, not a completed fix. Patching upstream tasksel, suppressing the GUI, or replacing the native screen was not authorized by this user request.
+- **Testing:** This revision has no ISO build or installer GUI test. Require testing the fallback root password prompt (and cancellation/mismatch) plus every profile's actual reviewed APT transactions; the prior failure blocked them all.
 
 ## Actual implementation state
 
