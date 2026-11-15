@@ -33,6 +33,12 @@ for script in installer/*.sh profiles/*.postinst; do
         exit 1
     }
 done
+# The finish-install status guard is intentionally named for the native
+# numbered hook order, not with a .sh suffix.
+sh -n installer/15my-cdd-status || {
+    printf >&2 'my-cdd: invalid finish-install status-hook syntax\n'
+    exit 1
+}
 
 # Debian tasksel 3.81 resets tasksel/first to its own defaults when unseen.
 # Preserve its ordinary editable GUI rather than pre-mark it seen (which can
@@ -209,7 +215,7 @@ fi
         exit 1
     }
     # confmodule may re-execute these scripts through the cdebconf frontend.
-    for script in profile-confirm.sh run-selected.sh; do
+    for script in profile-confirm.sh run-selected.sh 15my-cdd-status; do
         [ -x "$iso_extras_dir/$script" ] || {
             printf >&2 'my-cdd: entry script not executable on ISO: %s\n' "$script"
             exit 1

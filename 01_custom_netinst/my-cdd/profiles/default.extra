@@ -6,3 +6,4 @@ installer/profile-confirm.templates
 installer/ordered-selection.sh
 installer/run-selected.sh
 installer/profile-common.sh
+installer/15my-cdd-status

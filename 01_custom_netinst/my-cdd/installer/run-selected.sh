@@ -277,6 +277,41 @@ if [ -n "$ordered" ]; then
     log 'Confirmed native in-target package-service startup suppression'
 fi
 
+# Debian Installer apt-setup may leave its CD-ROM APT source active until
+# finish-install's later 10apt-cdrom-setup hook. Our custom APT transactions
+# run in 07preseed, BEFORE that native cleanup. APT update cannot refresh
+# a cdrom: source; disable only those local entries in the target APT list.
+# Do not change the installer medium, remove online sources, or alter mirrors.
+disable_installer_cdrom_sources() {
+    for source in /target/etc/apt/sources.list /target/etc/apt/sources.list.d/*.list; do
+        [ -f "$source" ] || continue
+        if grep -Eq '^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:' "$source"; then
+            sed -i -E '/^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:/s/^/# my-cdd: disabled installer CD-ROM source: /' "$source" ||
+                fatal "Cannot disable installer-only APT CD-ROM entry in $source"
+            log "Disabled installer CD-ROM APT entry in $source"
+        fi
+    done
+    # Keep unfamiliar deb822 arrangements intact rather than disabling a
+    # stanza that may mix CD-ROM and online URIs.
+    for source in /target/etc/apt/sources.list.d/*.sources; do
+        [ -f "$source" ] || continue
+        if grep -Eiq '^[[:space:]]*URIs:[[:space:]]+cdrom:' "$source"; then
+            fatal "Unexpected active deb822 CD-ROM source in $source; manual APT-source review required"
+        fi
+    done
+    # Fail closed if an active legacy CD-ROM source escaped the narrow edit.
+    for source in /target/etc/apt/sources.list /target/etc/apt/sources.list.d/*.list; do
+        [ -f "$source" ] || continue
+        if grep -Eq '^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:' "$source"; then
+            fatal "Installer CD-ROM entry remains active in $source"
+        fi
+    done
+}
+
+if [ -n "$ordered" ]; then
+    disable_installer_cdrom_sources
+fi
+
 for profile in $ordered; do
     log "PROFILE BEGIN: $profile"
     case "$profile" in

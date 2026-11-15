@@ -9,16 +9,28 @@ CDDIR=/cdrom/simple-cdd
 ORDER_HELPER="$CDDIR/ordered-selection.sh"
 TEMPLATE_SIMPLE="$CDDIR/simple-cdd.templates"
 TEMPLATE_CONFIRM="$CDDIR/profile-confirm.templates"
+FINISH_GUARD="$CDDIR/15my-cdd-status"
 
 stop() {
     printf >&2 'my-cdd early profile gate: STOP: %s\n' "$*"
     exit 1
 }
-for required in "$ORDER_HELPER" "$TEMPLATE_SIMPLE" "$TEMPLATE_CONFIRM"; do
+for required in "$ORDER_HELPER" "$TEMPLATE_SIMPLE" "$TEMPLATE_CONFIRM" "$FINISH_GUARD"; do
     [ -r "$required" ] || stop "missing installer-media source: $required"
 done
 command -v debconf-loadtemplate >/dev/null 2>&1 ||
     stop 'debconf-loadtemplate is not available in the installer'
+
+# Register the project's status gate before finish-install enumerates its
+# hooks. 07preseed runs our late command; 14simple-cdd runs completion
+# verifiers; this 15 hook stops success reporting unless all actually finish.
+# No upstream udeb or installed target-system hook is patched.
+mkdir -p /usr/lib/finish-install.d ||
+    stop 'Cannot locate Debian Installer finish-install hook directory'
+cp "$FINISH_GUARD" /usr/lib/finish-install.d/15my-cdd-status ||
+    stop 'Cannot register custom finish-install completion gate'
+chmod 755 /usr/lib/finish-install.d/15my-cdd-status ||
+    stop 'Cannot make finish-install completion gate executable'
 
 # Generated simple-cdd.templates has the actual Choices and empty Defaults.
 # Load both template families explicitly; the original profile udeb has NOT
