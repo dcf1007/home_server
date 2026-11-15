@@ -114,11 +114,51 @@ review_plan() {
     approve "$1"
 }
 run_target() {
-    capture in-target "$@" || fatal "Target command failed: $*"
+    # Preserve reviewed APT transactions while showing real download/dpkg
+    # progress in the existing Debian Installer GTK/text Debconf frontend.
+    # Debian Installer's own apt-install uses this target helper.
+    if [ "$1" = apt ]; then
+        shift
+        case "$1" in
+            update)
+                shift
+                [ "$#" -eq 0 ] || fatal 'Unexpected apt update arguments'
+                set -- update
+                ;;
+            -y)
+                shift
+                case "$1" in
+                    full-upgrade)
+                        shift
+                        set -- dist-upgrade "$@"
+                        ;;
+                    install|autoremove) : ;;
+                    *) fatal "Unsupported reviewed APT transaction: $*" ;;
+                esac
+                set -- -y "$@"
+                ;;
+            *) fatal "Unexpected APT operation: $*" ;;
+        esac
+        # Never force DEBIAN_FRONTEND=noninteractive for package installs.
+        capture in-target debconf-apt-progress --logstderr -- apt-get "$@" ||
+            fatal "Target APT transaction failed: apt-get $*"
+    else
+        capture in-target "$@" || fatal "Target command failed: $*"
+    fi
 }
 simulate_target() {
-    capture in-target apt -s "$@" ||
-        fatal "APT simulation failed: apt -s $*"
+    # Simulate with the same APT frontend/command as the live progress path
+    # so the approved package/removal plan cannot differ by frontend.
+    case "$1" in
+        full-upgrade)
+            shift
+            set -- dist-upgrade "$@"
+            ;;
+        install|autoremove) : ;;
+        *) fatal "Unsupported APT simulation: $*" ;;
+    esac
+    capture in-target apt-get -s "$@" ||
+        fatal "APT simulation failed: apt-get -s $*"
     cp "$WORK/output" "$WORK/plan"
 }
 check_critical_removals() {
