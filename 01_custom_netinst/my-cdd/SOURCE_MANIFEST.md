@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, requested that all remaining `apt` profile calls be changed to explicit `apt-get` commands for source consistency. Replaced the legacy `run_target apt` adapter with a direct `apt-get` progress path; the full-upgrade operation is now explicitly `dist-upgrade`, with the same simulated and executed action. No package policy, license consent, service startup or CDD build behavior is changed. Earlier history remains below.  
+**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, provided graphical VM evidence that Backports, kernel and firmware completed but ZRAM immediately stopped because `lsblk` was absent in Debian Installer. Corrected ZRAM's utility resolution to use the installed target through native `in-target`, preserving installer-side partition and fstab checks and all separate approvals. The dated details and historical changes remain recorded below.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -232,6 +232,14 @@ remain open. The original embedded ZRAM source is retained.
 - **Semantics:** `apt update` becomes `apt-get update`; `apt -y install` becomes `apt-get -y install`; `apt -y autoremove --purge` becomes `apt-get -y autoremove --purge`. The prior wrapper translated `apt -y full-upgrade` to `apt-get -y dist-upgrade`; both the source call and matching simulation now explicitly say `dist-upgrade`. Target execution still uses `in-target debconf-apt-progress --logstderr -- apt-get` with the existing approval process. Non-transaction inspection uses `apt-cache` and `apt-config` as before.
 - **Intent:** Remove the implicit `apt`-to-`apt-get` translation, keep all reviewed APT transactions and native progress, and avoid any policy or behavior changes.
 - **Validation:** Source comparison and syntax checks only; full Debian Installer GTK/text execution and first-boot behavior still require a disposable-VM test.
+
+## Selected ZRAM: installer vs installed-target util-linux utilities (2026-11-15)
+
+- **Nearest user prompt:** Three Debian 13 installer screenshots dated 2026-11-15, showing previously approved kernel, firmware and microcode APT transactions completed and the ZRAM stage immediately failed with `Installation stopped: ZRAM conversion requires unavailable installer utility: lsblk`. The screenshot log shows `PROFILE COMPLETE: extended-device-support`, then `PROFILE BEGIN: zram-writeback` and the fatal utility preflight.
+- **Cause and verified packaging facts:** The Debian Installer runs in a stripped-down udeb environment; the standard Debian 13 `util-linux` package supplies `/usr/bin/lsblk` in the *installed* system. Requiring that command in the installer shell was incorrect. Other `util-linux` operations such as `blkid`, `findmnt`, `swapon`, `swapoff` and `wipefs` can have the same mismatch.
+- **Exact source change:** `installer/zram-selection.sh` now defines namespaced wrappers that run just the required target tools via D-I's standard `in-target --pass-stdout`. `installer/profile-zram.sh` sources those wrappers and validates installer-side `parted`, `readlink`, `cmp` plus target command availability and target device/proc/sys visibility before choosing or converting a partition. The `/target` root mount is checked using installer-side `/proc/self/mountinfo`, not target-side `findmnt -M /target`. Selected `swapoff` and `wipefs` still operate only on the separately approved block device and use the same privilege and safety checks.
+- **Preserved:** No ISO media additions, `.extra` changes, generated-file edits, new automatic package installation, modified GPT choices or altered Debconf `my-cdd/zram-swapoff` question. The earlier Linux 7.x dependency, kernel/memory checks, targeted swapoff approval, exact PARTUUID identity and unique-holder/mount constraints, atomic target fstab update, and root rescue password remain intact. No effect on Docker, OMV or other independent profiles.
+- **Validation:** Read-only source review only; installer tooling, target namespace availability, GPT partition conversion and first boot remain runtime release gates. A clean disposable VM installation is required to validate this change before using a real disk.
 
 ## Actual implementation state
 
