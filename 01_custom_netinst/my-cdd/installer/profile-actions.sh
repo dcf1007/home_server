@@ -341,7 +341,23 @@ profile_zram() {
     [ -z "$(blkid -s TYPE -o value "$device" 2>/dev/null || true)" ] ||
         fatal 'Backing partition still has a filesystem/swap signature'
     if lsblk -dnro MOUNTPOINTS "$device" |
-        grep -Ev '^[[:space:]]*
+        grep -Ev '^[[:space:]]*$' | grep -q .; then
+        fatal 'Converted partition unexpectedly mounted or active'
+    fi
+    zram_read_active_swap
+    [ -z "$active_used" ] ||
+        fatal 'Converted raw backing is still conventional swap'
+    # This exact filtered fstab was prepared before destructive conversion;
+    # preserve every unrelated swap line and refuse residual aliases.
+    cp "$WORK/zram-safe-fstab" /target/etc/fstab ||
+        fatal 'Could not remove confirmed backing from installed target fstab'
+    awk '$0 !~ /^[[:space:]]*#/ && NF >= 3 && $3 == "swap" {print $1}' \
+        /target/etc/fstab > "$WORK/zram-residual-swaps"
+    while IFS= read -r swap_ref; do
+        if zram_ref_matches "$swap_ref" "$uuid" "$device" "$former_uuid" "$former_label"; then
+            fatal 'Confirmed backing is still referenced as conventional swap'
+        fi
+    done < "$WORK/zram-residual-swaps"
     # No other ZRAM provisioning occurs until the partition conversion
     # (type, name, PARTUUID, signatures and active-swap state) has passed.
 
