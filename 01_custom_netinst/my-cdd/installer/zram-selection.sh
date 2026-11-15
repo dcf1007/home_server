@@ -17,8 +17,9 @@ zram_ref_matches() (
         UUID=*) [ -n "$zr_swap_uuid" ] &&
             [ "$(printf '%s' "${zr_ref#UUID=}" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$zr_swap_uuid" | tr '[:upper:]' '[:lower:]')" ] ;;
         LABEL=*) [ -n "$zr_swap_label" ] && [ "${zr_ref#LABEL=}" = "$zr_swap_label" ] ;;
-        PARTLABEL=*) [ "${zr_ref#PARTLABEL=}" = zram-writeback ] &&
-            [ "$(lsblk -dnro PARTLABEL "$zr_dev")" = zram-writeback ] ;;
+        # PARTLABEL is not unique and cannot prove which raw partition
+        # belongs to the target. Do not resolve it automatically.
+        PARTLABEL=*) return 1 ;;
         /dev/*) [ "$(readlink -f -- "$zr_ref" 2>/dev/null || true)" = "$zr_dev" ] ;;
         *) return 1 ;;
     esac
@@ -56,7 +57,7 @@ zram_collect_candidates() {
             zc_kind=existing-raw
         fi
         [ -n "$zc_kind" ] || continue
-        [ -z "$(grep -F "^$zc_partuuid|" "$WORK/zram-candidate-map" 2>/dev/null || true)" ] ||
+        ! grep -q "^$zc_partuuid|" "$WORK/zram-candidate-map" ||
             fatal 'Duplicate GPT partition identity; refusing ZRAM selection'
         zc_size="$(lsblk -dnro SIZE "$zc_device")"
         case "$zc_size" in ''|*'|'*|*','*) fatal 'Cannot display safe partition capacity' ;; esac
@@ -193,6 +194,9 @@ zram_prepare_fstab() {
     while IFS= read -r zf_line || [ -n "$zf_line" ]; do
         zf_ref="$(printf '%s\n' "$zf_line" |
             awk '$0 !~ /^[[:space:]]*#/ && NF >= 3 && $3 == "swap" {print $1}')"
+        case "$zf_ref" in
+            PARTLABEL=*) fatal 'Ambiguous PARTLABEL swap reference in target fstab; resolve it before ZRAM conversion' ;;
+        esac
         if [ -n "$zf_ref" ] &&
             zram_ref_matches "$zf_ref" "$zram_uuid" "$zram_device" "$former_uuid" "$former_label"; then
             log "Removing confirmed backing conventional-swap fstab reference: $zf_ref"
