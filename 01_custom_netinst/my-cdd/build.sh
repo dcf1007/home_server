@@ -68,4 +68,11 @@ done
         printf >&2 'my-cdd: generated Simple-CDD Debconf template missing from ISO tree.\n'
         exit 1
     }
+    # confmodule may re-execute these scripts through the cdebconf frontend.
+    for script in profile-confirm.sh run-selected.sh; do
+        [ -x "$iso_extras_dir/$script" ] || {
+            printf >&2 'my-cdd: entry script not executable on ISO: %s\n' "$script"
+            exit 1
+        }
+    done
 } 2>&1 | tee ./build-terminal.log
