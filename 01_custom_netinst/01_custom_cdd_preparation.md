@@ -1,6 +1,6 @@
 # 01 — Customized netinst / Simple-CDD preparation
 
-**Status (2026-11-15):** installer-only ISO successfully built (~395 MiB, 414,187,520 bytes); **not boot-tested or installation-validated**. **Original design recorded:** 2026-11-14. **Provenance:** custom server Debian 13 planning conversation, the request to document custom netinst preparation, and build logs supplied on 2026-11-15.
+**Status (2026-11-15):** installer-only ISO successfully built (~395 MiB, 414,187,520 bytes). An initial graphical boot reached preseed loading but failed with early-command exit code 2; **installation and custom profile workflow remain unvalidated**. The supplementary-file packaging has since been corrected in source and awaits a new build/boot test. **Original design recorded:** 2026-11-14. **Provenance:** custom server Debian 13 planning conversation, the request to document custom netinst preparation, and build logs supplied on 2026-11-15.
 
 ## Purpose
 
@@ -109,6 +109,8 @@ The repository's `my-cdd/build.sh` performs the following sequence, preserving i
 
 The ordinary mirror components remain `main contrib non-free non-free-firmware`. The Debian-CD firmware component is set separately in `simple-cdd.conf` using `export NONFREE_COMPONENTS="non-free-firmware"`. Both build stages run with `--debug`; Bash `pipefail` ensures a failing stage is not hidden by `tee`.
 
+**Installer-file packaging correction (after first graphical boot):** the former relative `all_extras="installer/..."` paths were interpreted after Simple-CDD changed to its Debian-CD workspace. The upstream extra-file copy loop silently skips unreadable files; the early-command invocation of `/cdrom/simple-cdd/profile-confirm.sh` then failed with exit code 2, consistent with a missing script. The repository now uses `profiles/default.extra`: Simple-CDD resolves its file entries to absolute source paths. The build wrapper checks all 13 copied files against the staged CD directory and fails if any are missing or different. **The new packaging has not yet been verified in a rebuilt ISO.**
+
 ### Logs and checks after a build
 
 All paths below are relative to `my-cdd/`:
@@ -205,7 +207,7 @@ Verify actual Simple-CDD profile questions and integration inside a disposable V
 - Test **full/unredacted** log persistence attempts to the **confirmed** `/target/var/log/installer/` and, independently, a **safe writable section of the same installer USB**. Verify restrictive permissions where supported, warnings where USB filesystems cannot provide them, sensitive-content warnings, and that failures do not hide on-screen diagnostics/manual export or trigger media repartitioning/formatting.
 
 - **No installer-media verification:** as explicitly requested, do not require source-image checksum/signature checks, generated-ISO hashing, USB read-back/comparison, or a verification-only boot test. This does not change signed APT repository enforcement or the separate functional requirements of the installer.
-- **Build completed; USB and runtime tests pending:** the customized ISO was generated successfully on 2026-11-15, but USB writing and functional tests of UEFI, BIOS, graphical, text and rescue modes remain pending. Do not add a separate media-integrity verification procedure.
+- **Build completed; installer runtime failed early:** the customized ISO was generated on 2026-11-15 and an initial graphical boot reached preseed loading, then failed in the early-command hook. After the supplementary-file fix, rebuild and test again. USB writing and successful UEFI/BIOS, graphical/text, profile-selection and rescue workflows remain pending. Do not add a separate media-integrity verification procedure.
 - Test each optional profile alone and in permitted combinations, including **fail-stop behavior**, diagnostic availability and manual recovery paths. **Do not build or imply rollback functionality**.
 - Test offline/failed repository behavior, third-party key checks, package resolution, root and sudo login, GRUB settings and correct target-disk selection.
 - Confirm OMV does not reinstate root SSH access and does not block the installer-confirmed administrator account access.
