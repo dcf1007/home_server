@@ -1,5 +1,7 @@
 # Native Debian Installer integration (source only)
 
+**Current recovery and service policy:** Before any selected profile executes (including a zero-profile installation), `run-selected.sh` checks the installed root account. If locked/passwordless, it uses Debian Installer's native password-type Debconf questions to set and verify a local root password, with no passwords in source, command arguments or project logs. This GTK/text behavior still requires an actual installer test. Docker is installed with its ordinary service startup defaults; no masking, disabling or OMV-Extras/Compose integration.
+
 **Current review branch (2026-11-15):** No unconditional base user, sudo, SSH or update-policy enforcement. The early confirmation and ordered dispatcher remain; the dispatcher sources only the explicitly selected profile action module. Source-only changes; GTK/text integration has not been retested.
 
 The seven profiles are presented by Simple-CDD's standard `simple-cdd/profiles` Debconf multiselect; none is automatically selected. We must add one custom **summary confirmation** before profile operation, not replace Debian's native installer GUI or its normal keyboard/time/account/network/partman/retry dialogs.

@@ -1,12 +1,10 @@
-# 07 — Selectable **Docker Engine** profile
+# 07 — Optional Docker Engine profile (independent of OpenMediaVault)
 
-**Clarification (2026-11-15):** On Debian the Docker daemon usually starts automatically, including at boot. Keeping it disabled for the first boot is an explicit earlier user-selected configuration policy, **not** a prerequisite to successfully install Docker. OpenMediaVault's management services are not subject to this restriction. No Docker startup-policy change has been approved in this review.
+**Current policy (2026-11-15):** Docker is a separately selectable, initially unchecked profile. Do not mask, stop, disable, or otherwise override Docker or containerd startup during installation or at first boot. Their service behavior follows the official Debian packages. The earlier manual-start restriction is superseded. **Source changes are not yet installer-tested.**
 
-**Status:** official Docker signed-repository install and temporary Docker unit suppression are implemented as untested source. **No Docker installation or first-boot verification claimed.** **Recorded:** 2026-11-14. **Provenance:** user approval of Docker as independent installer option, with service/socket kept inactive through first boot.
+## Installation scope
 
-## Purpose
-
-If selected, install the official Docker packages on Debian 13 during customized installation:
+When selected, install from Docker's official signed repository for Debian 13 (Trixie), with key scoped by `Signed-By` and reviewed APT candidates, dependencies, origins, removals and transaction approval:
 
 ```text
 docker-ce
@@ -16,35 +14,16 @@ docker-buildx-plugin
 docker-compose-plugin
 ```
 
-Use the official Docker Debian 13 repository with its signing key scoped via `Signed-By`. Validate the origin, suite, package candidate versions and dependencies. The official Docker repository was already requested, but packages are installed **only when the Docker profile is selected**.
+Docker is **not** installed if the Docker profile is unchecked. Do not create containers, Compose projects, storage layouts, privileged docker-group memberships, or a custom Docker daemon configuration. Do not impose firewall settings or modify other services.
 
-## Do not activate Docker
+## OpenMediaVault independence
 
-Docker may start during package configuration or through socket activation unless explicitly prevented. Required behavior:
+Docker and OpenMediaVault are separate installer choices. Selecting one does not automatically select or install the other. **Never install OMV-Extras, `openmediavault-compose`, or configure the OMV Docker/Compose integration during Debian Installer.** If the user installs an integration through OMV's web interface later, its repository and service management is the user's separate post-installation decision. The installer must not preemptively create OMV-Extras repository sources or attempt to manage its future configuration.
 
-- During installation: **do not start Docker daemon or Docker socket**.
-- On first normal boot: **keep `docker.service` and `docker.socket` disabled/inactive** until the user explicitly approves activation.
-- Review related containerd service behavior; do not mistake Docker daemon suppression for a promise that every installed container-runtime process is absent.
-- Do not automatically enable any Docker listener, deploy containers, create Compose projects or add the installer-confirmed administrator account to the privileged `docker` group.
-- Do not install/configure `openmediavault-compose` or OMV-Extras as an implicit Docker dependency; those are separately undecided.
-- Do not add firewall filtering during installation; Docker startup can modify NAT/forwarding rules, which is one reason activation is deferred.
+## Acceptance and validation
 
-**Implementation caution:** Merely disabling a unit after the package installation is insufficient if maintainer scripts started it earlier. The installer needs a validated, temporary package-service startup suppression mechanism, followed by explicit unit disablement and removal of temporary suppression. Do not globally mask unrelated services without approval.
+Verify the official Docker package origin, signed APT repository, installed packages and `dpkg --audit`. After first boot, verify `docker.service`, `docker.socket` and `containerd.service` reflect normal vendor package defaults rather than custom masks/disables. These checks do **not** authorize starting or stopping the services as a test, launching containers, or making persistent service changes.
 
-## Compatibility gate
+The Docker profile, OMV-only profile and simultaneous selection have not been tested in a live Debian 13 installer; testing is a release gate.
 
-Simulate Docker install alongside any selected OMV, Backports and Ensure 7.x kernel profiles. If Backports was selected, verify its **default priority 100** and selectively installed kernel dependencies; do not globally prefer Backports packages before making changes. Preserve OMV, networking and SSH settings; do not override pinned package selections without consultation. Verify repository signature and dependency graph.
-
-## Acceptance after first boot
-
-```sh
-dpkg-query -W docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-systemctl is-enabled docker.service docker.socket
-systemctl is-active docker.service docker.socket
-docker --version
-docker compose version
-```
-
-Desired: packages installed, command-line tools available, **Docker daemon and socket inactive/disabled**. Do **not** execute `docker run` as a test without separately authorizing daemon activation.
-
-References: [Docker Engine on Debian](https://docs.docker.com/engine/install/debian/) · [Docker post-install](https://docs.docker.com/engine/install/linux-postinstall/)
+**References:** [Docker Engine on Debian](https://docs.docker.com/engine/install/debian/) · [Docker Linux post-installation](https://docs.docker.com/engine/install/linux-postinstall/) · [OMV 8 installation](https://docs.openmediavault.org/en/stable/installation/on_debian.html)

@@ -1,6 +1,8 @@
 # Implementation requirements still outstanding
 
-**Current source revision (2026-11-15):** Optional operations were reorganized into selected-only modules, with no unselected base account/SSH/update overrides. `profiles/default.packages` now falls back to CDD's upstream file. The source was not revalidated in a live installer, so all runtime gates below remain open.
+**Additional approved policy (2026-11-15):** The common late-command preflight must verify/set a local root password if the installed root account is locked or passwordless **before any selected profile changes files, packages or partitions**. The native user-setup Debconf password questions are reused and cleared afterward; no password may enter a log or package manifest. Test root already enabled, locked root with sudo user, password mismatch and cancellation, including the zero-profile path. Docker and OMV remain independent; no OMV-Extras/Compose install and no Docker service masking/disabling. Existing OMV cron-apt update policy is unchanged.
+
+**Current source revision (2026-11-15):** Optional operations were reorganized into selected-only modules, with no unselected base account/SSH/update overrides. `profiles/default.packages` now falls back to CDD's upstream file. The source was not revalidated in a live installer, so all runtime gates below remain open. The latest recovery preflight and Docker-default-startup changes also await actual GTK/text installer validation.
 
 **Status (2026-11-15): source-level selected-profile executor and completion checks added, not tested in a live installer.** The minimal `build.sh` invokes upstream `build-simple-cdd`. It has no fabricated offline test harness or artificial release flags. The seven selected-profile postinst files now verify actual installer-stage completion records rather than blindly succeeding. **A successful ISO build is not a functional validation.**
 

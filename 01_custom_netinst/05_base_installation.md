@@ -22,10 +22,10 @@ Root ext4 uses Debian's ordinary filesystem defaults, except for the **optional 
 
 ## Identity, credentials and networking
 
-- The **hostname, administrator username, DNS domain and wired DHCP suggestions** come from [profile_defaults.conf](my-cdd/profile_defaults.conf) and must be displayed in editable Debian Installer questions with explicit confirmation. The default local DNS domain is empty; the network uses router-side IP reservation. **None** of these GUI choices belongs to the Debian tweaks profile.
-- Use Debian Installer native account, password, privilege and SSH choices. The base installation **does not** unconditionally configure sudo, require a separate root password, enable SSH password login, or write an SSH root-login override.
-- Additional account, SSH, update or emergency-access requirements apply only within explicitly selected profiles. ZRAM still verifies that its selected emergency-recovery requirement can be met.
-- No firewall filtering policy during installation; any selected Docker daemon remains disabled.
+- The **hostname, administrator username, DNS domain and wired DHCP suggestions** come from [profile_defaults.conf](my-cdd/profile_defaults.conf) and must be displayed in editable Debian Installer questions with explicit confirmation. The default local DNS domain is `dcf1007-world` (editable); the network uses router-side IP reservation. **None** of these GUI choices belongs to the Debian tweaks profile.
+- Use Debian Installer's native account, password, privilege and SSH screens without forcing sudo or SSH. **Recovery exception:** before executing any selected profile (including the empty-selection path), the late installer preflight checks the installed root account. If it is locked or lacks a password, it requires a separate local root password through the native password-type Debconf prompts, applies it securely and verifies the root account is usable. This prevents a sudo-created user with locked root from becoming stranded in systemd rescue/emergency mode. Existing valid root passwords are preserved; root SSH is not enabled by this check.
+- Profile-specific SSH, sudo, update and service policies apply only to the explicitly selected profiles; the root recovery guard is the one independent safety exception.
+- No firewall filtering or explicit Docker/OMV service-startup overrides are added during installation or for first boot.
 
 ## Localization / time — normal installer GUI
 
@@ -41,7 +41,7 @@ Retain `systemd-timesyncd` for time synchronization; use the user-confirmed time
 - Installer software-selection suggestions (**SSH server**, **Standard system utilities**, **no desktop**) live in [profile_defaults.conf](my-cdd/profile_defaults.conf) and must be confirmed via the normal installation GUI; symbolic tasksel identifiers require validation before automation.
 - No `popularity-contest`.
 - Always retain Debian Installer's normal automatic firmware detection. The optional [Extended device support](10_extended_device_support.md) profile attempts **both Intel and AMD microcode packages** (without filtering by actual CPU vendor), plus broad additional firmware. **If Backports was selected, prefer its viable firmware and microcode versions first** using targeted per-package requests without changing the global priority **100**; if Backports offers no usable version, evaluate normal repositories before considering omission. Simulate the combined transaction; any unavailable/conflicting microcode or firmware package may be omitted **only after its reason is shown and the user explicitly approves that individual omission**.
-- Do not run unattended upgrades or automatically reboot for updates. The **separately selected Backports profile** owns the reviewed full-upgrade and post-upgrade cleanup steps, including explicit approval for proposed removals and purges.
+- The unselected base follows Debian's default update policy; selected Debian tweaks/OMV policy applies only to those profiles. Do not impose additional unattended-update/reboot policies globally. The **separately selected Backports profile** owns the reviewed full-upgrade and post-upgrade cleanup steps, including explicit approval for proposed removals and purges.
 
 ## Finish
 

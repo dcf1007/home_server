@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, clarified that no custom base-system package or account policy is mandatory outside editable Debian Installer defaults, requested Germany and `dcf1007-world`, and approved a more minimal, CDD-native profile organization while preserving the one `UDebComponents` workaround. The full hardware-independent firmware inventory and per-package omission approvals remain; OMV is not suppressed on first boot, while Docker's existing manual-start policy awaits a separate decision. Historical fixes remain recorded below.  
+**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, directed that Docker and OMV remain independent; do not install OMV-Extras/Compose, leave official service startup alone during installation and on first boot, and verify/secure the root account **before any custom profile runs**, to prevent locked-root rescue deadlocks. Previous source reorganization and the approved generated-mirror exception remain unchanged. Historical fixes are preserved below.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -172,6 +172,14 @@ remain open. The original embedded ZRAM source is retained.
 - **Unchanged:** the entire Extended device support inventory is attempted regardless of detected hardware; version/source choices and omissions are conditional on signed repository compatibility and explicit approval. The build-only installer-media `zstd` request remains; no global target installation was added. Docker daemon/socket manual-start behavior remains pending clarification and separate authorization.
 - **Follow-up integrity adjustment:** With no unconditional `default.packages` override, the selected OMV profile explicitly reviews/install-checks its required `openssh-server` and `sudo` prerequisites before preserving administrator SSH/sudo access. Debian tweaks applies its SSH hardening only when OpenSSH was actually installed by native task selection. Trailing comments accidentally carried over during the function split were removed; the function bodies otherwise remain intact. These changes have not been installer-tested.
 - **Validation boundary:** Changes were made on a review branch, not merged into main. Neither the revised ISO nor real installer phases have been built or boot-tested.
+
+## Approved root-recovery and native-service follow-up (2026-11-15)
+
+- **Nearest user prompt:** “Leave docker and omv independent and don't attemp any install of OMV-Extras Compose. If I decide to install it from the Web interface it will take care of the sources. Therefore leave everything by default for the first boot and don't deactivate anything. The root account password check should occur before applying any of the custom profiles. I agree with your findings.”
+- **Recovery check:** The common `installer/run-selected.sh` preflight runs before the profile loop, including the zero-profile path. It inspects `passwd -S root`. Existing usable root passwords are preserved. If locked or passwordless, it displays the original Debian Installer password-type questions twice, rejects empty/mismatched/control-character-containing entries, clears the temporary Debconf values, applies the password through target-side `chpasswd` standard input, then verifies root has a usable password. It does not add user sudo privileges or enable root SSH.
+- **Service behavior:** Removed Docker `systemctl mask`, `unmask`, `disable` and desired-disabled checks; official Docker package installation now owns startup behavior. OMV already had no service-start suppression. The optional profiles remain separate, and neither installs OMV-Extras or `openmediavault-compose`. A later web-interface installation of the optional integration belongs to the user.
+- **Policy scope:** Existing OMV cron-apt *scheduled update* disabling remains as previously approved; it is not a Docker/OMV systemd service startup suppression. All seven profile IDs and the authorized `UDebComponents` workaround remain unchanged.
+- **Validation:** These source changes have **not** been ISO-built or executed in a Debian 13 GTK/text installer. Password prompts, cdebconf clearing, target `chpasswd`, selected-profile ordering, and first-boot services must be tested in a disposable VM before merge.
 
 ## Actual implementation state
 

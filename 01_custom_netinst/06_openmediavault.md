@@ -6,7 +6,7 @@
 
 If selected, install **OpenMediaVault 8** into the minimal Debian 13 system **during the customized installation, before first reboot**, after package and repository compatibility checks. Do not automatically configure optional OMV features, plugins, Docker integration or additional services beyond requirements explicitly stated here. The user will configure OMV after the first boot.
 
-This is a separate selectable profile. The **Debian tweaks** profile and the optional Docker and ZRAM profiles must remain distinct.
+This is a separate selectable profile. The **Debian tweaks** profile and the optional Docker and ZRAM profiles must remain distinct. **Do not install OMV-Extras, `openmediavault-compose`, or any Docker integration during Debian Installer.** OMV's normal services are not masked or disabled for first boot; optional plugins may be installed later from the OMV web interface at the user's discretion.
 
 ## Critical compatibility gate: selectively installed Backports packages
 
@@ -21,7 +21,7 @@ Before installing OMV:
 
 ## One explicitly approved OMV configuration change: no scheduled updates
 
-The **OMV profile shall disable OMV's entire scheduled cron-apt workflow**, not just unattended installation of security patches. This removes scheduled OMV update checks/notifications too; manual refreshes and manual installations remain available.
+The **previously approved OMV automatic-update policy remains separate from service startup**: the OMV profile shall disable OMV's entire scheduled cron-apt workflow, not just unattended installation of security patches. This removes scheduled OMV update checks/notifications too; manual refreshes and manual installations remain available.
 
 Proposed command sequence, to confirm against the actually installed OMV 8 release:
 
