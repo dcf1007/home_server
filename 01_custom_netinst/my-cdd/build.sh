@@ -18,9 +18,28 @@ for hook in profiles/*.postinst; do
     }
 done
 
-build-simple-cdd \
-    --conf ./simple-cdd.conf \
-    --dist trixie \
-    --debug \
-    --logfile ./build-debug.log \
-    2>&1 | tee ./build-terminal.log
+# Simple-CDD's reprepro mirror otherwise limits installer udebs to main,
+# while Debian-CD also checks contrib and non-free-firmware udeb indexes.
+{
+    build-simple-cdd \
+        --conf ./simple-cdd.conf \
+        --dist trixie \
+        --mirror-only \
+        --debug \
+        --logfile ./build-mirror-debug.log
+
+    mirror_conf=./tmp/mirror/conf/distributions
+    if [ ! -f "$mirror_conf" ] || [ "$(grep -cx 'UDebComponents: main' "$mirror_conf")" -ne 1 ]; then
+        printf >&2 'my-cdd: unexpected reprepro UDebComponents configuration; refusing to modify.\n'
+        exit 1
+    fi
+    sed -i 's/^UDebComponents: main$/UDebComponents: main contrib non-free-firmware/' "$mirror_conf"
+    GNUPGHOME="$PWD/tmp/gpg-keyring" reprepro -V --basedir "$PWD/tmp/mirror" update
+
+    build-simple-cdd \
+        --conf ./simple-cdd.conf \
+        --dist trixie \
+        --build-only \
+        --debug \
+        --logfile ./build-debug.log
+} 2>&1 | tee ./build-terminal.log
