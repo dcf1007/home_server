@@ -1,0 +1,5 @@
+# Base-installer media dependency, available even with no optional profiles.
+# Debian Installer needs the user-space zstd package during kernel/base setup.
+# Include it on the ISO without automatically installing it by Simple-CDD.
+# ZRAM's zstd compression algorithm is provided by the kernel, not this CLI.
+zstd
