@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (latest change):** “don't use apt-get, use the successor apt install . also chroot a new debian installation and attempt everything within that chroot”. Earlier authorization: “i authorise”, following the user's agreement to support reused swap partitions, automatic target-assigned selection, native GTK/text manual fallback and separately confirmed targeted swapoff. The previous cleanup and 37-firmware inventory decisions remain in force.  
+**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, replace the legacy package-manager command throughout the entire repository with `apt`. Earlier authorization: “i authorise”, following the user's agreement to support reused swap partitions, automatic target-assigned selection, native GTK/text manual fallback and separately confirmed targeted swapoff. The previous cleanup and 37-firmware inventory decisions remain in force.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -86,9 +86,9 @@ remain open. The original embedded ZRAM source is retained.
 
 ## Authorized follow-up: apt CLI (2026-11-15)
 
-**Nearest user prompt:** “don't use apt-get, use the successor apt install . also chroot a new debian installation and attempt everything within that chroot”.
+**Nearest user prompt:** the user's earlier request to switch installer transactions to `apt` and attempt a Debian 13 chroot build.
 
-- Replaced all `apt-get` executable invocations with user-requested `apt` in
+- Replaced all legacy package-manager executable invocations with user-requested `apt` in
   `installer/profile-actions.sh` and `installer/run-selected.sh`, without
   changing package selections, simulations, approval gates or ordering.
 - Confirmed that Debian 13 `apt -s install`, `apt -s full-upgrade` and
@@ -101,6 +101,12 @@ remain open. The original embedded ZRAM source is retained.
   A minimal Debian 13 host-derived fallback chroot executed the original
   verified build wrapper; it stopped because `build-simple-cdd` was absent.
   **No ISO was built, no installer ran and no disk was modified.**
+
+## Repository-wide APT naming follow-up (2026-11-15)
+
+**Nearest user prompt (paraphrased):** Use `apt` throughout the repository, including documentation, and eliminate references to the old CLI spelling.
+
+**Provenance:** The already-merged installer shell change was retained unchanged. Based on `main` commit `d5be1f583578ba2224a20e530dcb546b7ad8fa93`, this follow-up updates four planning documents and this manifest. All 61 tracked files were checked for remaining legacy command references. No package operations or installer build were performed for this wording-only update. The existing Debian warning about `apt` output instability in scripts still applies.
 
 ## Actual implementation state
 
