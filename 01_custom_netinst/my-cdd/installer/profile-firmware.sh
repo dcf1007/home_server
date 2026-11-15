@@ -12,6 +12,10 @@ firmware_license_decision() {
         firmware-ipw2x00|firmware-ivtv) : ;;
         *) fatal "Unrecognized license-restricted firmware: $licensed_pkg" ;;
     esac
+    licensed_suite=${licensed_selector#*/}
+    licensed_version="$(suite_version "$licensed_pkg" "$licensed_suite")"
+    [ -n "$licensed_version" ] ||
+        fatal "Cannot identify selected license-bearing version: $licensed_selector"
     license_dir="/tmp/my-cdd-license-$licensed_pkg"
     [ ! -e "/target$license_dir" ] ||
         fatal "Unexpected existing temporary license directory: $license_dir"
@@ -23,7 +27,7 @@ firmware_license_decision() {
     capture in-target sh -c '
         cd "$1" || exit 1
         apt-get -o APT::Sandbox::User=root download "$2"
-    ' my-cdd "$license_dir" "$licensed_selector" ||
+    ' my-cdd "$license_dir" "$licensed_pkg=$licensed_version" ||
         fatal "Cannot download the exact licensed package: $licensed_selector"
 
     set -- "/target$license_dir"/*.deb
@@ -34,6 +38,10 @@ firmware_license_decision() {
         fatal "Cannot inspect downloaded $licensed_pkg package"
     grep -Fx "$licensed_pkg" "$WORK/output" >/dev/null ||
         fatal "Downloaded license package has wrong name: $licensed_pkg"
+    capture in-target dpkg-deb -f "$license_deb" Version ||
+        fatal "Cannot verify downloaded $licensed_pkg version"
+    grep -Fx "$licensed_version" "$WORK/output" >/dev/null ||
+        fatal "Downloaded $licensed_pkg license does not match selected APT version"
     capture in-target dpkg-deb -e "$license_deb" "$license_dir/control" ||
         fatal "Cannot extract native Debconf templates for $licensed_pkg"
 
