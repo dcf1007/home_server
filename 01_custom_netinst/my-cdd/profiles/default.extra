@@ -1,6 +1,8 @@
 # Additional ISO files required by the default and optional profiles.
 # Simple-CDD resolves these entries against simple_cdd_dir before changing
 # to the debian-cd build directory, unlike relative all_extras values.
+# Created by build.sh before Simple-CDD reads this list.
+tmp/generated/defaults.preseed
 installer/profile-confirm.sh
 installer/profile-confirm.templates
 installer/ordered-selection.sh
