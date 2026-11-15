@@ -34,7 +34,7 @@ profile_backports() {
                 fatal "Individual removal not approved: $pkg"
             log "USER APPROVED REMOVAL: $pkg"
         done < "$WORK/removal-list"
-        run_target apt -y autoremove --purge
+        run_target apt-get -y autoremove --purge
     fi
     capture in-target dpkg -l || fatal 'Cannot list residual dpkg configuration'
     awk '$1=="rc" {print $2}' "$WORK/output" > "$WORK/residual"

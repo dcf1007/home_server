@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, after a graphical installer run reached the mixed-source firmware transaction and failed to ask two proprietary firmware license questions, requested native GTK/text APT progress and explicit, version-matched firmware license acceptance via existing Simple-CDD and Debian Installer facilities. See dated evidence and prior change history below.  
+**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, requested that all remaining `apt` profile calls be changed to explicit `apt-get` commands for source consistency. Replaced the legacy `run_target apt` adapter with a direct `apt-get` progress path; the full-upgrade operation is now explicitly `dist-upgrade`, with the same simulated and executed action. No package policy, license consent, service startup or CDD build behavior is changed. Earlier history remains below.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -224,6 +224,14 @@ remain open. The original embedded ZRAM source is retained.
 - **Exact native vendor licenses:** After the reviewed firmware transaction, each selected license-restricted package is downloaded to a new root-owned temporary target directory using `apt-get download package=version` from the suite version already selected by the firmware algorithm. The binary's package name and version are checked via `dpkg-deb`. Its complete, unedited `DEBIAN/templates` is loaded by the existing installer `debconf-loadtemplate`. The actual Boolean question is reset to false and shown at critical priority. Accepted consent is piped to the target's `debconf-set-selections`, and checked with `debconf-communicate` before the package transaction; license bytes and acceptance are not embedded in ISO or the repository. The temporary downloaded package and extracted templates are removed after a completed answer.
 - **Explicit refusal path:** A No answer does not accept the license. The original single-package, default-No omission confirmation is required to remove the package from the final selector set, with a new complete `apt-get` simulation and approval. Any declined package reintroduced as a dependency blocks installation. A refused omission remains fatal.
 - **Validation:** GitHub source checks and a read-only Debian 13 `debconf-apt-progress --logstderr -- apt-get -s install apt` invocation passed. **Not** a GUI or package-installation test. The next disposable VM must verify actual graphical progress, full-license readability/buttons, separately saved consent, refusal and omission paths, Debconf fd-3 passthrough, and final `dpkg --audit`. Continue to block real-disk deployment until validated.
+
+## Explicit apt-get source simplification (2026-11-15)
+
+- **Nearest user prompt:** “go ahead and do the cahnges”, referring to the approved proposal to replace all remaining `run_target apt ...` calls with explicit `run_target apt-get ...` and simplify the shared adapter.
+- **Change scope:** The shared installer runner and only five profile/source modules (common, Backports, kernel, firmware and Docker). Other modules and package lists are unchanged.
+- **Semantics:** `apt update` becomes `apt-get update`; `apt -y install` becomes `apt-get -y install`; `apt -y autoremove --purge` becomes `apt-get -y autoremove --purge`. The prior wrapper translated `apt -y full-upgrade` to `apt-get -y dist-upgrade`; both the source call and matching simulation now explicitly say `dist-upgrade`. Target execution still uses `in-target debconf-apt-progress --logstderr -- apt-get` with the existing approval process. Non-transaction inspection uses `apt-cache` and `apt-config` as before.
+- **Intent:** Remove the implicit `apt`-to-`apt-get` translation, keep all reviewed APT transactions and native progress, and avoid any policy or behavior changes.
+- **Validation:** Source comparison and syntax checks only; full Debian Installer GTK/text execution and first-boot behavior still require a disposable-VM test.
 
 ## Actual implementation state
 

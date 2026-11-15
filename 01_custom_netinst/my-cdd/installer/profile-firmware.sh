@@ -196,7 +196,7 @@ profile_firmware() {
         } > "$WORK/firmware-license-review"
         review_plan 'Extended support: revised transaction after license omissions' "$WORK/firmware-license-review"
     fi
-    run_target apt -y install $(cat "$WORK/firmware-selectors")
+    run_target apt-get -y install $(cat "$WORK/firmware-selectors")
     run_target dpkg --audit
 }
 
