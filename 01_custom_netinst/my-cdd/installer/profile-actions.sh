@@ -466,8 +466,8 @@ profile_omv() {
     review_install 'OMV prerequisites: resolver, utilities and signing tools' systemd-resolved psmisc gnupg ca-certificates curl
     capture in-target getent ahostsv4 packages.openmediavault.io ||
         fatal 'Target DNS unavailable; stop rather than invent network configuration'
-    capture curl -fsSL --proto '=https' \
-        -o /target/tmp/my-cdd-omv-key https://packages.openmediavault.io/archive.key ||
+    capture in-target curl -fsSL --proto '=https' \
+        -o /tmp/my-cdd-omv-key https://packages.openmediavault.io/archive.key ||
         fatal 'Official OMV signing key download failed'
     capture in-target gpg --show-keys --with-colons /tmp/my-cdd-omv-key ||
         fatal 'Vendor OMV signing key malformed'
@@ -529,8 +529,8 @@ EOT
 profile_docker() {
     review_install 'Docker signing prerequisites' ca-certificates curl
     mkdir -p /target/etc/apt/keyrings
-    capture curl -fsSL --proto '=https' \
-        -o /target/etc/apt/keyrings/docker.asc https://download.docker.com/linux/debian/gpg ||
+    capture in-target curl -fsSL --proto '=https' \
+        -o /etc/apt/keyrings/docker.asc https://download.docker.com/linux/debian/gpg ||
         fatal 'Official Docker signing key download failed'
     chmod 644 /target/etc/apt/keyrings/docker.asc
     grep -Fx 'VERSION_CODENAME=trixie' /target/etc/os-release >/dev/null ||
