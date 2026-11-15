@@ -6,6 +6,7 @@ umask 077
 MEDIA=/cdrom/simple-cdd
 LOG_DIR=/target/var/log/installer
 LOG="$LOG_DIR/my-cdd.log"
+STATUS="$LOG_DIR/my-cdd-status"
 WORK=/tmp/my-cdd-install
 CONFIRMED=/tmp/my-cdd-confirmed-profiles
 mkdir -p "$WORK"
@@ -15,8 +16,17 @@ mkdir -p "$LOG_DIR/my-cdd-completed"
 chmod 700 "$LOG_DIR/my-cdd-completed"
 touch "$LOG"
 chmod 600 "$LOG"
+printf "INCOMPLETE\n" > "$STATUS"
+chmod 600 "$STATUS"
 log() { printf '%s\n' "$*" >> "$LOG"; }
 capture() {
+    # Debian Installer's in-target consumes stdout into its syslog unless
+    # --pass-stdout is explicitly given. Every APT review and status parser
+    # must receive the real command output, so apply this in one place.
+    if [ "$1" = in-target ]; then
+        shift
+        set -- in-target --pass-stdout "$@"
+    fi
     log "COMMAND: $*"
     if "$@" > "$WORK/output" 2>&1; then rc=0; else rc=$?; fi
     cat "$WORK/output" >> "$LOG"
@@ -57,6 +67,7 @@ show_note() {
     db_go || return 1
 }
 fatal() {
+    printf "FAILED\n" > "$STATUS"
     log "FATAL: $*"
     {
         printf 'Installation stopped: %s\n' "$*"
@@ -223,9 +234,10 @@ ensure_root_recovery() {
                 fatal 'Cannot display password correction request'
             continue
         fi
-        # chpasswd reads only standard input, not process arguments or logs.
-        # capture logs the command name and diagnostic output, not its input.
-        if printf 'root:%s\n' "$root_password" | capture in-target chpasswd; then
+        # in-target reserves stdin for its Debconf passthrough. Feed chpasswd
+        # through a direct target chroot instead; no secret enters argv, a
+        # temporary file, or the custom installer logs.
+        if printf 'root:%s\n' "$root_password" | capture chroot /target /usr/sbin/chpasswd; then
             password_changed=true
         else
             password_changed=false
@@ -283,5 +295,6 @@ for profile in $ordered; do
     mark_complete "$profile"
 done
 log 'All selected optional profiles completed.'
+printf 'COMPLETE\n' > "$STATUS"
 export_log
 exit 0
