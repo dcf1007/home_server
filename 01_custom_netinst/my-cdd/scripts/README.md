@@ -18,6 +18,9 @@ its approved installation routine is implemented.
   These assets are not deployed; their compatibility and safe installation
   still require implementation.
 
-The installed-target package transaction code, ZRAM partition conversion and
-service configuration are **not yet implemented**. No unrelated test harnesses
+The installed-target package transaction and ZRAM conversion/provisioning source
+exist in `../installer/profile-actions.sh`, but have **not been exercised or
+validated in a real installer**. The generator `.template` name is deliberate:
+`YOUR_PARTUUID` is replaced with the verified partition identity and the
+installed target receives `/etc/systemd/zram-generator.conf`. No unrelated test harnesses
 or independent inspection wrappers are part of this directory.
