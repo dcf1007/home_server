@@ -356,8 +356,17 @@ profile_zram() {
     # preserve every unrelated swap line and refuse residual aliases.
     cmp -s /target/etc/fstab "$WORK/zram-original-fstab" ||
         fatal 'Installed target fstab changed after conversion; manual repair is required'
-    cp "$WORK/zram-safe-fstab" /target/etc/fstab ||
-        fatal 'Could not remove confirmed backing from installed target fstab'
+    # Stage the verified fstab on the target filesystem, then replace it
+    # atomically. A failed copy must not truncate the active target fstab.
+    fstab_tmp="/target/etc/.fstab.my-cdd.$"
+    [ ! -e "$fstab_tmp" ] ||
+        fatal 'Unexpected temporary target fstab path already exists'
+    cp "$WORK/zram-safe-fstab" "$fstab_tmp" ||
+        fatal 'Could not stage target fstab after partition conversion'
+    chmod 644 "$fstab_tmp" ||
+        fatal 'Could not set staged target fstab permissions'
+    mv -f -- "$fstab_tmp" /target/etc/fstab ||
+        fatal 'Could not atomically install the verified target fstab'
     awk '$0 !~ /^[[:space:]]*#/ && NF >= 3 && $3 == "swap" {print $1}' \
         /target/etc/fstab > "$WORK/zram-residual-swaps"
     while IFS= read -r swap_ref; do
