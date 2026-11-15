@@ -248,7 +248,7 @@ profile_firmware() {
 profile_zram() {
     [ -f "$LOG_DIR/my-cdd-completed/ensure-7x-kernel" ] ||
         fatal 'ZRAM cannot run without the separately completed Ensure 7.x kernel profile'
-    for utility in lsblk blkid swapon swapoff parted wipefs readlink findmnt; do
+    for utility in lsblk blkid swapon swapoff parted wipefs readlink findmnt cmp; do
         command -v "$utility" >/dev/null 2>&1 ||
             fatal "ZRAM conversion requires unavailable installer utility: $utility"
     done
@@ -291,6 +291,9 @@ profile_zram() {
         case "$available_kb:$total_kb" in
             *[!0-9:]*|:*|*:) fatal 'Cannot assess installer memory pressure for swapoff' ;;
         esac
+        if [ -r /proc/pressure/memory ]; then
+            log "Installer memory PSI before any swapoff: $(head -n 2 /proc/pressure/memory | tr '\n' ';')"
+        fi
         reserve_kb=$((total_kb / 8))
         [ "$reserve_kb" -ge 262144 ] || reserve_kb=262144
         used_kb=$((active_used / 1024 + 1))
@@ -325,6 +328,8 @@ profile_zram() {
 
     # The only destructive partition commands target the one confirmed GPT
     # partition. No automatic partition creation, sizing or formatting.
+    cmp -s /target/etc/fstab "$WORK/zram-original-fstab" ||
+        fatal 'Installed target fstab changed after verification; conversion stopped'
     log "USER APPROVED CONVERSION: $device, PARTUUID=$uuid, size=$size"
     capture parted -s "$disk" type "$partn" 0FC63DAF-8483-4772-8E79-3D69D8477DE4 ||
         fatal 'Could not change only the confirmed GPT partition type'
@@ -349,6 +354,8 @@ profile_zram() {
         fatal 'Converted raw backing is still conventional swap'
     # This exact filtered fstab was prepared before destructive conversion;
     # preserve every unrelated swap line and refuse residual aliases.
+    cmp -s /target/etc/fstab "$WORK/zram-original-fstab" ||
+        fatal 'Installed target fstab changed after conversion; manual repair is required'
     cp "$WORK/zram-safe-fstab" /target/etc/fstab ||
         fatal 'Could not remove confirmed backing from installed target fstab'
     awk '$0 !~ /^[[:space:]]*#/ && NF >= 3 && $3 == "swap" {print $1}' \
