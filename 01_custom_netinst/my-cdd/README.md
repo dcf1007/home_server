@@ -1,6 +1,6 @@
 # my-cdd — Debian 13 (Trixie) amd64 custom Simple-CDD sources
 
-**Stage (2026-11-15):** installer-only ISO successfully built in a Debian VM (395 MiB); **not boot-tested or installation-validated**. Selected-profile actions and Simple-CDD hooks exist in source but remain unverified at runtime. Source development began 2026-11-14.
+**Stage (2026-11-15):** installer-only ISO successfully built in a Debian VM (395 MiB). An initial graphical installer boot reached preseed loading but failed during `preseed/early_command` (exit code 2); **no successful installation or profile workflow has been validated**. A probable missing-extra-file packaging issue has been corrected in source, but **a fresh ISO test is pending**. Source development began 2026-11-14.
 
 ## Entry points
 
@@ -38,6 +38,8 @@ The installer-only ISO is written to `images/debian-13-amd64-CD-1.iso`. It expec
 The build runs `--mirror-only`, patches the **generated local mirror** from `UDebComponents: main` to `UDebComponents: main contrib non-free-firmware`, runs `reprepro update`, requires the additional installer `Packages.gz` or `Packages.xz` indexes, then runs `--build-only`. This addresses the previously observed missing `amd64/contrib` and `amd64/non-free-firmware` installer-package messages; the 2026-11-15 VM run confirmed their disappearance. It does not add extra user-selected packages or silently enable Backports.
 
 Build diagnostics are in `build-mirror-debug.log`, `build-debug.log`, `build-terminal.log`, and `tmp/log/`. For exact verification commands and the known nonfatal Debian-CD warnings, see the [preparation/build guide](../01_custom_cdd_preparation.md).
+
+**Installer asset packaging (revised after first graphical boot):** `profiles/default.extra` now lists the 13 supplementary installer assets. Simple-CDD resolves its relative entries against the project before switching into the Debian-CD workspace. The earlier `all_extras="installer/..."` configuration could silently omit the scripts, consistent with an early-command exit status 2 when `/cdrom/simple-cdd/profile-confirm.sh` is absent. `build.sh` now compares each source asset to the staged `tmp/cd-build/trixie/CD1/simple-cdd/` file and rejects a mismatched build. **This correction has not yet been verified by a rebuilt and booted ISO.**
 
 ## Important engineering boundaries
 
