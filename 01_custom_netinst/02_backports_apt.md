@@ -55,7 +55,7 @@ The 900 pin belonged to an earlier design and is explicitly **revoked**. If a wo
 Verification:
 
 ```sh
-apt-get update
+apt update
 apt-cache policy
 apt-cache policy linux-image-amd64 linux-headers-amd64
 apt-config dump | grep -E 'Default-Release|Periodic|Unattended'
@@ -66,9 +66,9 @@ This global APT policy **does not automatically select newer Backports versions*
 ## 3. Full upgrade of eligible installed packages — inside Backports
 
 1. Refresh package indexes and verify signatures and effective APT priorities.
-2. Simulate a **normal, non-targeted** `apt-get -s full-upgrade` and display the complete package action plan: upgrades, new dependencies, downgrades, held/unresolvable packages and any proposed removals.
+2. Simulate a **normal, non-targeted** `apt -s full-upgrade` and display the complete package action plan: upgrades, new dependencies, downgrades, held/unresolvable packages and any proposed removals.
 3. **Explicitly approve the proposed transaction before execution.** Removals are **permitted only after full review and explicit approval**. Block changes that would compromise the installed system, selected profiles, network/SSH access, bootloader, the intended Linux 7.x kernel or its initial stable fallback.
-4. Execute the approved normal `apt-get full-upgrade` **without `-t trixie-backports`**. The default APT priority means this upgrades eligible packages from stable, updates and security and **already-installed** backported packages as applicable, rather than installing all backports.
+4. Execute the approved normal `apt full-upgrade` **without `-t trixie-backports`**. The default APT priority means this upgrades eligible packages from stable, updates and security and **already-installed** backported packages as applicable, rather than installing all backports.
 5. Confirm transaction success; run `dpkg --audit`, inspect `apt-mark showhold`, repeat a dry-run upgrade and check that no eligible installed package remains unupgraded under the verified policy. If a conflict or incomplete upgrade remains, **stop with diagnostics** rather than silently proceeding.
 
 **Do not** treat the above one-time, explicitly approved install-stage transaction as authorization for unattended upgrades or future automatic reboots.
@@ -77,9 +77,9 @@ This global APT policy **does not automatically select newer Backports versions*
 
 Perform cleanup **after** the successful upgrade, before declaring this profile complete:
 
-1. **Simulate** `apt-get -s autoremove --purge` and enumerate every package and configuration slated for removal.
+1. **Simulate** `apt -s autoremove --purge` and enumerate every package and configuration slated for removal.
 2. Explicitly display the list and **ask the user to approve** it. If it includes the new kernel, its headers, necessary boot support, an initial stable fallback kernel, or other required package, **stop and seek resolution**; do not silently remove it, force a different kernel retention policy or skip the conflict.
-3. After approval, run `apt-get autoremove --purge` to remove no-longer-required automatic dependencies and purge their configuration files.
+3. After approval, run `apt autoremove --purge` to remove no-longer-required automatic dependencies and purge their configuration files.
 4. Inspect **residual configuration** left by already-removed packages, e.g.:
 
    ```sh
@@ -87,7 +87,7 @@ Perform cleanup **after** the successful upgrade, before declaring this profile 
    ```
 
    List and review those residual packages; **only then** purge specifically approved entries with `dpkg --purge <approved-package-names>`. Never blindly purge all records or use an unreviewed shell expansion.
-5. Verify `dpkg --audit`, critical installed packages, `apt-cache policy`, `apt-get -s autoremove --purge` and the intended boot entries again. If cleanup is incomplete or unsafe, stop for manual review.
+5. Verify `dpkg --audit`, critical installed packages, `apt-cache policy`, `apt -s autoremove --purge` and the intended boot entries again. If cleanup is incomplete or unsafe, stop for manual review.
 
 **Stable kernel fallback nuance:** an earlier decision requires the original stable kernel to remain selectable **at first boot**, but no permanent custom kernel-retention policy. An immediate autoremove/purge must **not** remove that initial fallback. The final behavior when APT wants to purge the fallback is subject to explicit review, not silent permanent locking.
 
@@ -98,15 +98,15 @@ These actions belong to the Backports profile's **upgrade and cleanup** workflow
 - `APT::Periodic::Unattended-Upgrade "0";` remains the manual-upgrades-only target. Debian tweaks installs its respective configuration, and the complete installer must validate that no other selected package has reenabled automated upgrades.
 - Do **not** automatically install security, stable, backports or third-party package upgrades after the installation finishes.
 - The OpenMediaVault profile separately disables OMV's scheduled `cron-apt` checks/installs; Docker remains off through first boot if selected.
-- `apt-get full-upgrade` and `apt-get autoremove --purge` must never run unattended or without the required confirmation screens.
+- `apt full-upgrade` and `apt autoremove --purge` must never run unattended or without the required confirmation screens.
 
 ## 6. Acceptance and failure criteria
 
 ```sh
 apt-cache policy
 apt-cache policy linux-image-amd64 linux-headers-amd64
-apt-get -s full-upgrade
-apt-get -s autoremove --purge
+apt -s full-upgrade
+apt -s autoremove --purge
 apt-mark showhold
 dpkg --audit
 dpkg -l | awk '$1 == "rc" {print $2}'

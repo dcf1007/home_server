@@ -31,16 +31,16 @@
 These are **illustrative commands, not a tested install script**. Execute only after explicit profile selection and package-candidate validation.
 
 ```sh
-apt-get update
+apt update
 apt-cache policy linux-image-amd64 linux-headers-amd64
 apt-cache show linux-image-amd64 | grep -E '^(Package|Version|Depends):'
 apt-cache show linux-headers-amd64 | grep -E '^(Package|Version|Depends):'
 
 # ONLY IF the Backports profile has been explicitly selected and completed:
 apt-cache policy linux-image-amd64 linux-headers-amd64
-apt-get -s install linux-image-amd64/trixie-backports linux-headers-amd64/trixie-backports
+apt -s install linux-image-amd64/trixie-backports linux-headers-amd64/trixie-backports
 # Execute the explicitly reviewed transaction if it resolves to compatible 7.x:
-apt-get install linux-image-amd64/trixie-backports linux-headers-amd64/trixie-backports
+apt install linux-image-amd64/trixie-backports linux-headers-amd64/trixie-backports
 ```
 
 The `package/trixie-backports` syntax selects that package version while favoring normal stable dependencies where possible. `-t trixie-backports` changes the target-release preference for that transaction and can broaden dependencies from backports; **do not use it silently as a substitute**. Packages absent from stable but required as dependencies may still come from backports, subject to simulation and approval.
