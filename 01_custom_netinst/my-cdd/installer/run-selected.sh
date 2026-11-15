@@ -251,6 +251,20 @@ db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 [ "$RET" = true ] || fatal 'The early profile summary was not approved'
 log "CONFIRMED SELECTION: $ordered"
 ensure_root_recovery
+
+# Debian Installer's in-target wrapper already installs a temporary policy-rc.d
+# that rejects maintainer-script service starts. Check that native protection
+# before any selected custom APT transaction; do not create another policy,
+# mask units, or change target first-boot enablement.
+if [ -n "$ordered" ]; then
+    capture in-target sh -c '
+        [ -x /usr/sbin/policy-rc.d ] || exit 1
+        /usr/sbin/policy-rc.d my-cdd-installer-preflight start
+        [ "$?" -eq 101 ]
+    ' || fatal 'Debian Installer target service-start protection is missing'
+    log 'Confirmed native in-target package-service startup suppression'
+fi
+
 for profile in $ordered; do
     log "PROFILE BEGIN: $profile"
     case "$profile" in
