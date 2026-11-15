@@ -1,6 +1,6 @@
 # Inputs for the selected Simple-CDD profiles
 
-Most files here are **optional-profile assets**, not independent installer operations. One exception is the build-host-only `reprepro-udeb-wrapper.sh`, described below; it is **never executed inside Debian Installer**. Other assets are installed only when their corresponding optional profile is explicitly selected.
+These files are optional-profile assets, **not independent installer operations**. They are installed only when their corresponding optional profile is explicitly selected; the earlier build-host-only reprepro wrapper has been removed.
 
 - `firmware-candidates.txt` — broad firmware list and **both** CPU microcode
   packages from [Extended device support](../../10_extended_device_support.md).
@@ -15,8 +15,6 @@ Most files here are **optional-profile assets**, not independent installer opera
   [approved original ZRAM design](../../03_zram_writeback.md#original-design--complete-source).
   These original source assets are installed only when ZRAM is selected;
   their runtime compatibility and first-boot behavior remain untested.
-
-**Build-host-only:** `reprepro-udeb-wrapper.sh` is copied by `../build.sh` to `tmp/generated/bin/reprepro` with executable permission. For a single `build-simple-cdd` invocation, it updates only the generated local reprepro `UDebComponents` declaration from `main` to `main contrib non-free-firmware`, then delegates the same command to `/usr/bin/reprepro`. This avoids the obsolete two-stage build and preserves additional installer-component indexes across repeat runs. It is **not** part of `profiles/default.extra`, is not copied onto the ISO and does not change installed system packages. The full build remains to be tested in the user's Debian VM.
 
 The installed-target package transaction and ZRAM conversion/provisioning source
 exist in `../installer/profile-actions.sh`, but have **not been exercised or
