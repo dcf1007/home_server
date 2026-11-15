@@ -128,6 +128,24 @@ fi
         --debug \
         --logfile ./build-debug.log
 
+    # Debian-CD's base-installable check did not catch zstd: base-installer
+    # installs it while APT can still see only the CD. Check both the on-CD
+    # package index entry and the referenced .deb before declaring success.
+    cd1_dir="$PWD/tmp/cd-build/trixie/CD1"
+    binary_index="$cd1_dir/dists/trixie/main/binary-amd64/Packages.gz"
+    [ -s "$binary_index" ] || {
+        printf >&2 'my-cdd: ISO main package index missing: %s\n' "$binary_index"
+        exit 1
+    }
+    zstd_path="$(gzip -cd "$binary_index" | awk '
+        /^Package: / { selected = ($2 == "zstd") }
+        selected && /^Filename: / { print $2; selected = 0 }
+    ')"
+    if [ -z "$zstd_path" ] || [ ! -s "$cd1_dir/$zstd_path" ]; then
+        printf >&2 'my-cdd: base-installer package zstd absent from ISO index or pool.\n'
+        exit 1
+    fi
+
     # An ISO must not be reported as ready if an early/late installer
     # script was silently omitted from its staged /simple-cdd directory.
     iso_extras_dir="$PWD/tmp/cd-build/trixie/CD1/simple-cdd"
