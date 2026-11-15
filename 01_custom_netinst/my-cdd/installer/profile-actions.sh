@@ -371,7 +371,7 @@ profile_zram() {
     review_install 'ZRAM generator package and all dependencies' systemd-zram-generator
     mkdir -p /target/etc/systemd/system/systemd-zram-setup@zram0.service.d \
         /target/etc/systemd/system /target/etc/sysctl.d /target/usr/local/sbin
-    sed "s/YOUR_PARTUUID/$uuid/g" "$MEDIA/zram-generator.conf.template" >
+    sed "s/YOUR_PARTUUID/$uuid/g" "$MEDIA/zram-generator.conf.template" > \
         /target/etc/systemd/zram-generator.conf
     [ "$(grep -o "$uuid" /target/etc/systemd/zram-generator.conf | wc -l)" -eq 2 ] &&
         ! grep -q YOUR_PARTUUID /target/etc/systemd/zram-generator.conf ||
@@ -379,7 +379,7 @@ profile_zram() {
     cp "$MEDIA/10-compressed-writeback.conf" \
         /target/etc/systemd/system/systemd-zram-setup@zram0.service.d/10-compressed-writeback.conf
     # Setup failure enters emergency, unlike a monitor failure.
-    printf '[Unit]\nOnFailure=emergency.target\nOnFailureJobMode=replace-irreversibly\n' >
+    printf '[Unit]\nOnFailure=emergency.target\nOnFailureJobMode=replace-irreversibly\n' > \
         /target/etc/systemd/system/systemd-zram-setup@zram0.service.d/20-failure-emergency.conf
     cp "$MEDIA/zram-pressure.sh" /target/usr/local/sbin/zram-pressure.sh
     chmod 755 /target/usr/local/sbin/zram-pressure.sh
@@ -444,7 +444,7 @@ ensure_manual_updates() {
     capture in-target apt-config dump || fatal 'Cannot inspect automatic APT settings'
     if grep -Ei 'APT::Periodic::Unattended-Upgrade[[:space:]]+"?([1-9]|yes|true)' "$WORK/output" >/dev/null; then
         mkdir -p /target/etc/apt/apt.conf.d
-        printf 'APT::Periodic::Unattended-Upgrade "0";\n' >
+        printf 'APT::Periodic::Unattended-Upgrade "0";\n' > \
             /target/etc/apt/apt.conf.d/99-my-cdd-manual-updates
         log 'Explicitly disabled an enabled unattended APT upgrade setting'
     fi
