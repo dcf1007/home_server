@@ -52,14 +52,14 @@ Simple-CDD supports selectable profiles, typically expressed using files such as
 
 The normal Debian Installer questions use **[profile_defaults.conf](my-cdd/profile_defaults.conf)** as the canonical editable source. `my-cdd/build.sh` now converts its values into an included preseed and early boot parameters; the generated behavior is still untested in a new ISO. The file contains:
 
-- Editable example **hostname** and administrator **username**; an empty DNS domain.
-- **English** installer language, **`en_US.UTF-8`** locale and **Spanish (Spain)** keyboard.
+- Editable example **hostname** and administrator **username**; an editable **`dcf1007-world`** DNS domain.
+- **English** installer language, **Germany (`DE`)** country, **`en_US.UTF-8`** locale and **Spanish (Spain)** keyboard.
 - **`Europe/Berlin`** time zone with the hardware real-time clock in **UTC**.
 - Wired **DHCP** networking and the minimal/headless software selection: **SSH server + Standard system utilities**, no desktop.
 
-The matching [`profile_defaults.conf.example`](my-cdd/profile_defaults.conf.example) is a reference example, not a second source of truth. No GUI-editable setting should be implemented only inside Debian tweaks. Prompt the user on the normal installer screens, allow edits, require confirmation, and propagate the confirmed values throughout the installed system. **Supply defaults without hiding questions:** the generated preseed sets answers and resets Debconf `seen` flags to `false`; earlier language/locale and keyboard defaults use `?=` boot syntax. Keep all ordinary installer screens and confirmable disk/account operations. Validate the mapping and UI behavior in a disposable VM before release.
+No GUI-editable setting should be implemented only inside Debian tweaks. Prompt the user on the normal installer screens, allow edits, require confirmation, and propagate the confirmed values throughout the installed system. **Supply defaults without hiding questions:** the generated preseed sets answers and resets Debconf `seen` flags to `false`; earlier language/locale and keyboard defaults use `?=` boot syntax. Keep all ordinary installer screens and confirmable disk/account operations. Validate the mapping and UI behavior in a disposable VM before release.
 
-**Do not store passwords, hashes, disk targets or selected-profile flags** in either defaults file. Only non-default boot, filesystem, recovery, SSH and update-policy settings remain in the optional Debian tweaks profile. Both Intel/AMD microcode packages and additional proactive firmware belong to the separate optional [Extended device support](10_extended_device_support.md) profile. When Backports is already selected, prefer eligible Backports firmware and **both** microcode package versions first through selective per-package requests, and fall back to normal repository candidates if needed. Keep global Backports priority **100**; simulate the full package set and require individual, explicitly approved omissions.
+**Do not store passwords, hashes, disk targets or selected-profile flags** in the canonical defaults file. Only non-default boot, filesystem, recovery, SSH and update-policy settings remain in the optional Debian tweaks profile. Both Intel/AMD microcode packages and additional proactive firmware belong to the separate optional [Extended device support](10_extended_device_support.md) profile. When Backports is already selected, prefer eligible Backports firmware and **both** microcode package versions first through selective per-package requests, and fall back to normal repository candidates if needed. Keep global Backports priority **100**; simulate the full package set and require individual, explicitly approved omissions.
 
 ## Build-host setup and reproducible ISO build
 
@@ -94,10 +94,10 @@ The resulting netinst image is `my-cdd/images/debian-13-amd64-CD-1.iso` relative
 ### Editable default values and when they apply
 
 `profile_defaults.conf` is now read **each time** `./build.sh` executes. Its values are converted into:
-- `tmp/generated/simple-cdd.conf` with early `KERNEL_PARAMS` using `?=` for the language, locale, derived country and Spanish keyboard. These questions normally occur before CD preseeding.
+- `tmp/generated/simple-cdd.conf` with early `KERNEL_PARAMS` using `?=` for the language, locale, explicit German country (`DE`) and Spanish keyboard. These questions normally occur before CD preseeding.
 - `tmp/generated/defaults.preseed` with hostname, administrator username, UTC clock, timezone and tasksel answers, followed by `seen false` so the questions remain editable. `profiles/default.preseed` references this included file, which is packaged via `profiles/default.extra`.
 
-DHCP stays Debian Installer's native default. An empty domain is left for ordinary installer/DHCP handling; passwords and disk targets are deliberately not preconfigured. The renderer currently rejects unsupported nonempty keyboard variants or non-DHCP network modes instead of silently ignoring them. Only change `profile_defaults.conf`, not the generated files.
+DHCP stays Debian Installer's native default. The `dcf1007-world` domain is an editable suggestion; passwords and disk targets are deliberately not preconfigured. The renderer currently rejects unsupported nonempty keyboard variants or non-DHCP network modes instead of silently ignoring them. Only change `profile_defaults.conf`, not the generated files.
 
 ```sh
 cd ~/Desktop/home_server/01_custom_netinst/my-cdd
@@ -140,7 +140,7 @@ The initial media-only fix mistakenly created a project-local `profiles/default.
 
 ### Upstream default files and GTK summary formatting
 
-Simple-CDD checks the project directory first, then its installed support directories, and **uses only the first matching profile file**. Thus a small local `default.downloads` is not additive. The repository now intentionally inherits the complete upstream `default.downloads` and `default.udebs`. Only `default.preseed` is replaced to preserve the required interactive prompts and manual partitioning; the custom `default.packages` includes upstream `less` alongside the agreed baseline. `build.sh` fails if an accidental local `default.downloads` or `default.udebs` shadow appears.
+Simple-CDD checks the project directory first, then its installed support directories, and **uses only the first matching profile file**. Thus a small local `default.downloads` is not additive. The repository now intentionally inherits the complete upstream `default.downloads` and `default.udebs`. Only `default.preseed` is replaced to preserve the required interactive prompts and manual partitioning; the project now also inherits the upstream `default.packages` (including `less`). `build.sh` fails if a project-local `default.packages`, `default.downloads` or `default.udebs` shadows its upstream counterpart.
 
 The `my-cdd/profile-summary` note previously folded seven ordinary description continuation lines into a single paragraph. The template now uses two spaces before each status continuation line, the Debian Debconf convention for preformatted text; it is expected to show each profile on its own line in GTK and text frontends. Runtime visual verification is still required.
 
@@ -176,41 +176,32 @@ Source layout (the release tests and verified target-side installer behavior are
 
 ```text
 my-cdd/
-  README.md
-  profile_defaults.conf
-  profile_defaults.conf.example
-  simple-cdd.conf
+  build.sh                       # Native CDD builder and approved udeb component workaround
+  simple-cdd.conf                # Canonical Simple-CDD inputs
+  profile_defaults.conf          # Editable Debian Installer suggestions
   profiles/
-    default.description
-    default.preseed
-    backports.description
-    backports.postinst
-    ensure-7x-kernel.description
-    ensure-7x-kernel.postinst
-    debian-tweaks.description
-    debian-tweaks.packages
-    debian-tweaks.postinst
-    extended-device-support.description
-    extended-device-support.packages
-    extended-device-support.postinst
-    openmediavault.description
-    openmediavault.postinst
-    docker.description
-    docker.postinst
-    zram-writeback.description
-    zram-writeback.packages
-    zram-writeback.postinst
-  scripts/
+    default.preseed              # Approved early/late integration only
+    default.extra                # Common source assets for the installer media
+    installer-media.downloads    # Build-only zstd media inclusion
+    <profile>.description        # Seven selectable profile descriptions
+    <profile>.extra              # Profile-owned source assets
+    <profile>.postinst           # Native CDD completion verification
   installer/
-  build.sh
+    profile-confirm.sh
+    profile-confirm.templates
+    ordered-selection.sh
+    run-selected.sh              # Ordered, approved selected-profile execution
+    profile-common.sh            # Shared helpers
+    profile-*.sh                 # Per-profile selected-only operations
+    zram-selection.sh
+  scripts/                       # Profile-owned configuration and firmware/ZRAM inputs
 ```
-
 Verify actual Simple-CDD profile questions and integration inside a disposable VM before treating the generated ISO as ready for installation. **The user creates or reuses an existing GPT swap partition manually in ordinary Debian Installer partitioning.** **At the start of the selected ZRAM profile execution**, its first task is to identify the uniquely assigned swap partition in the installed target's `/etc/fstab`, or offer a native GTK/text Debconf selection of verified eligible partitions when that mapping is ambiguous; **immediately after explicit confirmation**, convert only that partition to GPT **8300**, PARTLABEL **`zram-writeback`**, raw/unformatted writeback backing, with no independent swap activation. **If the selected partition is already active as swap, request explicit consent for a targeted `swapoff` after checking memory safety and proceed only upon successful, verified deactivation; otherwise stop before changing the partition.** Do this before other ZRAM provisioning or first boot, not in the normal partitioner. When ZRAM is not selected, the partition remains ordinary swap. The target example is 16 GB, but use the actual user-confirmed capacity and PARTUUID rather than requiring an automatically created partition. If ZRAM is selected and **no** eligible partition exists, the late-stage profile currently stops without disk modification; actual native navigation back to partitioning or deselection remains an unverified release gate. Never silently add/repartition a disk or proceed with ZRAM using no backing partition. Validate the menu navigation, partman formatting/activation timing, fstab treatment and explicit consent before implementation.
 
 ## Non-negotiable safeguards
 
 1. **No unattended disk actions:** present OS installation target identification, partition creation, filesystem operations and final commit for manual confirmation. Never hard-code a device path such as `/dev/sda`.
-2. **Interactive passwords:** prompt for the installer-confirmed administrator account's password; configure and verify sudo; then prompt for a **separate root password before first reboot**. No password or hash stored in the media.
+2. **Native account setup:** preserve ordinary Debian Installer username, password, root-password and privilege prompts; no project-wide sudo, root-password or SSH override is mandatory in the unselected base. A separately selected profile may validate or request its own approved prerequisites. No password or hash is stored in the media.
 3. **Repository trust:** official Debian binary repositories use signed Release metadata. Third-party sources must use verified, narrowly scoped signing keys. Do not bypass signature checks.
 4. **Fail closed on selected profile errors:** a critical dependency, OMV, ZRAM, SSH/network or validation failure prevents successful completion. **Use Debian Installer's existing network, mirror and package-retrieval prompts wherever they already apply; do not introduce duplicate custom screens.** For later custom-profile package operations, reuse an existing native recovery facility when available, or stop with diagnostics and manual intervention if recovery cannot be safely integrated. No selected profile is silently skipped and no false success is reported. **No installer-managed snapshots, backup images, automatic rollback or automatic restoration.** Recovery is explicitly manual, including repair or reinstallation.
 5. **No unexpected configuration:** the user will manage OMV itself after first boot, except for the explicitly approved disabling of OMV's scheduled cron-apt job and preserving agreed SSH access controls.
