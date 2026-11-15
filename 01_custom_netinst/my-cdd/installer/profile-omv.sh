@@ -88,6 +88,9 @@ remaining = read("conf.system.notification.notification")
 if len([n for n in remaining if n.get("id") == "apt" and n.get("enable") is False]) != 1:
     raise RuntimeError("OMV APT update notifications remain enabled")
 ' || fatal 'Could not disable OMV 8 scheduled updates through its configuration database'
+    # Refresh OMV Salt grains, modules and pillar before targeted update-state
+    # deployment. Do NOT run 'stage run all': it redeploys unrelated services.
+    run_target omv-salt stage run prepare
     run_target omv-salt deploy run apt apticron
 
     # OMV 8 apticron state removes generated daily/weekly notification jobs

@@ -25,7 +25,7 @@ Leave OpenMediaVault's services at normal package-defined startup settings. Inde
 
 **Current source basis (2026-11-15):** OMV 8.6.2 uses the configuration model `conf.system.apt.updates` (`unattendedupgrade`) and the `apt` notification record (`enable`). It deploys the `apt` and `apticron` Salt states. The earlier `OMV_CRON_APT_ENABLED`/`cronapt` implementation is obsolete for that source version, even though some public OMV documentation still mentions cron-apt.
 
-The selected OMV profile now sets both model values to false with `omv-confdbadm`, preserving other settings and unrelated notifications. It redeploys `apt` and `apticron` through `omv-salt`, checks that daily/weekly apticron jobs are absent, and sets both Debian periodic APT package-list refreshes and unattended upgrades to `0`. It does not manually edit OMV-generated cron files or mask/disable OMV services.
+The selected OMV profile now sets both model values to false with `omv-confdbadm`, preserving other settings and unrelated notifications. It first refreshes Salt's grains, modules and pillar using `omv-salt stage run prepare`, then redeploys only `apt` and `apticron` with `omv-salt deploy run apt apticron`. It verifies that daily/weekly apticron jobs are absent, and sets both Debian periodic APT package-list refreshes and unattended upgrades to `0`. It does not manually edit OMV-generated cron files or mask/disable OMV services.
 
 **Validation gap:** The updated OMV configuration and service behavior have not yet been exercised in a Debian 13 installer or at first boot. OMV's network and systemd-resolved requirements remain critical.
 

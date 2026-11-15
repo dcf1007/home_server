@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, requested prevention of unnecessary custom-profile services during Debian installation and expressly required that OMV automatic updates remain disabled. Verified native temporary `policy-rc.d`/`start-stop-daemon` behavior; added the non-mutating profile preflight and corrected OMV 8 scheduled APT/apticron policy. No permanent service suppression was introduced; first-boot defaults are preserved. Earlier history remains below.  
+**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, agreed to prepare OMV Salt with `omv-salt stage run prepare` followed by the narrowly scoped `omv-salt deploy run apt apticron`, and authorized integration into `main` after final checks. No broad `stage run all` is introduced; automatic updates stay off. Historical provenance and prior policy constraints remain below.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -189,6 +189,13 @@ remain open. The original embedded ZRAM source is retained.
 - OMV 8.6.2 source changed from older `cronapt` settings to `conf.system.apt.updates`, APT notification settings and `apt`/`apticron` Salt. Updated the selected OMV profile to turn off unattended upgrades and generated scheduled update notifications via OMV's configuration database, plus both Debian periodic APT settings. No OMV-generated files were directly modified.
 - Docker and OMV remain independent, with normal first-boot service settings. The prior conditional root recovery preflight and authorized `UDebComponents` mirror workaround remain unchanged.
 - **Unverified:** OMV Salt DNS/service interactions and complete new ISO installer tests remain release blockers.
+
+## Final authorized OMV Salt sequence before main integration (2026-11-15)
+
+- **Nearest user prompt:** “I agree. Then proceed to integrate the changes in main, if there's nothing else to discuss”; immediately preceding agreement: use the supported `omv-salt stage run prepare` before targeted `omv-salt deploy run apt apticron`, not the broad `stage run all`, and keep OMV scheduled updates off.
+- **Code:** The OMV 8 profile refreshes Salt grains/modules/pillar after updating the OMV configuration database and before deploying the two update-related states. It does not redeploy unrelated OMV services or set the obsolete OMV 5 `OMV_CRONAPT_SECURITY_UPGRADES_ENABLED` variable.
+- **Preserved:** The OMV and Docker profiles remain independently selectable, no OMV-Extras/Compose install occurs, the OS root-recovery preflight precedes optional profiles, OMV unattended/scheduled updates remain disabled, and normal first-boot service defaults are retained. The single authorized generated-mirror `UDebComponents` change is unchanged.
+- **Validation:** This is a source-level maintenance change. ISO generation, Debian 13 graphical/text installer execution, OMV DNS/Salt service interactions and first-boot behavior remain unverified pending disposable-VM testing.
 
 ## Actual implementation state
 
