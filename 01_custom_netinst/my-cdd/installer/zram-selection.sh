@@ -35,7 +35,7 @@ zram_check_utilities() {
         fatal 'ZRAM cannot enumerate block devices from installed target'
 }
 
-# ZRAM backing discovery and native Debconf selection, sourced by profile-actions.sh.
+# ZRAM backing discovery and native Debconf selection, sourced by selected profile-zram.sh.
 # No partition is created, formatted or modified by these functions.
 ZRAM_SWAP_GUID=0657fd6d-a4ab-43c4-84e5-0933c84b4f4f
 ZRAM_DATA_GUID=0fc63daf-8483-4772-8e79-3d69d8477de4

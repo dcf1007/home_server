@@ -54,13 +54,13 @@ profile_zram() {
         [ "$reserve_kb" -ge 262144 ] || reserve_kb=262144
         used_kb=$((active_used / 1024 + 1))
         [ "$available_kb" -gt "$((used_kb + reserve_kb))" ] ||
-            fatal 'RAM cannot cover selected swap usage plus a safety reserve; no zram_swapoff attempted'
-        db_subst my-cdd/zram-zram_swapoff MYCDD_PARTITION "$device" ||
-            fatal 'Cannot show exact zram_swapoff target'
-        db_subst my-cdd/zram-zram_swapoff MYCDD_USED "$active_used" ||
+            fatal 'RAM cannot cover selected swap usage plus a safety reserve; no swapoff attempted'
+        db_subst my-cdd/zram-swapoff MYCDD_PARTITION "$device" ||
+            fatal 'Cannot show exact swapoff target'
+        db_subst my-cdd/zram-swapoff MYCDD_USED "$active_used" ||
             fatal 'Cannot show selected swap usage'
-        yes_no my-cdd/zram-zram_swapoff ||
-            fatal 'Targeted zram_swapoff was not separately approved'
+        yes_no my-cdd/zram-swapoff ||
+            fatal 'Targeted swapoff was not separately approved'
         # Re-evaluate memory and identity immediately before swapoff, too.
         zram_validate_candidate
         zram_read_active_swap
@@ -71,7 +71,7 @@ profile_zram() {
             [ "$available_kb" -gt "$((used_kb + reserve_kb))" ] ||
                 fatal 'Insufficient remaining RAM for a safe targeted swapoff'
             capture zram_swapoff "$device" ||
-                fatal 'Targeted zram_swapoff failed; GPT and signatures left unchanged'
+                fatal 'Targeted swapoff failed; GPT and signatures left unchanged'
         fi
         zram_read_active_swap
         [ -z "$active_used" ] ||
