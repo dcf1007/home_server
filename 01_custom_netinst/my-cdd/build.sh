@@ -25,6 +25,21 @@ done
     exit 1
 }
 
+# Fail before a costly mirror/ISO build if any installer entry point or
+# sourced profile module has invalid POSIX-shell syntax.
+for script in installer/*.sh profiles/*.postinst; do
+    sh -n "$script" || {
+        printf >&2 'my-cdd: invalid shell syntax: %s\n' "$script"
+        exit 1
+    }
+done
+
+# Debian tasksel 3.81 resets tasksel/first to its own defaults when unseen.
+# Preserve its ordinary editable GUI rather than pre-mark it seen (which can
+# suppress the prompt). This is a visible build-time warning, not a claim that
+# an installer default is applied.
+printf >&2 'my-cdd: NOTE: At Software selection, manually uncheck Desktop/GNOME and check SSH server + standard utilities; tasksel ignores the custom unseen defaults.\n'
+
 # Never generate an apparently installable image containing unfinished hooks.
 for hook in profiles/*.postinst; do
     [ -f "$hook" ] || continue
