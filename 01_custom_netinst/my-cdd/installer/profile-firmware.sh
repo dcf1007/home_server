@@ -103,7 +103,7 @@ profile_firmware() {
         reason=''
         if [ -n "$bpo" ]; then
             candidate="$pkg/trixie-backports"
-            if capture in-target apt -s install $(cat "$WORK/firmware-selectors") "$candidate"; then
+            if capture in-target apt-get -s install $(cat "$WORK/firmware-selectors") "$candidate"; then
                 if ! grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/output" >/dev/null; then
                     selector=$candidate
                 fi
@@ -113,7 +113,7 @@ profile_firmware() {
         fi
         if [ -z "$selector" ] && [ -n "$stable" ]; then
             candidate="$pkg/$stable"
-            if capture in-target apt -s install $(cat "$WORK/firmware-selectors") "$candidate"; then
+            if capture in-target apt-get -s install $(cat "$WORK/firmware-selectors") "$candidate"; then
                 if ! grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/output" >/dev/null; then
                     selector=$candidate
                     if backports_is_selected; then

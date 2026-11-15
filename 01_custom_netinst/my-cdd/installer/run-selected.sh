@@ -147,8 +147,18 @@ run_target() {
     fi
 }
 simulate_target() {
-    capture in-target apt -s "$@" ||
-        fatal "APT simulation failed: apt -s $*"
+    # Simulate with the same APT frontend/command as the live progress path
+    # so the approved package/removal plan cannot differ by frontend.
+    case "$1" in
+        full-upgrade)
+            shift
+            set -- dist-upgrade "$@"
+            ;;
+        install|autoremove) : ;;
+        *) fatal "Unsupported APT simulation: $*" ;;
+    esac
+    capture in-target apt-get -s "$@" ||
+        fatal "APT simulation failed: apt-get -s $*"
     cp "$WORK/output" "$WORK/plan"
 }
 check_critical_removals() {
