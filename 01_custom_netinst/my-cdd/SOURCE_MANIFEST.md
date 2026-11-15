@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (current branch):** “i authorise”, following the user's agreement to support reused swap partitions, automatic target-assigned selection, native GTK/text manual fallback and separately confirmed targeted swapoff. The previous cleanup and 37-firmware inventory decisions remain in force.  
+**Nearest user prompt (latest change):** “don't use apt-get, use the successor apt install . also chroot a new debian installation and attempt everything within that chroot”. Earlier authorization: “i authorise”, following the user's agreement to support reused swap partitions, automatic target-assigned selection, native GTK/text manual fallback and separately confirmed targeted swapoff. The previous cleanup and 37-firmware inventory decisions remain in force.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -83,6 +83,24 @@ new/reused swap and native GTK selection decisions.
 partition conversion, swapoff, first boot, or recovery test was performed.
 Kernel Backports/profile-selection and full end-to-end diagnostic gates
 remain open. The original embedded ZRAM source is retained.
+
+## Authorized follow-up: apt CLI (2026-11-15)
+
+**Nearest user prompt:** “don't use apt-get, use the successor apt install . also chroot a new debian installation and attempt everything within that chroot”.
+
+- Replaced all `apt-get` executable invocations with user-requested `apt` in
+  `installer/profile-actions.sh` and `installer/run-selected.sh`, without
+  changing package selections, simulations, approval gates or ordering.
+- Confirmed that Debian 13 `apt -s install`, `apt -s full-upgrade` and
+  `apt -s autoremove --purge` accept the existing simulation forms. Debian
+  warns that `apt` does not have a stable scripting interface; runtime
+  integration remains untested.
+- Attempted an isolated Debian 13 chroot build but could not bootstrap a
+  fresh Debian installation or install `simple-cdd`: package indexes were
+  unavailable and both DNS and external network traffic failed.
+  A minimal Debian 13 host-derived fallback chroot executed the original
+  verified build wrapper; it stopped because `build-simple-cdd` was absent.
+  **No ISO was built, no installer ran and no disk was modified.**
 
 ## Actual implementation state
 
