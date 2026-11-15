@@ -106,28 +106,25 @@ grep '^export KERNEL_PARAMS=' tmp/generated/simple-cdd.conf
 
 The wrapper checks preseed syntax and confirms the generated `defaults.preseed` was copied into the staged ISO tree and referenced from `default.preseed`. **These are static checks**, not proof that the graphical installer will display or retain the defaults correctly; that remains a VM validation gate.
 
-### Why the build wrapper corrects reprepro during a single run
+### Why the build wrapper uses two stages
 
-Simple-CDD 0.6.9 and 0.6.10 can generate a local reprepro mirror with `UDebComponents: main` despite `mirror_components="main contrib non-free non-free-firmware"`. Debian-CD then checks the additional **Debian Installer udeb** indexes and prints:
+Simple-CDD 0.6.9/0.6.10 can generate a local reprepro mirror with `UDebComponents: main` even when `mirror_components="main contrib non-free non-free-firmware"`. Debian-CD subsequently expects additional **Debian Installer udeb** indexes and can report:
 
 ```text
 Missing package file for amd64/contrib.
 Missing package file for amd64/non-free-firmware.
 ```
 
-These are **udeb** indexes under `dists/trixie/<component>/debian-installer/binary-amd64/`, not the ordinary `binary-amd64/Packages.gz` indexes. The fix does not depend on downgrading Simple-CDD.
+Those paths are under `dists/trixie/<component>/debian-installer/binary-amd64/`, rather than the normal binary `.deb` indexes. The build deliberately uses two documented Simple-CDD stages, without a custom PATH wrapper or patches to installed programs:
 
-The repository's `my-cdd/build.sh` now uses **one** normal `build-simple-cdd` invocation, without `--mirror-only` or `--build-only`:
+1. **Repeat-build cleanup:** If the generated `tmp/mirror` reprepro database already exists, check the known local configuration, temporarily restore `UDebComponents: main`, and run `reprepro --delete clearvanished` against **that generated mirror only**. This addresses the previously observed unused `u|trixie|contrib|amd64` database error; unexpected configurations stop safely. This cleanup has **not** yet been validated by a successful repeat build on the VM.
+2. **Mirror stage:** Run `build-simple-cdd --mirror-only` with the generated build configuration and save `build-mirror-debug.log`.
+3. **Installer-index extension:** Verify that the local mirror initially declares `UDebComponents: main`, extend it to `UDebComponents: main contrib non-free-firmware`, execute `reprepro update`, and require existing `Packages.gz` or `Packages.xz` indexes for both added installer components. Fail before ISO assembly if anything is missing.
+4. **ISO stage:** Run `build-simple-cdd --build-only` and save `build-debug.log`; verify the staged installer scripts, generated preseed, and executable entry-point permissions.
 
-1. Generate editable installer defaults and the temporary build configuration from `profile_defaults.conf`.
-2. Place the project-owned `scripts/reprepro-udeb-wrapper.sh` in `tmp/generated/bin/reprepro` and prepend this directory to **this build command's PATH only**.
-3. Let Simple-CDD download its mirror, generate `conf/distributions`, and call reprepro. Just before the first reprepro invocation, the wrapper verifies that the generated local distribution has the expected `UDebComponents: main` and changes it to `UDebComponents: main contrib non-free-firmware`. It then runs the real `/usr/bin/reprepro` with the original arguments. No system-installed Simple-CDD or reprepro files are modified.
-4. Let that same Simple-CDD invocation finish mirroring and construct the ISO. The wrapper preserves the expanded udeb component set across repeat builds, avoiding the previous "unused database" mismatch.
-5. **After a successful invocation**, verify that the local mirror has the `contrib` and `non-free-firmware` Debian Installer `Packages.gz` or `Packages.xz` indexes and that all required installer assets, generated defaults and script modes are staged correctly. Report failure otherwise.
+Both stages and the explicit reprepro commands appear in the combined `build-terminal.log`. Bash `pipefail` propagates stage failures despite `tee`. All Debian package/firmware component settings, including `INSTALLER_CD="2"` and `NONFREE_COMPONENTS="non-free-firmware"`, are preserved.
 
-**Observed repeat-build failure (2026-11-15, 15:13 CET):** the retired split build generated `UDebComponents: main` at the start of its first stage while reprepro still had extra installer-component databases from the preceding run, causing exit code 255. The new single-run wrapper corrects the declaration before reprepro can read the database. **The wrapper passed a local shell simulation, including repeat-call and reject-unknown-config cases; a real Simple-CDD/VM build has not yet validated it.**
-
-The ordinary mirror components remain `main contrib non-free non-free-firmware`. The Debian-CD firmware component is set separately in `simple-cdd.conf` using `export NONFREE_COMPONENTS="non-free-firmware"`. The single build runs with `--debug`; Bash `pipefail` ensures a failing invocation is not hidden by `tee`.
+**Evidence and limitations:** On 2026-11-15, the earlier **two-stage installer-only** build generated the additional udeb indexes without the missing-component warnings, but that ISO later failed at base-system installation. The newer netinst mode and editable-default generation have **not** yet completed a verified build/boot cycle. A later repeat build stopped during the mirror stage because of stale reprepro database targets; the cleanup above is intended to resolve that independently. The retired single-run wrapper was removed on request in favor of maintainability.
 
 **Installer-file packaging correction (after first graphical boot):** the former relative `all_extras="installer/..."` paths were interpreted after Simple-CDD changed to its Debian-CD workspace. The upstream extra-file copy loop silently skips unreadable files; the early-command invocation of `/cdrom/simple-cdd/profile-confirm.sh` then failed with exit code 2, consistent with a missing script. The repository now uses `profiles/default.extra`: Simple-CDD resolves its file entries to absolute source paths. The build wrapper checks every packaged source asset against the staged CD directory and fails if any are missing or different. **The new packaging has not yet been verified in a rebuilt ISO.**
 
@@ -137,8 +134,9 @@ All paths below are relative to `my-cdd/`:
 
 | Path | Purpose |
 |---|---|
-| `build-debug.log` | Simple-CDD debug output for the entire single-run build (mirror and ISO) |
-| `build-terminal.log` | Complete terminal output, including the wrapper's udeb-component correction |
+| `build-mirror-debug.log` | Simple-CDD mirror-stage debug output |
+| `build-debug.log` | Simple-CDD ISO-stage debug output |
+| `build-terminal.log` | Complete terminal output from both stages and the reprepro commands |
 | `tmp/log/mirror-reprepro` and `tmp/log/build-debian-cd` | Individual underlying tool logs; upload the `.log` copies if that is how they were exported |
 | `images/debian-13-amd64-CD-1.iso` | Generated netinst ISO (when the build succeeds) |
 
