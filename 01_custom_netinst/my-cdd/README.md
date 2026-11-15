@@ -1,17 +1,43 @@
 # my-cdd — Debian 13 (Trixie) amd64 custom Simple-CDD sources
 
-**Stage:** selected-profile installation routines and Simple-CDD hooks are now written in source; **not** a built or boot-tested installer. Started 2026-11-14 following the user's instruction to proceed with generating build files in `my-cdd/`.
+**Stage (2026-11-15):** installer-only ISO successfully built in a Debian VM (395 MiB); **not boot-tested or installation-validated**. Selected-profile actions and Simple-CDD hooks exist in source but remain unverified at runtime. Source development began 2026-11-14.
 
 ## Entry points
 
-- [`simple-cdd.conf`](simple-cdd.conf) — actual Trixie/amd64 Simple-CDD 0.6.9 build variables; seven optional profiles, no auto-selection; official Debian mirror components.
-- [`build.sh`](build.sh) — minimal wrapper around standard `build-simple-cdd --conf ./simple-cdd.conf --dist trixie`. A source build is **not** proof of installer correctness.
+- [`simple-cdd.conf`](simple-cdd.conf) — Trixie/amd64 Simple-CDD configuration; seven optional profiles, no auto-selection, `INSTALLER_CD="1"`, official Debian mirror components and `NONFREE_COMPONENTS="non-free-firmware"`. The two-stage mirror fix works with the installed Simple-CDD tooling.
+- [`build.sh`](build.sh) — two-stage Simple-CDD builder that extends reprepro's generated udeb components and verifies both extra installer indexes before constructing an ISO. Saves mirror/debug/terminal logs and propagates failures with Bash `pipefail`. A successful ISO build is **not** proof of installer correctness.
 - [`profiles/`](profiles/) — native Simple-CDD profile descriptions, empty optional auto-package queues, and seven postinst **completion verifiers**. The actual selected-profile actions run in Debian Installer's normal late-command stage.
 - [`installer/`](installer/) — approved early Debconf selection/confirmation, plus [`run-selected.sh`](installer/run-selected.sh) and [`profile-actions.sh`](installer/profile-actions.sh), invoked from the normal `preseed/late_command` with the agreed ordered operations and individual confirmations. **Actual GUI/installer behavior is untested.**
 - [`scripts/`](scripts/) — approved firmware package inventory, selected-only Backports and ZRAM configuration inputs, and untested ZRAM source assets.
 - [`profile_defaults.conf`](profile_defaults.conf) — original canonical, editable native Debian Installer suggestions, moved here byte-for-byte from the former root-level file.
 - [`profile_defaults.conf.example`](profile_defaults.conf.example) — original example/reference, not another source of truth.
 - [`SOURCE_MANIFEST.md`](SOURCE_MANIFEST.md) — creation provenance, source categories and current blocked implementation status.
+
+## Build from a Git checkout
+
+On a compatible Debian build host, install `git`, `simple-cdd` and `reprepro` with `apt`. To obtain the project for the first time:
+
+```sh
+cd ~/Desktop
+git clone https://github.com/dcf1007/home_server.git
+cd home_server/01_custom_netinst/my-cdd
+./build.sh
+```
+
+On subsequent runs, update the existing checkout and build:
+
+```sh
+cd ~/Desktop/home_server
+git pull --ff-only
+cd 01_custom_netinst/my-cdd
+./build.sh
+```
+
+The installer-only ISO is written to `images/debian-13-amd64-CD-1.iso`. It expects a network mirror for the target-system packages.
+
+The build runs `--mirror-only`, patches the **generated local mirror** from `UDebComponents: main` to `UDebComponents: main contrib non-free-firmware`, runs `reprepro update`, requires the additional installer `Packages.gz` or `Packages.xz` indexes, then runs `--build-only`. This addresses the previously observed missing `amd64/contrib` and `amd64/non-free-firmware` installer-package messages; the 2026-11-15 VM run confirmed their disappearance. It does not add extra user-selected packages or silently enable Backports.
+
+Build diagnostics are in `build-mirror-debug.log`, `build-debug.log`, `build-terminal.log`, and `tmp/log/`. For exact verification commands and the known nonfatal Debian-CD warnings, see the [preparation/build guide](../01_custom_cdd_preparation.md).
 
 ## Important engineering boundaries
 
@@ -21,7 +47,7 @@ The minimal default preseed only bootstraps Simple-CDD and deliberately leaves *
 
 In the installed system, **both microcode packages** and broad firmware would be evaluated when Extended device support is selected. With Backports selected, targeted Backports package versions take precedence under global priority **100**; incompatible/missing firmware requires an explicitly approved individual omission, and Stable fallbacks are listed in the final APT transaction.
 
-No ISO image, USB medium or functional test has been produced. Follow the [preparation guide](../01_custom_cdd_preparation.md), [validation checklist](../08_validation_and_pending.md) and [implementation gates](installer/IMPLEMENTATION_GATES.md). No source ISO/output ISO hash or USB read-back/integrity-only test has been introduced.
+An ISO image **has** been produced (2026-11-15), but no successful USB boot or end-to-end installation test has been demonstrated. Follow the [preparation guide](../01_custom_cdd_preparation.md), [validation checklist](../08_validation_and_pending.md) and [implementation gates](installer/IMPLEMENTATION_GATES.md). No source-image/output-ISO hash or USB read-back/integrity-only test has been introduced.
 
 ## ZRAM backing selection (source implementation, not installer-validated)
 
