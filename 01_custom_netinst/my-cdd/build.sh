@@ -1,7 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 # Build the Debian 13 Trixie amd64 Simple-CDD project.
 # The seven optional profiles must be implemented before this can build an ISO.
-set -eu
+# Keep build-simple-cdd's exit status when streaming output through tee.
+set -euo pipefail
 cd "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
 # Never generate an apparently installable image containing unfinished hooks.
@@ -17,4 +18,9 @@ for hook in profiles/*.postinst; do
     }
 done
 
-exec build-simple-cdd --conf ./simple-cdd.conf --dist trixie
+build-simple-cdd \
+    --conf ./simple-cdd.conf \
+    --dist trixie \
+    --debug \
+    --logfile ./build-debug.log \
+    2>&1 | tee ./build-terminal.log
