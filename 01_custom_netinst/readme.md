@@ -1,6 +1,6 @@
 # Customized Debian 13 netinst USB
 
-**Project status:** documented installation plan, **not yet a built or tested ISO**. **Updated:** 2026-11-15. **Provenance:** custom server home-server installation decisions and requested GitHub documentation structure.
+**Project status (2026-11-15):** installer-only ISO **built successfully (395 MiB)**; **boot and installation not yet tested**. **Provenance:** home-server installation decisions, requested GitHub documentation structure and user-supplied build logs.
 
 Prepare an interactive, Simple-CDD-based **Debian 13 (Trixie), amd64** installation USB for a configurable hostname. The example hardware has a **256 GB system SSD** and **32 GB RAM**; these are illustrative, not universal requirements. Confirm actual hardware and the OS installation disk in the installer.
 
@@ -23,7 +23,7 @@ The table follows the **actual optional installer-profile menu order**, not the 
 | [05 — Base Debian installation](05_base_installation.md) | Native installer GUI, disk partitioning and account confirmation |
 | [08 — Validation and pending](08_validation_and_pending.md) | Integration checks and remaining choices |
 
-**[Canonical editable installer GUI defaults](my-cdd/profile_defaults.conf)** · [Reference example](my-cdd/profile_defaults.conf.example) · **[my-cdd build project](my-cdd/README.md)**
+**[Canonical editable installer GUI defaults](my-cdd/profile_defaults.conf)** · [Reference example](my-cdd/profile_defaults.conf.example) · **[my-cdd build project and commands](my-cdd/README.md)**
 
 **Installer confirmation:** After profile selection, show an additional **native GTK Debconf summary** of all seven selected/unselected profiles and dependencies, then require **explicit default-No confirmation before selected-profile operations begin**. The text installer uses equivalent Debconf prompts. Debian Installer provides the needed frontend controls, and **the user-approved early-preseed integration (method A) is now wired in source**, before invoking the unmodified Simple-CDD udeb. **It has not been validated in a real GTK or text installer.** If this method fails, stop and obtain further approval before changing methods or removing the summary; never display a misleading late prompt. Disk, partition and package changes still require separate approvals. See [01 preparation](01_custom_cdd_preparation.md) and [08 validation](08_validation_and_pending.md).
 
@@ -49,7 +49,7 @@ The table follows the **actual optional installer-profile menu order**, not the 
 
 ## Scope and provenance
 
-These pages distinguish **approved user choices** from **engineering proposals requiring validation**. **Do not reinvent or separately decide ordinary Debian Installer prompts; confine additional questions and custom installer UI to genuinely nonstandard selected-profile requirements.** The [`my-cdd/`](my-cdd/README.md) directory contains **initial Simple-CDD build configuration, seven selectable profile source stubs, the approved early Debconf confirmation hook, firmware source inventory and original ZRAM code assets**. Extra offline test harnesses and unused inspection helpers were removed on request. The installed-target profile implementations and functional validation remain incomplete, and **no custom ISO or USB has been built**. The minimal build script stops while profiles still contain unfinished hooks.
+These pages distinguish **approved user choices** from **engineering proposals requiring validation**. **Do not reinvent or separately decide ordinary Debian Installer prompts; confine additional questions and custom installer UI to genuinely nonstandard selected-profile requirements.** The [`my-cdd/`](my-cdd/README.md) directory contains the working installer-only **build pipeline**, seven selectable profile descriptions and source actions, the approved early Debconf confirmation hook, firmware inventory and ZRAM code assets. The updated two-stage build uses `--mirror-only`, refreshes `contrib` and `non-free-firmware` Debian Installer udeb indexes, and uses `--build-only` to produce the image. The **2026-11-15 VM build succeeded** and the formerly missing component-index messages disappeared. No USB functional test or installed-target profile execution has been validated; source routines must not be treated as production-ready. Extra offline test harnesses and unused inspection helpers were removed on request.
 
 **Primary sources:** user's extended Debian 13 installation planning conversation and uploaded `zram_zstd_writeback_design(1).md`; official Debian, APT, Simple-CDD, Linux, Docker and OpenMediaVault documentation linked in the numbered pages.
 
