@@ -1,5 +1,8 @@
 # Native Debian Installer integration (source only)
 
+**Current OMV 8 update behavior (2026-11-15):** The selected OMV profile disables `conf.system.apt.updates.unattendedupgrade`, the `apt` notification schedule, and both periodic APT refreshes and unattended upgrades. It redeploys `apt` and `apticron` via OMV Salt, not the older `cronapt` state. Native installer service-start suppression is checked before optional profiles. No first-boot service masks are written. The revised implementation has not been install-tested.
+
+
 **Current recovery and service policy:** Before any selected profile executes (including a zero-profile installation), `run-selected.sh` checks the installed root account. If locked/passwordless, it uses Debian Installer's native password-type Debconf questions to set and verify a local root password, with no passwords in source, command arguments or project logs. This GTK/text behavior still requires an actual installer test. Docker is installed with its ordinary service startup defaults; no masking, disabling or OMV-Extras/Compose integration.
 
 **Current review branch (2026-11-15):** No unconditional base user, sudo, SSH or update-policy enforcement. The early confirmation and ordered dispatcher remain; the dispatcher sources only the explicitly selected profile action module. Source-only changes; GTK/text integration has not been retested.

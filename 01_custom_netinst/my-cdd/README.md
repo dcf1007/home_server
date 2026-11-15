@@ -1,6 +1,6 @@
 # my-cdd — Debian 13 (Trixie) amd64 custom Simple-CDD sources
 
-**Latest service policy:** Docker and OMV remain independent; their installed services follow vendor defaults during install and first boot. No Docker masks/disables and no automatic OMV-Extras/Compose installation. The separately approved OMV cron-apt update policy is retained. Source-only; not installer-tested.
+**Latest service policy:** Docker and OMV remain independent; their installed services follow vendor defaults during install and first boot. No Docker masks/disables and no automatic OMV-Extras/Compose installation. The approved OMV scheduled-update restriction now uses OMV 8's apt/apticron configuration; manual updates remain possible. Source-only; not installer-tested.
 
 **Current review-branch policy (2026-11-15):** The unselected base uses native Debian account, privilege, SSH and update defaults **except for a mandatory recovery preflight**: a locked/passwordless root account is securely given a locally usable root password before optional profiles run (also when none are selected). `profiles/default.packages` is no longer overridden; Simple-CDD supplies the upstream list. Optional profiles have separate source modules and `.extra` manifests. The seven profile IDs are unchanged; labels have been clarified. The revised source has not been built or install-tested.
 

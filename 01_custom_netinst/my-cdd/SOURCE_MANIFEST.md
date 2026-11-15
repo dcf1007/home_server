@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, directed that Docker and OMV remain independent; do not install OMV-Extras/Compose, leave official service startup alone during installation and on first boot, and verify/secure the root account **before any custom profile runs**, to prevent locked-root rescue deadlocks. Previous source reorganization and the approved generated-mirror exception remain unchanged. Historical fixes are preserved below.  
+**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, requested prevention of unnecessary custom-profile services during Debian installation and expressly required that OMV automatic updates remain disabled. Verified native temporary `policy-rc.d`/`start-stop-daemon` behavior; added the non-mutating profile preflight and corrected OMV 8 scheduled APT/apticron policy. No permanent service suppression was introduced; first-boot defaults are preserved. Earlier history remains below.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
