@@ -4,22 +4,22 @@
 profile_zram() {
     [ -f "$LOG_DIR/my-cdd-completed/ensure-7x-kernel" ] ||
         fatal 'ZRAM cannot run without the separately completed Ensure 7.x kernel profile'
-    for utility in lsblk blkid swapon swapoff parted wipefs readlink findmnt cmp; do
-        command -v "$utility" >/dev/null 2>&1 ||
-            fatal "ZRAM conversion requires unavailable installer utility: $utility"
-    done
     [ -r "$MEDIA/zram-generator.conf.template" ] ||
         fatal 'Original ZRAM generator source missing'
     [ -r "$MEDIA/zram-selection.sh" ] ||
         fatal 'Installer ZRAM selection helper missing'
     . "$MEDIA/zram-selection.sh"
+    # The installer is a minimal udeb environment: it need not contain
+    # lsblk/findmnt/wipefs. Check required host and installed-target tools
+    # before asking for a destructive partition conversion.
+    zram_check_utilities
     zram_collect_candidates
     zram_choose_candidate
     uuid=$zram_uuid
     device=$zram_device
     size=$zram_size
-    former_uuid="$(blkid -s UUID -o value "$device" 2>/dev/null || true)"
-    former_label="$(blkid -s LABEL -o value "$device" 2>/dev/null || true)"
+    former_uuid="$(zram_blkid -s UUID -o value "$device" 2>/dev/null || true)"
+    former_label="$(zram_blkid -s LABEL -o value "$device" 2>/dev/null || true)"
     zram_prepare_fstab
 
     # The automatically detected partition still requires exactly the same
@@ -54,13 +54,13 @@ profile_zram() {
         [ "$reserve_kb" -ge 262144 ] || reserve_kb=262144
         used_kb=$((active_used / 1024 + 1))
         [ "$available_kb" -gt "$((used_kb + reserve_kb))" ] ||
-            fatal 'RAM cannot cover selected swap usage plus a safety reserve; no swapoff attempted'
-        db_subst my-cdd/zram-swapoff MYCDD_PARTITION "$device" ||
-            fatal 'Cannot show exact swapoff target'
-        db_subst my-cdd/zram-swapoff MYCDD_USED "$active_used" ||
+            fatal 'RAM cannot cover selected swap usage plus a safety reserve; no zram_swapoff attempted'
+        db_subst my-cdd/zram-zram_swapoff MYCDD_PARTITION "$device" ||
+            fatal 'Cannot show exact zram_swapoff target'
+        db_subst my-cdd/zram-zram_swapoff MYCDD_USED "$active_used" ||
             fatal 'Cannot show selected swap usage'
-        yes_no my-cdd/zram-swapoff ||
-            fatal 'Targeted swapoff was not separately approved'
+        yes_no my-cdd/zram-zram_swapoff ||
+            fatal 'Targeted zram_swapoff was not separately approved'
         # Re-evaluate memory and identity immediately before swapoff, too.
         zram_validate_candidate
         zram_read_active_swap
@@ -70,8 +70,8 @@ profile_zram() {
             used_kb=$((active_used / 1024 + 1))
             [ "$available_kb" -gt "$((used_kb + reserve_kb))" ] ||
                 fatal 'Insufficient remaining RAM for a safe targeted swapoff'
-            capture swapoff "$device" ||
-                fatal 'Targeted swapoff failed; GPT and signatures left unchanged'
+            capture zram_swapoff "$device" ||
+                fatal 'Targeted zram_swapoff failed; GPT and signatures left unchanged'
         fi
         zram_read_active_swap
         [ -z "$active_used" ] ||
@@ -91,17 +91,17 @@ profile_zram() {
         fatal 'Could not change only the confirmed GPT partition type'
     capture parted -s "$disk" name "$partn" zram-writeback ||
         fatal 'Could not set confirmed GPT PARTLABEL'
-    capture wipefs -a "$device" ||
+    capture zram_wipefs -a "$device" ||
         fatal 'Could not remove signatures from only the confirmed partition'
-    [ "$(lsblk -dnro PARTUUID "$device" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$uuid" | tr '[:upper:]' '[:lower:]')" ] ||
+    [ "$(zram_lsblk -dnro PARTUUID "$device" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$uuid" | tr '[:upper:]' '[:lower:]')" ] ||
         fatal 'PARTUUID changed unexpectedly after conversion'
-    [ "$(lsblk -dnro PARTLABEL "$device")" = zram-writeback ] ||
+    [ "$(zram_lsblk -dnro PARTLABEL "$device")" = zram-writeback ] ||
         fatal 'Converted GPT PARTLABEL not visible'
-    [ "$(lsblk -dnro PARTTYPE "$device" | tr '[:upper:]' '[:lower:]')" = 0fc63daf-8483-4772-8e79-3d69d8477de4 ] ||
+    [ "$(zram_lsblk -dnro PARTTYPE "$device" | tr '[:upper:]' '[:lower:]')" = 0fc63daf-8483-4772-8e79-3d69d8477de4 ] ||
         fatal 'Confirmed partition has the wrong GPT type after conversion'
-    [ -z "$(blkid -p -s TYPE -o value "$device" 2>/dev/null || true)" ] ||
+    [ -z "$(zram_blkid -p -s TYPE -o value "$device" 2>/dev/null || true)" ] ||
         fatal 'Backing partition still has a filesystem/swap signature'
-    if lsblk -dnro MOUNTPOINTS "$device" |
+    if zram_lsblk -dnro MOUNTPOINTS "$device" |
         grep -Ev '^[[:space:]]*$' | grep -q .; then
         fatal 'Converted partition unexpectedly mounted or active'
     fi
