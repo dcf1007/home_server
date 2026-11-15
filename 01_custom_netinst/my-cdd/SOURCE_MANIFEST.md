@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, provided graphical VM evidence that Backports, kernel and firmware completed but ZRAM immediately stopped because `lsblk` was absent in Debian Installer. Corrected ZRAM's utility resolution to use the installed target through native `in-target`, preserving installer-side partition and fstab checks and all separate approvals. The dated details and historical changes remain recorded below.  
+**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, uploaded four GTK installer screenshots confirming the custom kernel and headers transaction completed but ZRAM stopped because the installer-native `parted` executable was missing. Added the official `parted-udeb` to the existing Simple-CDD build-only media profile, native `anna-install` loading, and an ISO inclusion guard while preserving the original ZRAM partition approvals. Historic provenance follows.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -240,6 +240,16 @@ remain open. The original embedded ZRAM source is retained.
 - **Exact source change:** `installer/zram-selection.sh` now defines namespaced wrappers that run just the required target tools via D-I's standard `in-target --pass-stdout`. `installer/profile-zram.sh` sources those wrappers and validates installer-side `parted`, `readlink`, `cmp` plus target command availability and target device/proc/sys visibility before choosing or converting a partition. The `/target` root mount is checked using installer-side `/proc/self/mountinfo`, not target-side `findmnt -M /target`. Selected `swapoff` and `wipefs` still operate only on the separately approved block device and use the same privilege and safety checks.
 - **Preserved:** No ISO media additions, `.extra` changes, generated-file edits, new automatic package installation, modified GPT choices or altered Debconf `my-cdd/zram-swapoff` question. The earlier Linux 7.x dependency, kernel/memory checks, targeted swapoff approval, exact PARTUUID identity and unique-holder/mount constraints, atomic target fstab update, and root rescue password remain intact. No effect on Docker, OMV or other independent profiles.
 - **Validation:** Read-only source review only; installer tooling, target namespace availability, GPT partition conversion and first boot remain runtime release gates. A clean disposable VM installation is required to validate this change before using a real disk.
+
+## Official installer-native parted-udeb for selected ZRAM (2026-11-15)
+
+- **Nearest user message:** Four Debian 13 GUI screenshots dated 2026-11-15 showing a successful kernel/header package transaction and a subsequent ZRAM prerequisite failure: `ZRAM requires unavailable Debian Installer utility: parted`. Previous question explicitly preferred installer-native tools over copying executables into Debian Installer.
+- **Cause:** The selected ZRAM profile correctly left GPT editing in Debian Installer, but assumed the minimal udeb environment included the `parted` command. It is not guaranteed to be available after normal partitioning.
+- **Supported Debian mechanism:** Debian Trixie provides `parted-udeb` (source parted 3.6-5) with native `libparted2-udeb`, `libuuid1-udeb` and `libc6-udeb` dependencies. Debian Installer's `anna-install` loads additional udebs and resolves normal udeb dependencies. Simple-CDD 0.6.9 collects `*.udebs` from build-only profiles.
+- **Implementation:** Added only `profiles/installer-media.udebs` with `parted-udeb`. The ZRAM action calls `anna-install parted-udeb` only when `parted` is missing, then checks it is accessible **before** any partition selection, swapoff, GPT edit or wipefs. No ordinary Debian .deb, unapproved binary copy, local custom udeb or replacement of upstream `default.udebs`. The existing installer-side `parted` operations and all PARTUUID, GPT, memory and explicit default-No destructive approvals are unchanged.
+- **Build gate:** Existing Simple-CDD source guard checks `installer-media.udebs` plus the build-only profile; after ISO assembly it verifies that the main Debian Installer Packages.gz index identifies `parted-udeb` and that its referenced udeb archive is present. If not, it stops rather than reporting a usable ISO.
+- **Scope limitation:** The earlier supported `in-target` wrapper still runs `lsblk`, `blkid`, `findmnt`, `swapon`, `swapoff` and `wipefs` against the installed target with its own libc, not the installer's libc. This change does not claim to make all util-linux commands installer-native.
+- **Unverified:** Actual `anna-install` loading at the late finish-install stage, installed udeb CLI availability, matching installer package indexes and safe GPT conversion require a fresh disposable-VM ISO test. No real disk may be used as validation.
 
 ## Actual implementation state
 

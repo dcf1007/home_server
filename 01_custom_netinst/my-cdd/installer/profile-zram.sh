@@ -9,9 +9,21 @@ profile_zram() {
     [ -r "$MEDIA/zram-selection.sh" ] ||
         fatal 'Installer ZRAM selection helper missing'
     . "$MEDIA/zram-selection.sh"
-    # The installer is a minimal udeb environment: it need not contain
-    # lsblk/findmnt/wipefs. Check required host and installed-target tools
-    # before asking for a destructive partition conversion.
+    # The installer is a minimal udeb environment. The official parted-udeb
+    # supplies the installer-native GPT editing CLI and matching udeb libraries.
+    # Simple-CDD stages it via the build-only installer-media.udebs profile;
+    # anna-install loads it only for an explicitly chosen ZRAM profile.
+    # Do not copy normal target binaries or libraries into Debian Installer.
+    if ! command -v parted >/dev/null 2>&1; then
+        command -v anna-install >/dev/null 2>&1 ||
+            fatal 'Native Debian Installer anna-install is unavailable for parted-udeb'
+        capture anna-install parted-udeb ||
+            fatal 'Could not load official parted-udeb into Debian Installer'
+    fi
+    command -v parted >/dev/null 2>&1 ||
+        fatal 'Official parted-udeb did not provide a usable parted command'
+    # Check all remaining required installer and target utilities before
+    # offering any destructive ZRAM backing conversion.
     zram_check_utilities
     zram_collect_candidates
     zram_choose_candidate
