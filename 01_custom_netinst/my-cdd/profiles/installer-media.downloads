@@ -1,0 +1,4 @@
+# Build-only additional media packages, not installed by Simple-CDD.
+# This profile is included via build_profiles, never offered in the GUI.
+# Let the unmodified upstream default.downloads supply standard installer tools.
+zstd

@@ -4,3 +4,5 @@
 openssh-server
 sudo
 systemd-timesyncd
+# Upstream Simple-CDD default.packages also installs less; keep that baseline.
+less

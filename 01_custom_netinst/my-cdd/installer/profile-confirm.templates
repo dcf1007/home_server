@@ -7,13 +7,13 @@ Type: note
 Description: Review the selected custom installation profiles
  All seven optional profiles are shown in their required execution order.
  .
- Backports: ${MYCDD_BACKPORTS}
- Ensure Linux 7.x kernel: ${MYCDD_KERNEL}
- Extended device support: ${MYCDD_FIRMWARE}
- ZSTD ZRAM writeback: ${MYCDD_ZRAM}
- Debian tweaks: ${MYCDD_TWEAKS}
- OpenMediaVault 8: ${MYCDD_OMV}
- Docker: ${MYCDD_DOCKER}
+  Backports: ${MYCDD_BACKPORTS}
+  Ensure Linux 7.x kernel: ${MYCDD_KERNEL}
+  Extended device support: ${MYCDD_FIRMWARE}
+  ZSTD ZRAM writeback: ${MYCDD_ZRAM}
+  Debian tweaks: ${MYCDD_TWEAKS}
+  OpenMediaVault 8: ${MYCDD_OMV}
+  Docker: ${MYCDD_DOCKER}
  .
  Selection does not grant permission for destructive partition changes,
  package transactions, individual firmware omissions or service activation.
