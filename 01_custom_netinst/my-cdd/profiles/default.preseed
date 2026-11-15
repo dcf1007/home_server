@@ -2,6 +2,11 @@
 # Preserve ordinary interactive Debian Installer questions (locale, keyboard,
 # networking/mirror, users, manual OS disk/partitions, tasksel and completion).
 #
+# Read the per-build editable defaults generated from profile_defaults.conf.
+# This file is on the ISO under /cdrom/simple-cdd, next to default.preseed.
+# Locale and keyboard defaults are set earlier via kernel boot parameters.
+d-i preseed/include string defaults.preseed
+#
 # Decision approved 2026-11-14: early preseed hook, not a patched udeb.
 # The script loads Simple-CDD's own generated multiselect and my-cdd's
 # summary/confirmation templates before anna-install queues any profiles.
