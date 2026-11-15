@@ -53,13 +53,18 @@ Description: Approve omission of ${MYCDD_PACKAGE}?
  This approval applies ONLY to this named firmware/microcode package.
  Choose No to stop instead of silently dropping it from the installation.
 
-Template: my-cdd/zram-partuuid
-Type: string
-Default:
-Description: Enter the exact PARTUUID of the swap partition you created
- The partition must have been selected manually in Debian Installer.
- Copy the complete PARTUUID from the displayed partition information.
- Nothing is selected automatically. Leave blank to stop without changes.
+Template: my-cdd/zram-backing-select
+Type: select
+Choices-C: ${MYCDD_BACKING_IDS}
+Choices: ${MYCDD_BACKING_LABELS}
+Default: none
+Description: Select the partition for ZRAM raw writeback backing
+ No swap partition could be identified uniquely from this installation's
+ /etc/fstab. Select the specific swap or previously converted raw backing
+ partition you wish to use. Partitions may belong to another operating
+ system; using one can permanently disrupt that other system.
+ The first choice stops without changing any partition. Selecting a
+ partition does NOT approve its conversion; a separate confirmation follows.
 
 Template: my-cdd/zram-destructive
 Type: boolean
@@ -68,7 +73,11 @@ Description: Convert ${MYCDD_PARTITION} into raw ZRAM backing?
  Confirmed partition: ${MYCDD_PARTITION}
  Confirmed PARTUUID: ${MYCDD_PARTUUID}
  Confirmed size: ${MYCDD_SIZE}
+ Parent disk: ${MYCDD_DISK}
+ Selection: ${MYCDD_SELECTION}
  .
+ Reusing this partition may break conventional swap in another operating
+ system, including one not currently running.
  This permanently destroys signatures on ONLY that partition. The
  partition will become GPT type 8300 with PARTLABEL zram-writeback,
  without a filesystem or ordinary swap activation. Default is No.
