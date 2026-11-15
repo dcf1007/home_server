@@ -1,5 +1,7 @@
 # 05 — Base Debian 13 installation: normal installer screens
 
+**Latest VM result (2026-11-15):** Base Debian 13 boots, but the optional-profile late command failed before entering the profile loop because `in-target` did not pass its stdout to the custom runner. The source correction now invokes `in-target --pass-stdout` centrally and uses target `chroot` stdin for the conditional root password. It has not been rerun in Debian Installer. Native `tasksel` selection stays editable but still requires manually selecting SSH and standard, deselecting desktop and GNOME; `tasksel/first seen=false` overwrites the default list.
+
 **Current source policy (2026-11-15):** All nonstandard base-system policies were removed from the default package queue and late command. Country `DE` and domain `dcf1007-world` are suggestions only; native installation prompts remain editable. Earlier design history may describe superseded assumptions.
 
 **Status:** agreed choices, to be entered or confirmed in the interactive installer. **Recorded:** 2026-11-14. **Provenance:** custom server installation-planning decisions.

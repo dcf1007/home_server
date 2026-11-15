@@ -1,5 +1,10 @@
 # Native Debian Installer integration (source only)
 
+**2026-11-15 VM failure and targeted fix:** The latest ISO successfully installed and booted base Debian after the earlier `zstd` failure. The user's graphical installer log recorded `COMMAND: in-target passwd -S root`, followed by `Unrecognized root account password state`; no optional profile ran and no completion markers were written. Debian Installer 1.155's `in-target` suppresses stdout by default; the common runner now inserts `--pass-stdout` for all captured target commands, including APT simulations and security/SSH checks. Root `chpasswd` uses direct `chroot /target /usr/sbin/chpasswd` with credentials exclusively on stdin rather than `in-target`'s Debconf-reserved stdin. A persistent `/var/log/installer/my-cdd-status` records `INCOMPLETE`, `FAILED`, or `COMPLETE`. **Source-level fix only; installer retesting required.**
+
+**Tasksel limitation:** Debian 13 tasksel 3.81 resets `tasksel/first` to computed GNOME/desktop defaults when `seen=false`, overwriting the requested `ssh-server, standard` values. Conversely `seen=true` can suppress the native editable software-selection screen. The project preserves that native editable screen; select **SSH server** and **standard system utilities**, and deselect **Debian desktop environment** and **GNOME** manually in the next VM test. An automatic default-plus-visible-screen solution remains unresolved without more invasive tasksel integration. Do not report the displayed defaults as fixed or quietly skip the screen.
+
+
 **Current OMV 8 update behavior (2026-11-15):** The selected OMV profile disables `conf.system.apt.updates.unattendedupgrade`, the `apt` notification schedule, and both periodic APT refreshes and unattended upgrades. It redeploys `apt` and `apticron` via OMV Salt, not the older `cronapt` state. Native installer service-start suppression is checked before optional profiles. No first-boot service masks are written. The revised implementation has not been install-tested.
 
 

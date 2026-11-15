@@ -1,5 +1,10 @@
 # 08 — Validation gates, decisions deferred, and release checklist
 
+**2026-11-15 VM failure and targeted fix:** The latest ISO successfully installed and booted base Debian after the earlier `zstd` failure. The user's graphical installer log recorded `COMMAND: in-target passwd -S root`, followed by `Unrecognized root account password state`; no optional profile ran and no completion markers were written. Debian Installer 1.155's `in-target` suppresses stdout by default; the common runner now inserts `--pass-stdout` for all captured target commands, including APT simulations and security/SSH checks. Root `chpasswd` uses direct `chroot /target /usr/sbin/chpasswd` with credentials exclusively on stdin rather than `in-target`'s Debconf-reserved stdin. A persistent `/var/log/installer/my-cdd-status` records `INCOMPLETE`, `FAILED`, or `COMPLETE`. **Source-level fix only; installer retesting required.**
+
+**Tasksel limitation:** Debian 13 tasksel 3.81 resets `tasksel/first` to computed GNOME/desktop defaults when `seen=false`, overwriting the requested `ssh-server, standard` values. Conversely `seen=true` can suppress the native editable software-selection screen. The project preserves that native editable screen; select **SSH server** and **standard system utilities**, and deselect **Debian desktop environment** and **GNOME** manually in the next VM test. An automatic default-plus-visible-screen solution remains unresolved without more invasive tasksel integration. Do not report the displayed defaults as fixed or quietly skip the screen.
+
+
 **Native installer service handling (2026-11-15):** Debian Installer 1.155 automatically sets a temporary `policy-rc.d` returning 101 when the `in-target` wrapper runs and diverts `start-stop-daemon`. The selected-profile runner verifies this upstream protection; it does not duplicate it or disable first-boot services. OMV 8's source uses `apt` and `apticron`, not the old `cronapt` deployment; its scheduled update/notification policy is now disabled via the OMV configuration database and Salt. OMV DNS and third-party Salt operations require live testing.
 
 
