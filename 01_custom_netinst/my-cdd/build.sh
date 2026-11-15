@@ -35,6 +35,13 @@ done
     fi
     sed -i 's/^UDebComponents: main$/UDebComponents: main contrib non-free-firmware/' "$mirror_conf"
     GNUPGHOME="$PWD/tmp/gpg-keyring" reprepro -V --basedir "$PWD/tmp/mirror" update
+    for component in contrib non-free-firmware; do
+        index_dir="$PWD/tmp/mirror/dists/trixie/$component/debian-installer/binary-amd64"
+        if [ ! -f "$index_dir/Packages.gz" ] && [ ! -f "$index_dir/Packages.xz" ]; then
+            printf >&2 'my-cdd: missing Debian Installer package index after mirror update: %s\n' "$component"
+            exit 1
+        fi
+    done
 
     build-simple-cdd \
         --conf ./simple-cdd.conf \
