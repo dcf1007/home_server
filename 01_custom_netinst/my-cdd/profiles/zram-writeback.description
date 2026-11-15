@@ -1,1 +1,1 @@
-ZSTD ZRAM writeback — selected swap partition becomes confirmed raw PARTUUID backing
+ZSTD ZRAM writeback; confirmed raw GPT backing, requires Linux 7.x

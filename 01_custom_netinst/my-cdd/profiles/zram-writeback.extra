@@ -1,0 +1,8 @@
+# zram-writeback: source assets copied by Simple-CDD (not automatically installed).
+installer/profile-zram.sh
+installer/zram-selection.sh
+scripts/zram-generator.conf.template
+scripts/10-compressed-writeback.conf
+scripts/zram-pressure.sh
+scripts/zram-pressure.service
+scripts/90-zram-swappiness.conf

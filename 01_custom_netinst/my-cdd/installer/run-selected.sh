@@ -152,29 +152,13 @@ mark_complete() {
     chmod 600 "$LOG_DIR/my-cdd-completed/$1"
     log "PROFILE COMPLETE: $1"
 }
-[ -r "$MEDIA/profile-actions.sh" ] || fatal 'Missing profile action source'
+[ -r "$MEDIA/profile-common.sh" ] || fatal 'Missing shared profile helpers'
 [ -r "$MEDIA/ordered-selection.sh" ] || fatal 'Missing selection validator'
 [ -r "$CONFIRMED" ] || fatal 'No approved early profile selection was recorded'
-. "$MEDIA/profile-actions.sh"
+. "$MEDIA/profile-common.sh"
 
-# Approved BASE-install requirements apply even with zero optional profiles:
-# preserve the installer-confirmed account, separate root emergency password,
-# its sudo access, and the explicit root-SSH prohibition.
-db_get passwd/username || fatal 'Cannot read native Debian Installer administrator'
-admin=$RET
-case "$admin" in ''|*[!a-zA-Z0-9_.-]*) fatal 'Invalid Debian Installer administrator name';; esac
-capture in-target id "$admin" || fatal 'Confirmed Debian administrator not installed'
-run_target usermod -aG sudo "$admin"
-capture in-target passwd -S root || fatal 'Cannot inspect root emergency password status'
-grep -E '^root[[:space:]]+P[[:space:]]' "$WORK/output" >/dev/null ||
-    fatal 'Separate local root password is not configured'
-mkdir -p /target/etc/ssh/sshd_config.d /target/run/sshd
-chmod 755 /target/run/sshd
-printf 'PermitRootLogin no\n' > /target/etc/ssh/sshd_config.d/01-my-cdd-root-login.conf
-capture in-target sshd -T || fatal 'Base OpenSSH configuration is invalid'
-grep -Fx 'permitrootlogin no' "$WORK/output" >/dev/null ||
-    fatal 'Effective OpenSSH setting still allows root login'
-
+# No unconditional target policy changes in the base-only installation.
+# Optional changes run only after explicitly selected profile confirmation.
 db_get simple-cdd/profiles || fatal 'Cannot read Simple-CDD profile selection'
 ordered="$(/bin/sh "$MEDIA/ordered-selection.sh" "$RET")" ||
     fatal 'Invalid selected profiles or missing kernel prerequisite'
@@ -186,19 +170,20 @@ log "CONFIRMED SELECTION: $ordered"
 for profile in $ordered; do
     log "PROFILE BEGIN: $profile"
     case "$profile" in
-        backports) profile_backports ;;
-        ensure-7x-kernel) profile_kernel ;;
-        extended-device-support) profile_firmware ;;
-        zram-writeback) profile_zram ;;
-        debian-tweaks) profile_tweaks ;;
-        openmediavault) profile_omv ;;
-        docker) profile_docker ;;
+        backports) module=backports; handler=profile_backports ;;
+        ensure-7x-kernel) module=kernel; handler=profile_kernel ;;
+        extended-device-support) module=firmware; handler=profile_firmware ;;
+        zram-writeback) module=zram; handler=profile_zram ;;
+        debian-tweaks) module=tweaks; handler=profile_tweaks ;;
+        openmediavault) module=omv; handler=profile_omv ;;
+        docker) module=docker; handler=profile_docker ;;
         *) fatal "Unknown selected profile: $profile" ;;
     esac
+    [ -r "$MEDIA/profile-$module.sh" ] || fatal "Missing selected module: $module"
+    . "$MEDIA/profile-$module.sh"
+    "$handler"
     mark_complete "$profile"
 done
-# Other profiles must not re-enable automatic package updates.
-ensure_manual_updates
 log 'All selected optional profiles completed.'
 export_log
 exit 0

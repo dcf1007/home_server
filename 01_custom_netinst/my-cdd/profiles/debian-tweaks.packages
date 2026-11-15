@@ -1,5 +1,0 @@
-# Intentionally NO automatically queued packages.
-# Simple-CDD's 0.6.9 profile-selector runs apt-install on these BEFORE the
-# later *.postinst stage. Dynamic package choices, interactive approvals,
-# firmware omissions and service suppression cannot safely be done here.
-# The verified ordered profile executor must perform these operations later.

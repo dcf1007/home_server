@@ -1,0 +1,3 @@
+# extended-device-support: source assets copied by Simple-CDD (not automatically installed).
+installer/profile-firmware.sh
+scripts/firmware-candidates.txt
