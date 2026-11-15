@@ -1,5 +1,7 @@
 # 01 — Customized netinst / Simple-CDD preparation
 
+**Current source revision (2026-11-15):** Country `DE` and editable domain `dcf1007-world` have been added. The local `default.packages` override and global late-command account/SSH/update policy were removed to honor native Debian defaults. Selected profile implementations now live in `installer/profile-*.sh`, with profile-owned `.extra` manifests; no generated CDD output is edited except the explicitly approved `UDebComponents` workaround. The revised code has not been ISO-tested; older paragraphs are retained as historical observations.
+
 **Status (2026-11-15):** the two-stage `INSTALLER_CD="2"` netinst successfully built a 408 MiB ISO (509 packages), and its graphical installer progressed through debootstrap into base-system package installation. It then failed to install **`zstd`**, which was not available from the target's CD-only APT source. The override of the packaged `default.downloads` has been removed: Simple-CDD now inherits its full upstream media list. A separate build-only `installer-media.downloads` adds `zstd`, and the builder fails if the staged ISO lacks its APT index entry or package archive. **That correction requires a new build and installation test**; editable defaults and optional profiles remain unverified. **Original design recorded:** 2026-11-14. **Provenance:** custom server Debian 13 planning conversation, the request to document custom netinst preparation, and build logs supplied on 2026-11-15.
 
 ## Purpose

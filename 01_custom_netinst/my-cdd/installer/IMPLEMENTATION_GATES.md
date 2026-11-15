@@ -1,5 +1,7 @@
 # Implementation requirements still outstanding
 
+**Current source revision (2026-11-15):** Optional operations were reorganized into selected-only modules, with no unselected base account/SSH/update overrides. `profiles/default.packages` now falls back to CDD's upstream file. The source was not revalidated in a live installer, so all runtime gates below remain open.
+
 **Status (2026-11-15): source-level selected-profile executor and completion checks added, not tested in a live installer.** The minimal `build.sh` invokes upstream `build-simple-cdd`. It has no fabricated offline test harness or artificial release flags. The seven selected-profile postinst files now verify actual installer-stage completion records rather than blindly succeeding. **A successful ISO build is not a functional validation.**
 
 ## 1. Early selected-profile confirmation
@@ -29,9 +31,9 @@ Keep ordinary keyboard, locale/time, account/password, network/mirror, partman, 
 Simple-CDD 0.6.9 runs each executable `*.postinst` **in-target**, in the order returned by the Debconf selection, not necessarily the design order. The newly written native Debian Installer `preseed/late_command` calls the **single ordered dispatcher** ([`run-selected.sh`](run-selected.sh)):
 Backports → Ensure 7.x → Extended device support → ZRAM → Debian tweaks → OMV 8 → Docker.
 
-The current `*.packages` files for optional profiles intentionally **queue no packages**: automatic queueing would bypass required simulation/approval and, for Docker or ZRAM, violate service and conversion timing.
+Optional `.packages` files have been removed to leave **no automatic package queue**: automatic queueing would bypass required simulation/approval and, for Docker or ZRAM, violate service and conversion timing.
 
-The [`profile-actions.sh`](profile-actions.sh) source includes package/repository changes, native review and omission questions, target logging, ZRAM GPT conversion, Docker startup suppression and OMV SSH/update handling. **These remain untested implementations**, not proof of compatibility. Verify that early/late command execution order, package candidates, GUI interaction and critical failure handling actually work, without rollback or skipped profiles.
+The selected-only `profile-*.sh` modules and shared [`profile-common.sh`](profile-common.sh) source include package/repository changes, native review and omission questions, target logging, ZRAM GPT conversion, Docker startup suppression and OMV SSH/update handling. **These remain untested implementations**, not proof of compatibility. Verify that early/late command execution order, package candidates, GUI interaction and critical failure handling actually work, without rollback or skipped profiles.
 
 ## 4. Boot and functional release tests
 
@@ -59,7 +61,7 @@ Previously converted raw `zram-writeback` GPT partitions are shown only as
 manual candidates. PARTLABEL alone is not unique proof of identity.
 
 Source: [`zram-selection.sh`](zram-selection.sh),
-[`profile-actions.sh`](profile-actions.sh), and
+[`profile-zram.sh`](profile-zram.sh), and
 [`profile-confirm.templates`](profile-confirm.templates).
 The approved targeted `swapoff` path remains, with memory reserve and
 identity/activity rechecks. No partitioning commands occur in candidate

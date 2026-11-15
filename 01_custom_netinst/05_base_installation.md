@@ -1,5 +1,7 @@
 # 05 — Base Debian 13 installation: normal installer screens
 
+**Current source policy (2026-11-15):** All nonstandard base-system policies were removed from the default package queue and late command. Country `DE` and domain `dcf1007-world` are suggestions only; native installation prompts remain editable. Earlier design history may describe superseded assumptions.
+
 **Status:** agreed choices, to be entered or confirmed in the interactive installer. **Recorded:** 2026-11-14. **Provenance:** custom server installation-planning decisions.
 
 The base installation is Debian 13 Trixie **amd64**, minimal/headless, with **SSH server** and **Standard system utilities**, **without** a desktop environment. Native GUI suggestions for installer language, localization, identities, networking, time and task selection come from [profile_defaults.conf](my-cdd/profile_defaults.conf) regardless of optional profile selections. The USB boots graphical installer by default, waits for Enter, and retains text/rescue. The target server is UEFI/GPT, Secure Boot disabled. No custom BIOS boot check.
@@ -21,9 +23,8 @@ Root ext4 uses Debian's ordinary filesystem defaults, except for the **optional 
 ## Identity, credentials and networking
 
 - The **hostname, administrator username, DNS domain and wired DHCP suggestions** come from [profile_defaults.conf](my-cdd/profile_defaults.conf) and must be displayed in editable Debian Installer questions with explicit confirmation. The default local DNS domain is empty; the network uses router-side IP reservation. **None** of these GUI choices belongs to the Debian tweaks profile.
-- Prompt for the administrator password interactively and configure `sudo` access for the **actual confirmed username**, regardless of whether Debian tweaks or Ensure 7.x was selected.
-- **After** setting the installer-confirmed administrator account and sudo, enter a **separate root password** interactively **before first reboot**. No password or hash embedded in USB.
-- Initial SSH password authentication for the installer-confirmed administrator account. Root SSH login disabled (`PermitRootLogin no`).
+- Use Debian Installer native account, password, privilege and SSH choices. The base installation **does not** unconditionally configure sudo, require a separate root password, enable SSH password login, or write an SSH root-login override.
+- Additional account, SSH, update or emergency-access requirements apply only within explicitly selected profiles. ZRAM still verifies that its selected emergency-recovery requirement can be met.
 - No firewall filtering policy during installation; any selected Docker daemon remains disabled.
 
 ## Localization / time — normal installer GUI

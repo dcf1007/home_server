@@ -1,5 +1,7 @@
 # 07 — Selectable **Docker Engine** profile
 
+**Clarification (2026-11-15):** On Debian the Docker daemon usually starts automatically, including at boot. Keeping it disabled for the first boot is an explicit earlier user-selected configuration policy, **not** a prerequisite to successfully install Docker. OpenMediaVault's management services are not subject to this restriction. No Docker startup-policy change has been approved in this review.
+
 **Status:** official Docker signed-repository install and temporary Docker unit suppression are implemented as untested source. **No Docker installation or first-boot verification claimed.** **Recorded:** 2026-11-14. **Provenance:** user approval of Docker as independent installer option, with service/socket kept inactive through first boot.
 
 ## Purpose

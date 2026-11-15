@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, provided a graphical installer screenshot with seven profile statuses run together, reported another `zstd` failure with no profiles selected on an earlier ISO, and asked whether project-local `default.downloads` was hiding Simple-CDD's standard package list. Confirmed from upstream 0.6.9 source that the first matching profile file wins. Removed accidental `default.downloads` override, restored upstream `default.udebs` fallback, added build-only `installer-media.downloads` with `zstd`, restored the upstream `less` baseline in `default.packages`, and corrected the Debconf summary to preserve line breaks. Earlier build and installer incidents remain documented below.  
+**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, clarified that no custom base-system package or account policy is mandatory outside editable Debian Installer defaults, requested Germany and `dcf1007-world`, and approved a more minimal, CDD-native profile organization while preserving the one `UDebComponents` workaround. The full hardware-independent firmware inventory and per-package omission approvals remain; OMV is not suppressed on first boot, while Docker's existing manual-start policy awaits a separate decision. Historical fixes remain recorded below.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -163,6 +163,15 @@ remain open. The original embedded ZRAM source is retained.
 - **Display correction:** the seven status lines in `installer/profile-confirm.templates` now start with **two** continuation spaces, making them preformatted per Debian Debconf template conventions rather than joining them into one paragraph. The existing conditional status substitutions, choices, default-No confirmation and installer hook remain unchanged.
 - **Validation:** GitHub source inspection plus official upstream source/specification review; **no rebuilt ISO or GTK/text install test has been performed with this latest source**. The user explicitly reran an older ISO, so its recurring `zstd` error does not test the changed `installer-media.downloads`.
 
+## Authorized source reorganization (2026-11-15)
+
+- **Nearest user request:** Clarify Docker/OMV first-boot semantics and the firmware inventory; eliminate unconditional base policies; add editable German country and `dcf1007-world` domain defaults; streamline redundant Simple-CDD profile inputs; improve installer labels and organize selected-profile helpers. Runtime installation validation was deferred.
+- **Immutable architectural constraint:** Do not edit CDD-generated outputs, except the existing narrowly scoped `UDebComponents: main` -> `main contrib non-free-firmware` generated local mirror workaround and associated reprepro reconciliation. Upstream default downloads/udebs/packages are inherited.
+- **Changes:** removed local default package and descriptive overrides, duplicated sample defaults and seven comment-only optional package lists; separated optional assets into native per-profile `.extra` inputs; split the existing shared action file into a common helper and seven selected-only modules, without changing operation bodies. The unselected late-command path no longer enforces sudo, a root password, SSH root-login policy or manual APT updates.
+- **Defaults:** `DEFAULT_COUNTRY="DE"`; `DEFAULT_DOMAIN="dcf1007-world"`; language English, locale en_US.UTF-8, keyboard Spanish and timezone Europe/Berlin retained.
+- **Unchanged:** the entire Extended device support inventory is attempted regardless of detected hardware; version/source choices and omissions are conditional on signed repository compatibility and explicit approval. The build-only installer-media `zstd` request remains; no global target installation was added. Docker daemon/socket manual-start behavior remains pending clarification and separate authorization.
+- **Validation boundary:** Changes were made on a review branch, not merged into main. Neither the revised ISO nor real installer phases have been built or boot-tested.
+
 ## Actual implementation state
 
 **Not a validated ISO.** The seven optional profiles are described; their
@@ -177,7 +186,9 @@ OMV/Docker package service behavior, boot-menu changes and first-boot
 behavior remain unverified. That earlier source-writing turn did not perform an ISO build. Later on 2026-11-15, the user successfully built the ISO and tried the graphical installer, which failed at preseed loading. No installed-target package transaction or disk modification has been demonstrated. No mock/offline
 test harness was added.
 
-## Current tracked files (50)
+## Current tracked files (54)
+
+Source inventory at commit `c03c95c75429` before the documentation-only follow-up:
 
 - `.gitignore`
 - `README.md`
@@ -186,39 +197,43 @@ test harness was added.
 - `installer/IMPLEMENTATION_GATES.md`
 - `installer/README.md`
 - `installer/ordered-selection.sh`
-- `installer/profile-actions.sh`
+- `installer/profile-backports.sh`
+- `installer/profile-common.sh`
 - `installer/profile-confirm.sh`
 - `installer/profile-confirm.templates`
-- `installer/zram-selection.sh`
+- `installer/profile-docker.sh`
+- `installer/profile-firmware.sh`
+- `installer/profile-kernel.sh`
+- `installer/profile-omv.sh`
+- `installer/profile-tweaks.sh`
+- `installer/profile-zram.sh`
 - `installer/run-selected.sh`
+- `installer/zram-selection.sh`
 - `profile_defaults.conf`
-- `profile_defaults.conf.example`
 - `profiles/README.md`
 - `profiles/backports.description`
-- `profiles/backports.packages`
+- `profiles/backports.extra`
 - `profiles/backports.postinst`
 - `profiles/debian-tweaks.description`
-- `profiles/debian-tweaks.packages`
+- `profiles/debian-tweaks.extra`
 - `profiles/debian-tweaks.postinst`
-- `profiles/default.description`
 - `profiles/default.extra`
-- `profiles/default.packages`
 - `profiles/default.preseed`
 - `profiles/docker.description`
-- `profiles/docker.packages`
+- `profiles/docker.extra`
 - `profiles/docker.postinst`
 - `profiles/ensure-7x-kernel.description`
-- `profiles/ensure-7x-kernel.packages`
+- `profiles/ensure-7x-kernel.extra`
 - `profiles/ensure-7x-kernel.postinst`
 - `profiles/extended-device-support.description`
-- `profiles/extended-device-support.packages`
+- `profiles/extended-device-support.extra`
 - `profiles/extended-device-support.postinst`
 - `profiles/installer-media.downloads`
 - `profiles/openmediavault.description`
-- `profiles/openmediavault.packages`
+- `profiles/openmediavault.extra`
 - `profiles/openmediavault.postinst`
 - `profiles/zram-writeback.description`
-- `profiles/zram-writeback.packages`
+- `profiles/zram-writeback.extra`
 - `profiles/zram-writeback.postinst`
 - `scripts/10-compressed-writeback.conf`
 - `scripts/90-zram-swappiness.conf`

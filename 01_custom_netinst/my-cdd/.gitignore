@@ -2,3 +2,6 @@
 /images/
 /tmp/
 *.iso
+/build-mirror-debug.log
+/build-debug.log
+/build-terminal.log

@@ -1,5 +1,7 @@
 # Inputs for the selected Simple-CDD profiles
 
+**Current packaging (2026-11-15):** Sources stay under `scripts/`, but their ownership is declared through matching native `profiles/*.extra` manifests rather than one global manifest. Source assets are present on the ISO but applied to the target only when selected.
+
 These files are optional-profile assets, **not independent installer operations**. They are installed only when their corresponding optional profile is explicitly selected; the earlier build-host-only reprepro wrapper has been removed.
 
 - `firmware-candidates.txt` — broad firmware list and **both** CPU microcode
@@ -17,7 +19,7 @@ These files are optional-profile assets, **not independent installer operations*
   their runtime compatibility and first-boot behavior remain untested.
 
 The installed-target package transaction and ZRAM conversion/provisioning source
-exist in `../installer/profile-actions.sh`, but have **not been exercised or
+exist in `../installer/profile-zram.sh` (with shared helpers in `../installer/profile-common.sh`), but have **not been exercised or
 validated in a real installer**. The generator `.template` name is deliberate:
 `YOUR_PARTUUID` is replaced with the verified partition identity and the
 installed target receives `/etc/systemd/zram-generator.conf`. No unrelated test harnesses
