@@ -119,10 +119,13 @@ These are **udeb** indexes under `dists/trixie/<component>/debian-installer/bina
 
 The repository's `my-cdd/build.sh` performs the following sequence, preserving its fail-closed selected-profile checks:
 
-1. Run `build-simple-cdd --mirror-only` to create the local mirror.
-2. Verify the expected reprepro configuration, then change `UDebComponents: main` to `UDebComponents: main contrib non-free-firmware` **in that generated local mirror only**.
-3. Run `reprepro update` and require existing `Packages.gz` or `Packages.xz` installer indexes for both additional components; otherwise stop without building the ISO.
-4. Run `build-simple-cdd --build-only` to assemble the ISO.
+1. **On repeat builds**, reconcile stale installer-udeb database targets in the generated local mirror: restore the expected `UDebComponents: main` configuration and run `reprepro --delete clearvanished` against **`tmp/mirror` only**. The initial mirror and package-cache files are retained; unexpected configurations cause a fail-closed error.
+2. Run `build-simple-cdd --mirror-only` to prepare the mirror.
+3. Verify the expected reprepro configuration, then change `UDebComponents: main` to `UDebComponents: main contrib non-free-firmware` **in that generated local mirror only**.
+4. Run `reprepro update` and require existing `Packages.gz` or `Packages.xz` installer indexes for both additional components; otherwise stop without building the ISO.
+5. Run `build-simple-cdd --build-only` to assemble the ISO.
+
+**Observed repeat-build failure (2026-11-15, 15:13 CET):** `reprepro` exited 255 because the previous expanded installer-component configuration left an unused `u|trixie|contrib|amd64` database. That build stopped in `--mirror-only`; its older `build-debug` and `build-debian-cd` files were **not evidence of a new ISO**. The new preflight reconciliation is a proposed repair and **has not yet been tested in the user's VM**.
 
 The ordinary mirror components remain `main contrib non-free non-free-firmware`. The Debian-CD firmware component is set separately in `simple-cdd.conf` using `export NONFREE_COMPONENTS="non-free-firmware"`. Both build stages run with `--debug`; Bash `pipefail` ensures a failing stage is not hidden by `tee`.
 
