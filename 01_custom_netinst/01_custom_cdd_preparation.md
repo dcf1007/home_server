@@ -1,6 +1,6 @@
 # 01 — Customized netinst / Simple-CDD preparation
 
-**Status (2026-11-15):** installer-only ISO successfully built (~395 MiB, 414,187,520 bytes). An initial graphical boot reached preseed loading but failed with early-command exit code 2; **installation and custom profile workflow remain unvalidated**. The supplementary-file packaging has since been corrected in source and awaits a new build/boot test. **Original design recorded:** 2026-11-14. **Provenance:** custom server Debian 13 planning conversation, the request to document custom netinst preparation, and build logs supplied on 2026-11-15.
+**Status (2026-11-15):** the earlier 395 MiB installer-only image built, but the graphical installer failed during early preseed execution and, after that was corrected, during **base-system debootstrap**. The new source switches to `INSTALLER_CD="2"` (base-system netinst) and wires editable defaults from `profile_defaults.conf`. **These latest changes are not yet ISO-built or installation-tested**. **Original design recorded:** 2026-11-14. **Provenance:** custom server Debian 13 planning conversation, the request to document custom netinst preparation, and build logs supplied on 2026-11-15.
 
 ## Purpose
 
@@ -48,14 +48,14 @@ Simple-CDD supports selectable profiles, typically expressed using files such as
 
 ## Canonical editable installer GUI defaults
 
-The normal Debian Installer questions use **[profile_defaults.conf](my-cdd/profile_defaults.conf)** as the planning source of suggested defaults. It now contains:
+The normal Debian Installer questions use **[profile_defaults.conf](my-cdd/profile_defaults.conf)** as the canonical editable source. `my-cdd/build.sh` now converts its values into an included preseed and early boot parameters; the generated behavior is still untested in a new ISO. The file contains:
 
 - Editable example **hostname** and administrator **username**; an empty DNS domain.
 - **English** installer language, **`en_US.UTF-8`** locale and **Spanish (Spain)** keyboard.
 - **`Europe/Berlin`** time zone with the hardware real-time clock in **UTC**.
 - Wired **DHCP** networking and the minimal/headless software selection: **SSH server + Standard system utilities**, no desktop.
 
-The matching [`profile_defaults.conf.example`](my-cdd/profile_defaults.conf.example) is a reference example, not a second source of truth. No GUI-editable setting should be implemented only inside Debian tweaks. Prompt the user on the normal installer screens, allow edits, require confirmation, and propagate the confirmed values throughout the installed system. **Do not silently preseed answers, bypass installer screens or freeze values in profile post-install scripts**; the exact mapping from these symbolic config names to Debian Installer questions requires engineering validation.
+The matching [`profile_defaults.conf.example`](my-cdd/profile_defaults.conf.example) is a reference example, not a second source of truth. No GUI-editable setting should be implemented only inside Debian tweaks. Prompt the user on the normal installer screens, allow edits, require confirmation, and propagate the confirmed values throughout the installed system. **Supply defaults without hiding questions:** the generated preseed sets answers and resets Debconf `seen` flags to `false`; earlier language/locale and keyboard defaults use `?=` boot syntax. Keep all ordinary installer screens and confirmable disk/account operations. Validate the mapping and UI behavior in a disposable VM before release.
 
 **Do not store passwords, hashes, disk targets or selected-profile flags** in either defaults file. Only non-default boot, filesystem, recovery, SSH and update-policy settings remain in the optional Debian tweaks profile. Both Intel/AMD microcode packages and additional proactive firmware belong to the separate optional [Extended device support](10_extended_device_support.md) profile. When Backports is already selected, prefer eligible Backports firmware and **both** microcode package versions first through selective per-package requests, and fall back to normal repository candidates if needed. Keep global Backports priority **100**; simulate the full package set and require individual, explicitly approved omissions.
 
@@ -87,7 +87,24 @@ cd 01_custom_netinst/my-cdd
 ./build.sh
 ```
 
-The resulting installer-only image is `my-cdd/images/debian-13-amd64-CD-1.iso` relative to `01_custom_netinst/`. `INSTALLER_CD="1"` keeps the image small and obtains the target system's packages from the network mirror. This is **not** an offline full-installation ISO. The build requires working network access and Debian archive availability.
+The resulting netinst image is `my-cdd/images/debian-13-amd64-CD-1.iso` relative to `01_custom_netinst/`. **`INSTALLER_CD="2"` includes Debian Installer and the base system**; further packages use the network mirror. The earlier `INSTALLER_CD="1"` produced a smaller installer-only image, but it failed at debootstrap in the user's VM. The new netinst is expected to be larger and still requires working network access and Debian archive availability for additional packages.
+
+### Editable default values and when they apply
+
+`profile_defaults.conf` is now read **each time** `./build.sh` executes. Its values are converted into:
+- `tmp/generated/simple-cdd.conf` with early `KERNEL_PARAMS` using `?=` for the language, locale, derived country and Spanish keyboard. These questions normally occur before CD preseeding.
+- `tmp/generated/defaults.preseed` with hostname, administrator username, UTC clock, timezone and tasksel answers, followed by `seen false` so the questions remain editable. `profiles/default.preseed` references this included file, which is packaged via `profiles/default.extra`.
+
+DHCP stays Debian Installer's native default. An empty domain is left for ordinary installer/DHCP handling; passwords and disk targets are deliberately not preconfigured. The renderer currently rejects unsupported nonempty keyboard variants or non-DHCP network modes instead of silently ignoring them. Only change `profile_defaults.conf`, not the generated files.
+
+```sh
+cd ~/Desktop/home_server/01_custom_netinst/my-cdd
+./build.sh
+cat tmp/generated/defaults.preseed
+grep '^export KERNEL_PARAMS=' tmp/generated/simple-cdd.conf
+```
+
+The wrapper checks preseed syntax and confirms the generated `defaults.preseed` was copied into the staged ISO tree and referenced from `default.preseed`. **These are static checks**, not proof that the graphical installer will display or retain the defaults correctly; that remains a VM validation gate.
 
 ### Why the build wrapper has two stages
 
@@ -133,11 +150,11 @@ grep -F 'Missing package file for' build-terminal.log || true
 ls -lh images/debian-13-amd64-CD-1.iso
 ```
 
-**Observed on 2026-11-15 (user's Debian VM logs):** both stages completed, both previously missing installer-component messages were absent, and Debian-CD wrote an image of **414,187,520 bytes (395 MiB)** with exit status **0**. This verifies **build and index generation**, not BIOS/UEFI boot, profile-selection GUI, preseed timing, package installation, ZRAM safety or first boot.
+**Observed on 2026-11-15 (old installer-only build):** both stages completed, both previously missing installer-component messages were absent, and Debian-CD wrote an image of **414,187,520 bytes (395 MiB)** with exit status **0**. A later VM test failed at base-system installation, so this old build is **not** a valid netinst acceptance result. No ISO size or boot outcome for the newly configured `INSTALLER_CD="2"` build has been measured.
 
 **Separate warnings remain** in the successful build: unavailable `task-desktop` causing repeated `default_desktop` messages, missing `installation-guide-amd64`, missing installer-source `MD5SUMS`, and nonfatal ISO filesystem warnings. These must be assessed independently; they are not evidence that the installer-component fix failed. Do not add a desktop or disable checks merely to silence warnings.
 
-**Implementation source progress (2026-11-15):** [`my-cdd/`](my-cdd/README.md) contains the seven selectable profiles, early profile-summary hook, late-command ordered executor, package/ZRAM/OMV/Docker routines and completion checks. **An ISO now builds**, but the full installer workflow is **not validated**. Early/late Debconf timing, ZRAM conversion, OMV networking, package transactions, boot menu and first-boot behavior remain engineering checks.
+**Implementation source progress (2026-11-15):** [`my-cdd/`](my-cdd/README.md) contains the seven selectable profiles, early profile-summary hook, late-command ordered executor, package/ZRAM/OMV/Docker routines and completion checks. **An earlier installer-only ISO built but failed at base-system installation**; the new netinst and editable-default changes are awaiting their first build and test. Early/late Debconf timing, ZRAM conversion, OMV networking, package transactions, boot menu and first-boot behavior remain engineering checks.
 
 Source layout (the release tests and verified target-side installer behavior are still missing):
 
