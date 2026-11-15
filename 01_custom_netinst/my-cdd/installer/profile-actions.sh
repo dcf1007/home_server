@@ -343,7 +343,7 @@ profile_zram() {
         fatal 'Converted GPT PARTLABEL not visible'
     [ "$(lsblk -dnro PARTTYPE "$device" | tr '[:upper:]' '[:lower:]')" = 0fc63daf-8483-4772-8e79-3d69d8477de4 ] ||
         fatal 'Confirmed partition has the wrong GPT type after conversion'
-    [ -z "$(blkid -s TYPE -o value "$device" 2>/dev/null || true)" ] ||
+    [ -z "$(blkid -p -s TYPE -o value "$device" 2>/dev/null || true)" ] ||
         fatal 'Backing partition still has a filesystem/swap signature'
     if lsblk -dnro MOUNTPOINTS "$device" |
         grep -Ev '^[[:space:]]*$' | grep -q .; then
