@@ -1,8 +1,18 @@
 # 08 — Validation gates, decisions deferred, and release checklist
 
-**Status:** open engineering checklist; no installer artifact built or tested. **Recorded:** 2026-11-14. **Provenance:** conversation decisions and uploaded ZRAM compressed-writeback proposal.
+**Status (2026-11-15):** open engineering checklist; installer-only ISO **built**, but **not boot-tested or installation-validated**. **Original checklist recorded:** 2026-11-14. **Provenance:** conversation decisions, uploaded ZRAM compressed-writeback proposal and user-supplied build logs.
 
-**Implementation progress (2026-11-14):** The [`my-cdd/`](my-cdd/README.md) project now contains **source/configuration/provenance files**, including initial Simple-CDD configuration, default preseed/udebs, seven selectable profiles, the approved early Debconf confirmation source, firmware inventory and ZRAM source assets. **This is untested source, not a working installer:** optional `.packages` queues remain intentionally empty; selected `.postinst` scripts now verify completion by the installer-stage dispatcher, which implements the required operations and prompts in source. The ISO, GTK/text confirmations, actual package and ZRAM transactions, and first boot have **not** been validated. Unrequested offline tests, unused inspection wrappers and artificial build markers were removed following explicit approval. See [mandatory integration gates](my-cdd/installer/IMPLEMENTATION_GATES.md) and [source manifest](my-cdd/SOURCE_MANIFEST.md).
+**Implementation progress (2026-11-15):** The [`my-cdd/`](my-cdd/README.md) project contains Simple-CDD source/configuration files, default preseed/udebs, seven selectable profiles, approved early Debconf confirmation source, firmware inventory and ZRAM assets. Optional `.packages` queues remain intentionally empty; selected `.postinst` scripts verify completion by the installer-stage dispatcher, which implements profile operations and prompts in source. **A 395 MiB ISO was built successfully in the user's Debian VM, but no live GTK/text installation, actual package/ZRAM transaction, or first boot has been validated.** Unrequested offline tests, unused inspection wrappers and artificial build markers were removed following explicit approval. See [mandatory integration gates](my-cdd/installer/IMPLEMENTATION_GATES.md) and [source manifest](my-cdd/SOURCE_MANIFEST.md).
+
+## Completed build-stage checks (15 November 2026)
+
+- **Verified:** the Simple-CDD build uses `INSTALLER_CD="1"`, the local mirror carries ordinary `main contrib non-free non-free-firmware` packages, and `NONFREE_COMPONENTS="non-free-firmware"` is recognized by Debian-CD.
+- **Verified in the user's VM logs:** two-stage `build.sh` (`--mirror-only`, update generated reprepro `UDebComponents`, `reprepro update`, verify both additional installer indexes, `--build-only`) completed; the earlier `Missing package file for amd64/contrib` and `.../non-free-firmware` messages no longer occurred.
+- **Verified:** Debian-CD returned exit code `0` and wrote `images/debian-13-amd64-CD-1.iso` (414,187,520 bytes, **395 MiB**). This is **build-only validation**, not a successful installer test.
+- **Still visible in the logs:** `task-desktop` / `default_desktop` task-generation warnings, absent `installation-guide-amd64`, missing source `MD5SUMS`, and Joliet warnings. Assess these separately; no desktop environment is required simply to silence them.
+- **Not yet verified:** boot menu, UEFI and BIOS execution, graphical and text installer functionality, early/late Debconf hooks, all selected profiles, manual partitioning and ZRAM safety, network installation, USB use, and first boot.
+
+The exact reproducible build commands, logging paths and installer-index checks are in [01 — preparation and build](01_custom_cdd_preparation.md).
 
 ## Installation profile acceptance matrix
 
