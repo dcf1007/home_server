@@ -18,11 +18,66 @@ for hook in profiles/*.postinst; do
     }
 done
 
+# Derive both the early boot defaults and later editable Debconf answers from
+# the single canonical profile_defaults.conf. Do not modify tracked source files.
+. ./profile_defaults.conf
+for key in DEFAULT_HOSTNAME DEFAULT_ADMIN_USERNAME DEFAULT_LANGUAGE DEFAULT_LOCALE \
+           DEFAULT_KEYBOARD_LAYOUT DEFAULT_KEYBOARD_VARIANT DEFAULT_TIMEZONE \
+           DEFAULT_RTC_UTC DEFAULT_NETWORK_METHOD DEFAULT_TASKSEL_TASKS DEFAULT_DOMAIN; do
+    [ "${!key+x}" = x ] || { printf >&2 'my-cdd: unset default %s\n' "$key"; exit 1; }
+done
+[[ "$DEFAULT_HOSTNAME" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]*$ ]] &&
+[[ "$DEFAULT_ADMIN_USERNAME" =~ ^[a-z_][a-z0-9_-]*$ ]] &&
+[[ "$DEFAULT_LANGUAGE" =~ ^[a-z]{2}$ ]] &&
+[[ "$DEFAULT_LOCALE" =~ ^[a-z]{2}_[A-Z]{2}\.UTF-8$ ]] &&
+[[ "$DEFAULT_KEYBOARD_LAYOUT" =~ ^[a-z]{2}$ ]] &&
+[[ -z "$DEFAULT_KEYBOARD_VARIANT" ]] &&
+[[ "$DEFAULT_TIMEZONE" =~ ^[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)+$ ]] &&
+[[ "$DEFAULT_RTC_UTC" == true || "$DEFAULT_RTC_UTC" == false ]] &&
+[[ "$DEFAULT_NETWORK_METHOD" == dhcp ]] &&
+[[ "$DEFAULT_TASKSEL_TASKS" =~ ^[a-z0-9-]+(,[a-z0-9-]+)*$ ]] &&
+[[ -z "$DEFAULT_DOMAIN" || "$DEFAULT_DOMAIN" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]] || {
+    printf >&2 'my-cdd: invalid installer defaults (or unsupported keyboard variant/network mode)\n'
+    exit 1
+}
+[ "$DEFAULT_LANGUAGE" = "${DEFAULT_LOCALE%%_*}" ] || {
+    printf >&2 'my-cdd: language and locale do not agree\n'
+    exit 1
+}
+default_country="${DEFAULT_LOCALE#*_}"
+default_country="${default_country%%.*}"
+mkdir -p ./tmp/generated
+{
+    printf '# Generated from profile_defaults.conf; questions remain editable.\n'
+    printf 'd-i netcfg/get_hostname string %s\n' "$DEFAULT_HOSTNAME"
+    printf 'd-i netcfg/get_hostname seen false\n'
+    if [ -n "$DEFAULT_DOMAIN" ]; then
+        printf 'd-i netcfg/get_domain string %s\n' "$DEFAULT_DOMAIN"
+        printf 'd-i netcfg/get_domain seen false\n'
+    fi
+    printf 'd-i passwd/username string %s\n' "$DEFAULT_ADMIN_USERNAME"
+    printf 'd-i passwd/username seen false\n'
+    printf 'd-i clock-setup/utc boolean %s\n' "$DEFAULT_RTC_UTC"
+    printf 'd-i clock-setup/utc seen false\n'
+    printf 'd-i time/zone string %s\n' "$DEFAULT_TIMEZONE"
+    printf 'd-i time/zone seen false\n'
+    printf 'tasksel tasksel/first multiselect %s\n' "${DEFAULT_TASKSEL_TASKS//,/, }"
+    printf 'tasksel tasksel/first seen false\n'
+} > ./tmp/generated/defaults.preseed
+debconf-set-selections --checkonly ./tmp/generated/defaults.preseed
+
+# Locale and keyboard are asked before an ISO-based preseed can be loaded.
+# Debian Installer's ?= boot syntax supplies a default WITHOUT hiding the UI.
+build_conf=./tmp/generated/simple-cdd.conf
+cp ./simple-cdd.conf "$build_conf"
+printf '\n# Generated from profile_defaults.conf for early editable prompts.\nexport KERNEL_PARAMS="debian-installer/language?=%s debian-installer/country?=%s debian-installer/locale?=%s keyboard-configuration/xkb-keymap?=%s"\n' \
+    "$DEFAULT_LANGUAGE" "$default_country" "$DEFAULT_LOCALE" "$DEFAULT_KEYBOARD_LAYOUT" >> "$build_conf"
+
 # Simple-CDD's reprepro mirror otherwise limits installer udebs to main,
 # while Debian-CD also checks contrib and non-free-firmware udeb indexes.
 {
     build-simple-cdd \
-        --conf ./simple-cdd.conf \
+        --conf "$build_conf" \
         --dist trixie \
         --mirror-only \
         --debug \
@@ -44,7 +99,7 @@ done
     done
 
     build-simple-cdd \
-        --conf ./simple-cdd.conf \
+        --conf "$build_conf" \
         --dist trixie \
         --build-only \
         --debug \
