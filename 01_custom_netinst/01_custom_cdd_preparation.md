@@ -1,6 +1,6 @@
 # 01 — Customized netinst / Simple-CDD preparation
 
-**Status (2026-11-15):** the earlier 395 MiB installer-only image built, but the graphical installer failed during early preseed execution and, after that was corrected, during **base-system debootstrap**. The new source switches to `INSTALLER_CD="2"` (base-system netinst) and wires editable defaults from `profile_defaults.conf`. **These latest changes are not yet ISO-built or installation-tested**. **Original design recorded:** 2026-11-14. **Provenance:** custom server Debian 13 planning conversation, the request to document custom netinst preparation, and build logs supplied on 2026-11-15.
+**Status (2026-11-15):** the two-stage `INSTALLER_CD="2"` netinst successfully built a 408 MiB ISO (509 packages), and its graphical installer progressed through debootstrap into base-system package installation. It then failed to install **`zstd`**, which was not available from the target's CD-only APT source. `profiles/default.packages` now explicitly lists `zstd`, and the builder fails if the staged ISO lacks its APT index entry or package archive. **That correction requires a new build and installation test**; editable defaults and optional profiles remain unverified. **Original design recorded:** 2026-11-14. **Provenance:** custom server Debian 13 planning conversation, the request to document custom netinst preparation, and build logs supplied on 2026-11-15.
 
 ## Purpose
 
@@ -87,7 +87,7 @@ cd 01_custom_netinst/my-cdd
 ./build.sh
 ```
 
-The resulting netinst image is `my-cdd/images/debian-13-amd64-CD-1.iso` relative to `01_custom_netinst/`. **`INSTALLER_CD="2"` includes Debian Installer and the base system**; further packages use the network mirror. The earlier `INSTALLER_CD="1"` produced a smaller installer-only image, but it failed at debootstrap in the user's VM. The new netinst is expected to be larger and still requires working network access and Debian archive availability for additional packages.
+The resulting netinst image is `my-cdd/images/debian-13-amd64-CD-1.iso` relative to `01_custom_netinst/`. **`INSTALLER_CD="2"` includes Debian Installer and the base system**; further packages use the network mirror. The earlier `INSTALLER_CD="1"` produced a smaller installer-only image, but it failed at debootstrap in the user's VM. The latest netinst image measured 408 MiB and still requires working network access and Debian archive availability for additional packages. Its current version fails during `zstd` installation, so a corrected ISO must be rebuilt.
 
 ### Editable default values and when they apply
 
@@ -124,9 +124,17 @@ Those paths are under `dists/trixie/<component>/debian-installer/binary-amd64/`,
 
 Both stages and the explicit reprepro commands appear in the combined `build-terminal.log`. Bash `pipefail` propagates stage failures despite `tee`. All Debian package/firmware component settings, including `INSTALLER_CD="2"` and `NONFREE_COMPONENTS="non-free-firmware"`, are preserved.
 
-**Evidence and limitations:** On 2026-11-15, the earlier **two-stage installer-only** build generated the additional udeb indexes without the missing-component warnings, but that ISO later failed at base-system installation. The newer netinst mode and editable-default generation have **not** yet completed a verified build/boot cycle. A later repeat build stopped during the mirror stage because of stale reprepro database targets; the cleanup above is intended to resolve that independently. The retired single-run wrapper was removed on request in favor of maintainability.
+**Evidence and limitations:** On 2026-11-15, the earlier **two-stage installer-only** build generated the additional udeb indexes without the missing-component warnings, but that ISO later failed at base-system installation. The newer netinst mode generated a 408 MiB ISO and reached graphical base installation but failed when `zstd` was unavailable on CD. A later repeat build stopped during the mirror stage because of stale reprepro database targets; the cleanup above is intended to resolve that independently. The retired single-run wrapper was removed on request in favor of maintainability.
 
 **Installer-file packaging correction (after first graphical boot):** the former relative `all_extras="installer/..."` paths were interpreted after Simple-CDD changed to its Debian-CD workspace. The upstream extra-file copy loop silently skips unreadable files; the early-command invocation of `/cdrom/simple-cdd/profile-confirm.sh` then failed with exit code 2, consistent with a missing script. The repository now uses `profiles/default.extra`: Simple-CDD resolves its file entries to absolute source paths. The build wrapper checks every packaged source asset against the staged CD directory and fails if any are missing or different. **The new packaging has not yet been verified in a rebuilt ISO.**
+
+### Base-installer package availability: `zstd` (2026-11-15)
+
+A graphical VM test of the corrected 408 MiB netinst reached **Install the base system**, successfully installed `busybox` from `cdrom:`, then failed with `E: Package 'zstd' has no installation candidate`. The earlier mirror logs contained `libzstd1` and `libzstd1-udeb`, but **not the separate `zstd` command-line package**. Debian 13 provides `zstd` in `main`; the local CD's subset omitted it. This was not caught by Debian-CD's `Found all files needed for debootstrap and kernel` message.
+
+The minimal correction is to include `zstd` in the existing mandatory `profiles/default.packages`, available regardless of which optional profiles the user selects. After ISO assembly, `build.sh` reads the staged `dists/trixie/main/binary-amd64/Packages.gz`, finds the exact `Package: zstd` record and its `Filename`, and requires that the referenced package archive is nonempty in `CD1`. If either check fails, the build stops. It does **not** modify installer APT sources, hard-code a third-party mirror, select optional profiles, or replace the two-stage builder.
+
+**Validation boundary:** a rebuilt ISO is required to confirm the package was actually placed and can be installed in the target. Full base-system installation and first boot remain unverified.
 
 ### Logs and checks after a build
 
