@@ -1,6 +1,6 @@
 # 01 — Customized netinst / Simple-CDD preparation
 
-**Status:** installation design, **not** a built or tested ISO. **Recorded:** 2026-11-14. **Provenance:** custom server Debian 13 server planning conversation and the request to document custom netinst preparation.
+**Status (2026-11-15):** installer-only ISO successfully built (~395 MiB, 414,187,520 bytes); **not boot-tested or installation-validated**. **Original design recorded:** 2026-11-14. **Provenance:** custom server Debian 13 planning conversation, the request to document custom netinst preparation, and build logs supplied on 2026-11-15.
 
 ## Purpose
 
@@ -59,19 +59,85 @@ The matching [`profile_defaults.conf.example`](my-cdd/profile_defaults.conf.exam
 
 **Do not store passwords, hashes, disk targets or selected-profile flags** in either defaults file. Only non-default boot, filesystem, recovery, SSH and update-policy settings remain in the optional Debian tweaks profile. Both Intel/AMD microcode packages and additional proactive firmware belong to the separate optional [Extended device support](10_extended_device_support.md) profile. When Backports is already selected, prefer eligible Backports firmware and **both** microcode package versions first through selective per-package requests, and fall back to normal repository candidates if needed. Keep global Backports priority **100**; simulate the full package set and require individual, explicitly approved omissions.
 
-## Planned build-host setup
+## Build-host setup and reproducible ISO build
 
-On a compatible Debian build machine, check the installed tools and their versions before use:
+On a compatible Debian build machine, install the build tools (using `apt` consistently):
 
 ```sh
 sudo apt update
-sudo apt install simple-cdd
+sudo apt install git simple-cdd reprepro
 build-simple-cdd --help
 ```
 
-**Implementation source progress (2026-11-15):** [`my-cdd/`](my-cdd/README.md) now contains the seven selectable native Simple-CDD profiles, approved early profile-summary hook, normal late-command ordered profile executor, reviewed package/ZRAM/OMV/Docker routines and target-side completion checks. **No ISO has been built or tested**; this is not a validated installer. Early/late Debconf timing, ZRAM conversion, OMV networking, package transactions, boot menu and first-boot behavior remain actual engineering checks.
+Clone the repository **once** (or skip the clone if it is already present):
 
-Source layout (the planned production executor, native installer packaging and release tests are still missing):
+```sh
+cd ~/Desktop
+git clone https://github.com/dcf1007/home_server.git
+cd home_server/01_custom_netinst/my-cdd
+./build.sh
+```
+
+For subsequent repository updates and builds:
+
+```sh
+cd ~/Desktop/home_server
+git pull --ff-only
+cd 01_custom_netinst/my-cdd
+./build.sh
+```
+
+The resulting installer-only image is `my-cdd/images/debian-13-amd64-CD-1.iso` relative to `01_custom_netinst/`. `INSTALLER_CD="1"` keeps the image small and obtains the target system's packages from the network mirror. This is **not** an offline full-installation ISO. The build requires working network access and Debian archive availability.
+
+### Why the build wrapper has two stages
+
+Simple-CDD 0.6.9 and 0.6.10 can generate a local reprepro mirror with `UDebComponents: main` despite `mirror_components="main contrib non-free non-free-firmware"`. Debian-CD then checks the additional **Debian Installer udeb** indexes and prints:
+
+```text
+Missing package file for amd64/contrib.
+Missing package file for amd64/non-free-firmware.
+```
+
+These are **udeb** indexes under `dists/trixie/<component>/debian-installer/binary-amd64/`, not the ordinary `binary-amd64/Packages.gz` indexes. The fix does not depend on downgrading Simple-CDD.
+
+The repository's `my-cdd/build.sh` performs the following sequence, preserving its fail-closed selected-profile checks:
+
+1. Run `build-simple-cdd --mirror-only` to create the local mirror.
+2. Verify the expected reprepro configuration, then change `UDebComponents: main` to `UDebComponents: main contrib non-free-firmware` **in that generated local mirror only**.
+3. Run `reprepro update` and require existing `Packages.gz` or `Packages.xz` installer indexes for both additional components; otherwise stop without building the ISO.
+4. Run `build-simple-cdd --build-only` to assemble the ISO.
+
+The ordinary mirror components remain `main contrib non-free non-free-firmware`. The Debian-CD firmware component is set separately in `simple-cdd.conf` using `export NONFREE_COMPONENTS="non-free-firmware"`. Both build stages run with `--debug`; Bash `pipefail` ensures a failing stage is not hidden by `tee`.
+
+### Logs and checks after a build
+
+All paths below are relative to `my-cdd/`:
+
+| Path | Purpose |
+|---|---|
+| `build-mirror-debug.log` | Simple-CDD mirror-stage debug output |
+| `build-debug.log` | Simple-CDD ISO-stage debug output |
+| `build-terminal.log` | Combined terminal output, including the explicit reprepro update |
+| `tmp/log/mirror-reprepro` and `tmp/log/build-debian-cd` | Individual underlying tool logs; upload the `.log` copies if that is how they were exported |
+| `images/debian-13-amd64-CD-1.iso` | Generated installer-only ISO |
+
+```sh
+cd ~/Desktop/home_server/01_custom_netinst/my-cdd
+grep '^UDebComponents:' tmp/mirror/conf/distributions
+for component in contrib non-free-firmware; do
+    ls -lh "tmp/mirror/dists/trixie/$component/debian-installer/binary-amd64"/Packages.*
+done
+grep -F 'Missing package file for' build-terminal.log || true
+ls -lh images/debian-13-amd64-CD-1.iso
+```
+
+**Observed on 2026-11-15 (user's Debian VM logs):** both stages completed, both previously missing installer-component messages were absent, and Debian-CD wrote an image of **414,187,520 bytes (395 MiB)** with exit status **0**. This verifies **build and index generation**, not BIOS/UEFI boot, profile-selection GUI, preseed timing, package installation, ZRAM safety or first boot.
+
+**Separate warnings remain** in the successful build: unavailable `task-desktop` causing repeated `default_desktop` messages, missing `installation-guide-amd64`, missing installer-source `MD5SUMS`, and nonfatal ISO filesystem warnings. These must be assessed independently; they are not evidence that the installer-component fix failed. Do not add a desktop or disable checks merely to silence warnings.
+
+**Implementation source progress (2026-11-15):** [`my-cdd/`](my-cdd/README.md) contains the seven selectable profiles, early profile-summary hook, late-command ordered executor, package/ZRAM/OMV/Docker routines and completion checks. **An ISO now builds**, but the full installer workflow is **not validated**. Early/late Debconf timing, ZRAM conversion, OMV networking, package transactions, boot menu and first-boot behavior remain engineering checks.
+
+Source layout (the release tests and verified target-side installer behavior are still missing):
 
 ```text
 my-cdd/
@@ -104,7 +170,7 @@ my-cdd/
   build.sh
 ```
 
-Verify actual Simple-CDD syntax and how profile questions are presented in this release before producing the installer. **The user creates or reuses an existing GPT swap partition manually in ordinary Debian Installer partitioning.** **At the start of the selected ZRAM profile execution**, its first task is to identify the uniquely assigned swap partition in the installed target's `/etc/fstab`, or offer a native GTK/text Debconf selection of verified eligible partitions when that mapping is ambiguous; **immediately after explicit confirmation**, convert only that partition to GPT **8300**, PARTLABEL **`zram-writeback`**, raw/unformatted writeback backing, with no independent swap activation. **If the selected partition is already active as swap, request explicit consent for a targeted `swapoff` after checking memory safety and proceed only upon successful, verified deactivation; otherwise stop before changing the partition.** Do this before other ZRAM provisioning or first boot, not in the normal partitioner. When ZRAM is not selected, the partition remains ordinary swap. The target example is 16 GB, but use the actual user-confirmed capacity and PARTUUID rather than requiring an automatically created partition. If ZRAM is selected and **no** eligible partition exists, the late-stage profile currently stops without disk modification; actual native navigation back to partitioning or deselection remains an unverified release gate. Never silently add/repartition a disk or proceed with ZRAM using no backing partition. Validate the menu navigation, partman formatting/activation timing, fstab treatment and explicit consent before implementation.
+Verify actual Simple-CDD profile questions and integration inside a disposable VM before treating the generated ISO as ready for installation. **The user creates or reuses an existing GPT swap partition manually in ordinary Debian Installer partitioning.** **At the start of the selected ZRAM profile execution**, its first task is to identify the uniquely assigned swap partition in the installed target's `/etc/fstab`, or offer a native GTK/text Debconf selection of verified eligible partitions when that mapping is ambiguous; **immediately after explicit confirmation**, convert only that partition to GPT **8300**, PARTLABEL **`zram-writeback`**, raw/unformatted writeback backing, with no independent swap activation. **If the selected partition is already active as swap, request explicit consent for a targeted `swapoff` after checking memory safety and proceed only upon successful, verified deactivation; otherwise stop before changing the partition.** Do this before other ZRAM provisioning or first boot, not in the normal partitioner. When ZRAM is not selected, the partition remains ordinary swap. The target example is 16 GB, but use the actual user-confirmed capacity and PARTUUID rather than requiring an automatically created partition. If ZRAM is selected and **no** eligible partition exists, the late-stage profile currently stops without disk modification; actual native navigation back to partitioning or deselection remains an unverified release gate. Never silently add/repartition a disk or proceed with ZRAM using no backing partition. Validate the menu navigation, partman formatting/activation timing, fstab treatment and explicit consent before implementation.
 
 ## Non-negotiable safeguards
 
@@ -139,7 +205,7 @@ Verify actual Simple-CDD syntax and how profile questions are presented in this 
 - Test **full/unredacted** log persistence attempts to the **confirmed** `/target/var/log/installer/` and, independently, a **safe writable section of the same installer USB**. Verify restrictive permissions where supported, warnings where USB filesystems cannot provide them, sensitive-content warnings, and that failures do not hide on-screen diagnostics/manual export or trigger media repartitioning/formatting.
 
 - **No installer-media verification:** as explicitly requested, do not require source-image checksum/signature checks, generated-ISO hashing, USB read-back/comparison, or a verification-only boot test. This does not change signed APT repository enforcement or the separate functional requirements of the installer.
-- Generate the customized ISO and write it to the USB. Preserve the specified UEFI, BIOS, graphical, text and rescue functionality; do not add a separate media-integrity verification procedure.
+- **Build completed; USB and runtime tests pending:** the customized ISO was generated successfully on 2026-11-15, but USB writing and functional tests of UEFI, BIOS, graphical, text and rescue modes remain pending. Do not add a separate media-integrity verification procedure.
 - Test each optional profile alone and in permitted combinations, including **fail-stop behavior**, diagnostic availability and manual recovery paths. **Do not build or imply rollback functionality**.
 - Test offline/failed repository behavior, third-party key checks, package resolution, root and sudo login, GRUB settings and correct target-disk selection.
 - Confirm OMV does not reinstate root SSH access and does not block the installer-confirmed administrator account access.
