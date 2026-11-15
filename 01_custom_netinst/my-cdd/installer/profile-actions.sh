@@ -242,113 +242,94 @@ profile_firmware() {
 }
 
 
-# ZRAM: the FIRST operation is the approved, user-identified GPT conversion.
+# ZRAM: identify installation-assigned swap (new or reused), obtain explicit
+# destructive approval, safely deactivate only the selected device if needed,
+# and convert it BEFORE any ZRAM package or service provisioning.
 profile_zram() {
     [ -f "$LOG_DIR/my-cdd-completed/ensure-7x-kernel" ] ||
         fatal 'ZRAM cannot run without the separately completed Ensure 7.x kernel profile'
-    for utility in lsblk blkid swapon swapoff parted wipefs readlink findmnt; do
+    for utility in lsblk blkid swapon swapoff parted wipefs readlink findmnt cmp; do
         command -v "$utility" >/dev/null 2>&1 ||
             fatal "ZRAM conversion requires unavailable installer utility: $utility"
     done
     [ -r "$MEDIA/zram-generator.conf.template" ] ||
         fatal 'Original ZRAM generator source missing'
+    [ -r "$MEDIA/zram-selection.sh" ] ||
+        fatal 'Installer ZRAM selection helper missing'
+    . "$MEDIA/zram-selection.sh"
+    zram_collect_candidates
+    zram_choose_candidate
+    uuid=$zram_uuid
+    device=$zram_device
+    size=$zram_size
+    former_uuid="$(blkid -s UUID -o value "$device" 2>/dev/null || true)"
+    former_label="$(blkid -s LABEL -o value "$device" 2>/dev/null || true)"
+    zram_prepare_fstab
 
-    # Detect, show, and have the user type the EXACT PARTUUID; do not select
-    # a disk, partition or name automatically.
-    capture lsblk -o NAME,PATH,TYPE,SIZE,FSTYPE,PARTTYPE,PARTLABEL,PARTUUID,MOUNTPOINTS ||
-        fatal 'Cannot enumerate partitions for ZRAM backing selection'
-    {
-        echo 'Identify the swap partition you manually created in the native partitioner.'
-        echo 'If none exists, return to manual partitioning or deselect ZRAM.'
-        echo 'If several exist, identify exactly one; none will be selected automatically.'
-        echo 'Enter its exact PARTUUID at the next native installer prompt.'
-        echo
-        cat "$WORK/output"
-    } > "$WORK/zram-candidates"
-    show_note 'Select the user-created ZRAM backing partition' "$WORK/zram-candidates" ||
-        fatal 'Could not display partition candidates'
-    db_set my-cdd/zram-partuuid '' || fatal 'Cannot reset partition identity prompt'
-    db_fset my-cdd/zram-partuuid seen false ||
-        fatal 'Cannot display partition identity prompt'
-    db_input critical my-cdd/zram-partuuid ||
-        fatal 'Partition selection was not confirmed'
-    db_go || fatal 'Partition identity input cancelled'
-    db_get my-cdd/zram-partuuid || fatal 'Cannot read confirmed PARTUUID'
-    uuid=$RET
-    printf '%s\n' "$uuid" |
-        grep -Eq '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' ||
-        fatal 'PARTUUID must be a complete UUID typed by the user'
-    devlink="/dev/disk/by-partuuid/$uuid"
-    [ -b "$devlink" ] || fatal 'User-entered PARTUUID does not exist as a block partition'
-    device="$(readlink -f -- "$devlink")"
-    [ "$(lsblk -dnro TYPE "$device")" = part ] ||
-        fatal 'Selected PARTUUID is not a single partition'
-    parent="$(lsblk -dnro PKNAME "$device")"
-    partn="$(lsblk -dnro PARTN "$device")"
-    case "$parent" in ''|*[!a-zA-Z0-9_-]*) fatal 'Invalid parent disk identity';; esac
-    case "$partn" in ''|*[!0-9]*) fatal 'Invalid partition number';; esac
-    disk="/dev/$parent"
-    [ -b "$disk" ] || fatal 'Confirmed partition parent disk not found'
-    [ "$(lsblk -dnro PTTYPE "$disk")" = gpt ] ||
-        fatal 'Selected swap partition is not on a GPT disk'
-    ptype="$(lsblk -dnro PARTTYPE "$device")"
-    case "$ptype" in
-        0657fd6d-a4ab-43c4-84e5-0933c84b4f4f|0657FD6D-A4AB-43C4-84E5-0933C84B4F4F) ;;
-        *) fatal 'User-selected partition is not marked as conventional GPT Linux swap' ;;
-    esac
-    fstype="$(lsblk -dnro FSTYPE "$device")"
-    [ "$fstype" = swap ] ||
-        fatal 'Selected partition lacks an identifiable swap signature'
-    [ -z "$(lsblk -dnro MOUNTPOINTS "$device")" ] ||
-        fatal 'Backing partition is mounted; refusing conversion'
-    former_uuid="$(blkid -s UUID -o value "$device")"
-    size="$(lsblk -dnro SIZE "$device")"
-
+    # The automatically detected partition still requires exactly the same
+    # destructive confirmation as a manually selected partition. A partition
+    # shared with another OS loses its conventional swap identity.
     db_subst my-cdd/zram-destructive MYCDD_PARTITION "$device" ||
         fatal 'Unable to show partition path for destructive confirmation'
     db_subst my-cdd/zram-destructive MYCDD_PARTUUID "$uuid" ||
         fatal 'Unable to show exact PARTUUID for destructive confirmation'
     db_subst my-cdd/zram-destructive MYCDD_SIZE "$size" ||
         fatal 'Unable to show partition capacity for destructive confirmation'
+    db_subst my-cdd/zram-destructive MYCDD_DISK "$disk" ||
+        fatal 'Unable to show selected parent disk'
+    db_subst my-cdd/zram-destructive MYCDD_SELECTION "$zram_selection" ||
+        fatal 'Unable to show selection provenance'
     yes_no my-cdd/zram-destructive ||
         fatal 'User declined destructive ZRAM backing conversion'
 
-    # Never swapoff -a. Check only this exact, reconfirmed partition.
-    active_used=''
-    swapon --noheadings --bytes -o NAME,USED > "$WORK/active-swaps" ||
-        fatal 'Cannot read active swap devices'
-    while read -r swap_path swap_used; do
-        [ -n "$swap_path" ] || continue
-        resolved="$(readlink -f -- "$swap_path")"
-        if [ "$resolved" = "$device" ]; then active_used=$swap_used; fi
-    done < "$WORK/active-swaps"
+    # Debian Installer may itself activate even newly created swap. Leave
+    # unrelated swap devices completely untouched; never use swapoff -a.
+    zram_read_active_swap
     if [ -n "$active_used" ]; then
         available_kb="$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)"
-        case "$available_kb" in ''|*[!0-9]*) fatal 'Cannot assess available RAM for swapoff';; esac
-        available_bytes=$((available_kb * 1024))
-        if [ "$available_bytes" -le "$active_used" ]; then
-            fatal 'Available RAM does not safely cover used bytes on confirmed swap; no swapoff attempted'
+        total_kb="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)"
+        case "$available_kb:$total_kb" in
+            *[!0-9:]*|:*|*:) fatal 'Cannot assess installer memory pressure for swapoff' ;;
+        esac
+        if [ -r /proc/pressure/memory ]; then
+            log "Installer memory PSI before any swapoff: $(head -n 2 /proc/pressure/memory | tr '\n' ';')"
         fi
+        reserve_kb=$((total_kb / 8))
+        [ "$reserve_kb" -ge 262144 ] || reserve_kb=262144
+        used_kb=$((active_used / 1024 + 1))
+        [ "$available_kb" -gt "$((used_kb + reserve_kb))" ] ||
+            fatal 'RAM cannot cover selected swap usage plus a safety reserve; no swapoff attempted'
         db_subst my-cdd/zram-swapoff MYCDD_PARTITION "$device" ||
             fatal 'Cannot show exact swapoff target'
         db_subst my-cdd/zram-swapoff MYCDD_USED "$active_used" ||
-            fatal 'Cannot show current used swap bytes'
+            fatal 'Cannot show selected swap usage'
         yes_no my-cdd/zram-swapoff ||
             fatal 'Targeted swapoff was not separately approved'
-        capture swapoff "$device" ||
-            fatal 'Targeted swapoff failed; GPT and signatures left unchanged'
-        swapon --noheadings -o NAME > "$WORK/active-after"
-        while IFS= read -r swap_path; do
-            [ -n "$swap_path" ] || continue
-            [ "$(readlink -f -- "$swap_path")" != "$device" ] ||
-                fatal 'Target partition still active as ordinary swap after swapoff'
-        done < "$WORK/active-after"
+        # Re-evaluate memory and identity immediately before swapoff, too.
+        zram_validate_candidate
+        zram_read_active_swap
+        if [ -n "$active_used" ]; then
+            available_kb="$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)"
+            case "$available_kb" in ''|*[!0-9]*) fatal 'RAM check failed immediately before swapoff' ;; esac
+            used_kb=$((active_used / 1024 + 1))
+            [ "$available_kb" -gt "$((used_kb + reserve_kb))" ] ||
+                fatal 'Insufficient remaining RAM for a safe targeted swapoff'
+            capture swapoff "$device" ||
+                fatal 'Targeted swapoff failed; GPT and signatures left unchanged'
+        fi
+        zram_read_active_swap
+        [ -z "$active_used" ] ||
+            fatal 'Selected partition still active after targeted swapoff'
     fi
-    [ -z "$(lsblk -dnro MOUNTPOINTS "$device")" ] ||
-        fatal 'Selected backing partition was mounted before conversion'
+    zram_validate_candidate
+    zram_read_active_swap
+    [ -z "$active_used" ] ||
+        fatal 'Selected backing was reactivated as swap before conversion'
 
     # The only destructive partition commands target the one confirmed GPT
     # partition. No automatic partition creation, sizing or formatting.
+    cmp -s /target/etc/fstab "$WORK/zram-original-fstab" ||
+        fatal 'Installed target fstab changed after verification; conversion stopped'
     log "USER APPROVED CONVERSION: $device, PARTUUID=$uuid, size=$size"
     capture parted -s "$disk" type "$partn" 0FC63DAF-8483-4772-8E79-3D69D8477DE4 ||
         fatal 'Could not change only the confirmed GPT partition type'
@@ -362,38 +343,52 @@ profile_zram() {
         fatal 'Converted GPT PARTLABEL not visible'
     [ "$(lsblk -dnro PARTTYPE "$device" | tr '[:upper:]' '[:lower:]')" = 0fc63daf-8483-4772-8e79-3d69d8477de4 ] ||
         fatal 'Confirmed partition has the wrong GPT type after conversion'
-    [ -z "$(blkid -s TYPE -o value "$device" 2>/dev/null || true)" ] ||
+    [ -z "$(blkid -p -s TYPE -o value "$device" 2>/dev/null || true)" ] ||
         fatal 'Backing partition still has a filesystem/swap signature'
-    [ -z "$(lsblk -dnro MOUNTPOINTS "$device")" ] ||
-        fatal 'Converted partition unexpectedly mounted'
-    if swapon --noheadings -o NAME | grep -Fx "$device" >/dev/null; then
+    if lsblk -dnro MOUNTPOINTS "$device" |
+        grep -Ev '^[[:space:]]*$' | grep -q .; then
+        fatal 'Converted partition unexpectedly mounted or active'
+    fi
+    zram_read_active_swap
+    [ -z "$active_used" ] ||
         fatal 'Converted raw backing is still conventional swap'
-    fi
-    # Only the chosen swap entry is removed from target fstab. Any unexpected
-    # additional swap mapping requires manual resolution rather than guessing.
-    [ -f /target/etc/fstab ] || fatal 'Target fstab missing after conversion'
-    awk -v suuid="$former_uuid" -v partuuid="$uuid" -v dev="$device" '
-        /^[[:space:]]*#/ {print; next}
-        $3=="swap" && ($1=="UUID=" suuid || $1=="PARTUUID=" partuuid || $1==dev) {next}
-        {print}
-    ' /target/etc/fstab > "$WORK/fstab"
-    cp "$WORK/fstab" /target/etc/fstab
-    if grep -E '^[^#].*[[:space:]]swap[[:space:]]' /target/etc/fstab |
-        grep -E "$former_uuid|$uuid|$device" >/dev/null; then
-        fatal 'Conventional swap entry still references the raw backing partition'
-    fi
+    # This exact filtered fstab was prepared before destructive conversion;
+    # preserve every unrelated swap line and refuse residual aliases.
+    cmp -s /target/etc/fstab "$WORK/zram-original-fstab" ||
+        fatal 'Installed target fstab changed after conversion; manual repair is required'
+    # Stage the verified fstab on the target filesystem, then replace it
+    # atomically. A failed copy must not truncate the active target fstab.
+    fstab_tmp="/target/etc/.fstab.my-cdd.$"
+    [ ! -e "$fstab_tmp" ] ||
+        fatal 'Unexpected temporary target fstab path already exists'
+    cp "$WORK/zram-safe-fstab" "$fstab_tmp" ||
+        fatal 'Could not stage target fstab after partition conversion'
+    chmod 644 "$fstab_tmp" ||
+        fatal 'Could not set staged target fstab permissions'
+    mv -f -- "$fstab_tmp" /target/etc/fstab ||
+        fatal 'Could not atomically install the verified target fstab'
+    awk '$0 !~ /^[[:space:]]*#/ && NF >= 3 && $3 == "swap" {print $1}' \
+        /target/etc/fstab > "$WORK/zram-residual-swaps"
+    while IFS= read -r swap_ref; do
+        if zram_ref_matches "$swap_ref" "$uuid" "$device" "$former_uuid" "$former_label"; then
+            fatal 'Confirmed backing is still referenced as conventional swap'
+        fi
+    done < "$WORK/zram-residual-swaps"
     # No other ZRAM provisioning occurs until the partition conversion
     # (type, name, PARTUUID, signatures and active-swap state) has passed.
 
     review_install 'ZRAM generator package and all dependencies' systemd-zram-generator
     mkdir -p /target/etc/systemd/system/systemd-zram-setup@zram0.service.d \
         /target/etc/systemd/system /target/etc/sysctl.d /target/usr/local/sbin
-    sed "s/YOUR_PARTUUID/$uuid/g" "$MEDIA/zram-generator.conf.template" >
+    sed "s/YOUR_PARTUUID/$uuid/g" "$MEDIA/zram-generator.conf.template" > \
         /target/etc/systemd/zram-generator.conf
+    [ "$(grep -o "$uuid" /target/etc/systemd/zram-generator.conf | wc -l)" -eq 2 ] &&
+        ! grep -q YOUR_PARTUUID /target/etc/systemd/zram-generator.conf ||
+        fatal 'ZRAM generator configuration contains unresolved or mismatched backing identity'
     cp "$MEDIA/10-compressed-writeback.conf" \
         /target/etc/systemd/system/systemd-zram-setup@zram0.service.d/10-compressed-writeback.conf
     # Setup failure enters emergency, unlike a monitor failure.
-    printf '[Unit]\nOnFailure=emergency.target\nOnFailureJobMode=replace-irreversibly\n' >
+    printf '[Unit]\nOnFailure=emergency.target\nOnFailureJobMode=replace-irreversibly\n' > \
         /target/etc/systemd/system/systemd-zram-setup@zram0.service.d/20-failure-emergency.conf
     cp "$MEDIA/zram-pressure.sh" /target/usr/local/sbin/zram-pressure.sh
     chmod 755 /target/usr/local/sbin/zram-pressure.sh
@@ -458,7 +453,7 @@ ensure_manual_updates() {
     capture in-target apt-config dump || fatal 'Cannot inspect automatic APT settings'
     if grep -Ei 'APT::Periodic::Unattended-Upgrade[[:space:]]+"?([1-9]|yes|true)' "$WORK/output" >/dev/null; then
         mkdir -p /target/etc/apt/apt.conf.d
-        printf 'APT::Periodic::Unattended-Upgrade "0";\n' >
+        printf 'APT::Periodic::Unattended-Upgrade "0";\n' > \
             /target/etc/apt/apt.conf.d/99-my-cdd-manual-updates
         log 'Explicitly disabled an enabled unattended APT upgrade setting'
     fi
@@ -471,8 +466,8 @@ profile_omv() {
     review_install 'OMV prerequisites: resolver, utilities and signing tools' systemd-resolved psmisc gnupg ca-certificates curl
     capture in-target getent ahostsv4 packages.openmediavault.io ||
         fatal 'Target DNS unavailable; stop rather than invent network configuration'
-    capture curl -fsSL --proto '=https' \
-        -o /target/tmp/my-cdd-omv-key https://packages.openmediavault.io/archive.key ||
+    capture in-target curl -fsSL --proto '=https' \
+        -o /tmp/my-cdd-omv-key https://packages.openmediavault.io/archive.key ||
         fatal 'Official OMV signing key download failed'
     capture in-target gpg --show-keys --with-colons /tmp/my-cdd-omv-key ||
         fatal 'Vendor OMV signing key malformed'
@@ -534,8 +529,8 @@ EOT
 profile_docker() {
     review_install 'Docker signing prerequisites' ca-certificates curl
     mkdir -p /target/etc/apt/keyrings
-    capture curl -fsSL --proto '=https' \
-        -o /target/etc/apt/keyrings/docker.asc https://download.docker.com/linux/debian/gpg ||
+    capture in-target curl -fsSL --proto '=https' \
+        -o /etc/apt/keyrings/docker.asc https://download.docker.com/linux/debian/gpg ||
         fatal 'Official Docker signing key download failed'
     chmod 644 /target/etc/apt/keyrings/docker.asc
     grep -Fx 'VERSION_CODENAME=trixie' /target/etc/os-release >/dev/null ||

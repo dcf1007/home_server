@@ -47,3 +47,35 @@ Test profile combinations, conditional Backports-first kernel/firmware, first bo
 - [Simple-CDD 0.6.9 finish-install runner](https://sources.debian.org/src/simple-cdd/0.6.9/debian/14simple-cdd)
 - [Simple-CDD default preseed](https://sources.debian.org/src/simple-cdd/0.6.9/profiles/default.preseed)
 - [Simple-CDD build variables](https://sources.debian.org/src/simple-cdd/0.6.9/simple_cdd/variables.py)
+
+## 5. ZRAM backing identification and reused partitions (2026-11-15)
+
+User explicitly authorized source changes for new *and reused* swap partitions,
+automatic selection when the current installation's target `fstab` names exactly
+one eligible swap partition, and a native GTK/text Debconf select fallback for
+ambiguous or older raw backing. The fallback starts at `none`, with no
+conversion until an additional explicit default-No destructive approval.
+Previously converted raw `zram-writeback` GPT partitions are shown only as
+manual candidates. PARTLABEL alone is not unique proof of identity.
+
+Source: [`zram-selection.sh`](zram-selection.sh),
+[`profile-actions.sh`](profile-actions.sh), and
+[`profile-confirm.templates`](profile-confirm.templates).
+The approved targeted `swapoff` path remains, with memory reserve and
+identity/activity rechecks. No partitioning commands occur in candidate
+discovery. The original dynamic generator template filename is unchanged.
+
+**Blocking end-to-end checks:** Verify that `/target/etc/fstab` includes the
+newly created or reused swap assignment by `preseed/late_command`; that
+`lsblk`, `blkid -p`, `findmnt -M`, `parted type` and Debconf dynamic
+`Choices-C` behave as expected in Trixie d-i; GTK/text display, cancellation,
+and choice IDs; one/multiple/no swap; cloned PARTUUIDs; reusing swap from
+another OS; existing unformatted raw backing; mount/holder/active-swap
+rejection; swapoff failure and RAM pressure; post-conversion GPT/fstab state;
+first-boot zram setup, emergency behavior and monitor restart.
+
+**Known gap:** A late-command failure cannot currently navigate backwards
+to the earlier partitioner or deselect the profile. The current code fails
+closed instead of presenting a nonfunctional navigation option. Also verify
+systemd swap units or other indirect activation paths before production.
+An ISO build alone cannot close these gates.

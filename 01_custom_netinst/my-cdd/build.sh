@@ -11,7 +11,10 @@ for hook in profiles/*.postinst; do
         printf >&2 'my-cdd: %s is not implemented; ISO build stopped.\n' "$hook"
         exit 1
     fi
-    chmod 0755 "$hook"
+    [ -x "$hook" ] || {
+        printf >&2 'my-cdd: %s must be executable in Git; ISO build stopped.\n' "$hook"
+        exit 1
+    }
 done
 
 exec build-simple-cdd --conf ./simple-cdd.conf --dist trixie

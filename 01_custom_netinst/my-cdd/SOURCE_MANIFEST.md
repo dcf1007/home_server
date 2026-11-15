@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt:** “ok. continue then”, following “replace the placeholders” and the request to retain all 37 firmware candidates unless proven redundant. The previously approved unnecessary-test cleanup remains in force.  
+**Nearest user prompt (current branch):** “i authorise”, following the user's agreement to support reused swap partitions, automatic target-assigned selection, native GTK/text manual fallback and separately confirmed targeted swapoff. The previous cleanup and 37-firmware inventory decisions remain in force.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -54,6 +54,36 @@ The automatic Python/shell offline test execution, the additional
 `build.sh`. The current script is a direct `build-simple-cdd` invocation
 with only an unfinished-profile safeguard. File history remains in Git.
 
+## Authorized change: 2026-11-15 ZRAM selection correction
+
+**Creation date:** 2026-11-15 (Europe/Berlin).
+**Nearest user prompt:** “i authorise” after “I agree” and the detailed
+new/reused swap and native GTK selection decisions.
+**Base commit:** `df8ea81ea40a1131c8fd0fdb3e6ff9eaf82f61bf`.
+**Working branch:** `fix/zram-backing-selection-20261115`.
+
+- **New** `installer/zram-selection.sh`: collects GPT Linux-swap and prior
+  validated raw `zram-writeback` candidates; identifies the unique swap
+  assigned to the new target fstab or offers a Debconf `Choices-C` single
+  select with safe default, including reused swap partitions.
+- **Edited** `installer/profile-actions.sh`: exact selected identity and
+  safety checks, independent destructive confirmation, targeted swapoff with
+  memory reserve, removal of exact conventional swap fstab references,
+  unchanged conversion-before-provisioning order.
+- **Edited** `installer/profile-confirm.templates`: native select question,
+  display of selected disk and provenance, warning on possible other-OS use.
+- **Edited** `simple-cdd.conf`: ship the additional helper on install media.
+- **Edited** `build.sh`: check executable hooks instead of changing Git
+  checkout permissions. Tracked `build.sh` and all seven
+  `profiles/*.postinst` modes changed to `100755`.
+- **Updated** the related installation, profile, validation and source
+  documentation. `scripts/zram-generator.conf.template` remains unchanged.
+
+**Source-only:** No Debian Installer GTK/text execution, ISO build,
+partition conversion, swapoff, first boot, or recovery test was performed.
+Kernel Backports/profile-selection and full end-to-end diagnostic gates
+remain open. The original embedded ZRAM source is retained.
+
 ## Actual implementation state
 
 **Not a validated ISO.** The seven optional profiles are described; their
@@ -69,7 +99,7 @@ behavior remain unverified. No ISO, USB, actual package installation or disk
 modification has been performed in this source-writing turn. No mock/offline
 test harness was added.
 
-## Current tracked files (48)
+## Current tracked files (49)
 
 - `.gitignore`
 - `README.md`
@@ -81,6 +111,7 @@ test harness was added.
 - `installer/profile-actions.sh`
 - `installer/profile-confirm.sh`
 - `installer/profile-confirm.templates`
+- `installer/zram-selection.sh`
 - `installer/run-selected.sh`
 - `profile_defaults.conf`
 - `profile_defaults.conf.example`
