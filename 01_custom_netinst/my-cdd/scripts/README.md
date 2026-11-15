@@ -15,8 +15,8 @@ its approved installation routine is implemented.
   `10-compressed-writeback.conf`, and `zram-pressure.service` — source
   material extracted without modification from the
   [approved original ZRAM design](../../03_zram_writeback.md#original-design--complete-source).
-  These assets are not deployed; their compatibility and safe installation
-  still require implementation.
+  These original source assets are installed only when ZRAM is selected;
+  their runtime compatibility and first-boot behavior remain untested.
 
 The installed-target package transaction and ZRAM conversion/provisioning source
 exist in `../installer/profile-actions.sh`, but have **not been exercised or
