@@ -1,6 +1,6 @@
 # Customized Debian 13 netinst USB
 
-**Project status (2026-11-15):** installer-only ISO **built successfully (395 MiB)**; **boot and installation not yet tested**. **Provenance:** home-server installation decisions, requested GitHub documentation structure and user-supplied build logs.
+**Project status (2026-11-15):** installer-only ISO **built successfully (395 MiB)**. First graphical boot reached preseed loading but failed at the early command (exit code 2). A likely missing-script packaging defect has been corrected in source, **pending rebuild and successful installer testing**. **Provenance:** home-server installation decisions, requested GitHub documentation structure and user-supplied build logs.
 
 Prepare an interactive, Simple-CDD-based **Debian 13 (Trixie), amd64** installation USB for a configurable hostname. The example hardware has a **256 GB system SSD** and **32 GB RAM**; these are illustrative, not universal requirements. Confirm actual hardware and the OS installation disk in the installer.
 
