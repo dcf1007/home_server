@@ -106,7 +106,7 @@ grep '^export KERNEL_PARAMS=' tmp/generated/simple-cdd.conf
 
 The wrapper checks preseed syntax and confirms the generated `defaults.preseed` was copied into the staged ISO tree and referenced from `default.preseed`. **These are static checks**, not proof that the graphical installer will display or retain the defaults correctly; that remains a VM validation gate.
 
-### Why the build wrapper has two stages
+### Why the build wrapper corrects reprepro during a single run
 
 Simple-CDD 0.6.9 and 0.6.10 can generate a local reprepro mirror with `UDebComponents: main` despite `mirror_components="main contrib non-free non-free-firmware"`. Debian-CD then checks the additional **Debian Installer udeb** indexes and prints:
 
@@ -127,7 +127,7 @@ The repository's `my-cdd/build.sh` now uses **one** normal `build-simple-cdd` in
 
 **Observed repeat-build failure (2026-11-15, 15:13 CET):** the retired split build generated `UDebComponents: main` at the start of its first stage while reprepro still had extra installer-component databases from the preceding run, causing exit code 255. The new single-run wrapper corrects the declaration before reprepro can read the database. **The wrapper passed a local shell simulation, including repeat-call and reject-unknown-config cases; a real Simple-CDD/VM build has not yet validated it.**
 
-The ordinary mirror components remain `main contrib non-free non-free-firmware`. The Debian-CD firmware component is set separately in `simple-cdd.conf` using `export NONFREE_COMPONENTS="non-free-firmware"`. Both build stages run with `--debug`; Bash `pipefail` ensures a failing stage is not hidden by `tee`.
+The ordinary mirror components remain `main contrib non-free non-free-firmware`. The Debian-CD firmware component is set separately in `simple-cdd.conf` using `export NONFREE_COMPONENTS="non-free-firmware"`. The single build runs with `--debug`; Bash `pipefail` ensures a failing invocation is not hidden by `tee`.
 
 **Installer-file packaging correction (after first graphical boot):** the former relative `all_extras="installer/..."` paths were interpreted after Simple-CDD changed to its Debian-CD workspace. The upstream extra-file copy loop silently skips unreadable files; the early-command invocation of `/cdrom/simple-cdd/profile-confirm.sh` then failed with exit code 2, consistent with a missing script. The repository now uses `profiles/default.extra`: Simple-CDD resolves its file entries to absolute source paths. The build wrapper checks every packaged source asset against the staged CD directory and fails if any are missing or different. **The new packaging has not yet been verified in a rebuilt ISO.**
 
