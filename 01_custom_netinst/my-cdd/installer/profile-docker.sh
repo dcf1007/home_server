@@ -24,27 +24,15 @@ EOT
         grep -F 'download.docker.com/linux/debian' "$WORK/output" >/dev/null ||
             fatal "$pkg lacks the official signed Docker repository"
     done
-    # Installer-only startup prevention targeting ONLY Docker service/socket.
-    # Unlike disabling units after the transaction, these masks are applied
-    # before any maintainer scripts can request startup.
-    capture in-target systemctl --root=/ mask docker.service docker.socket ||
-        fatal 'Could not prevent Docker startup before package installation'
+    # Install through Docker's official signed Debian repository.
+    # No custom masking, disabling or starting of Docker/containerd units:
+    # preserve the packages' own install-time and first-boot defaults.
+    # OMV remains independent; OMV-Extras/Compose is never installed here.
     simulate_target install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     check_critical_removals
-    review_plan 'Docker: complete official package transaction, daemon/socket suppressed' "$WORK/plan"
+    review_plan 'Docker: official packages and normal service defaults' "$WORK/plan"
     run_target apt -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    capture in-target systemctl --root=/ unmask docker.service docker.socket ||
-        fatal 'Could not remove temporary Docker startup suppression'
-    capture in-target systemctl --root=/ disable docker.service docker.socket ||
-        fatal 'Could not disable Docker daemon and socket for first boot'
-    for unit in docker.service docker.socket; do
-        # systemctl is-enabled exits nonzero for the desired "disabled"
-        # state; inspect its output rather than treating status 1 as failure.
-        capture in-target systemctl --root=/ is-enabled "$unit" || :
-        grep -Fx disabled "$WORK/output" >/dev/null ||
-            fatal "$unit is not disabled for first boot"
-    done
     run_target dpkg --audit
-    log 'Docker packages installed; Docker daemon and socket disabled; no containers started'
+    log 'Docker packages installed; service activation is governed by native package defaults'
 }
 

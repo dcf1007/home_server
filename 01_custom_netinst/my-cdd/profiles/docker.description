@@ -1,1 +1,1 @@
-Docker Engine and Compose; daemon/socket disabled until manually enabled
+Docker Engine and Compose; normal Debian service startup at first boot

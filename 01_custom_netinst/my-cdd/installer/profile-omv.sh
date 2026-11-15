@@ -1,5 +1,7 @@
 #!/bin/sh
 # Sourced by the approved installer dispatcher; no automatic execution.
+# OMV is independent of Docker. Do not install OMV-Extras/Compose or suppress
+# OMV service startup; the user can add optional plugins through the OMV GUI.
 
 profile_omv() {
     # OMV warns that the resolver must work BEFORE package installation.

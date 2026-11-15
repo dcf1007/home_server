@@ -156,7 +156,8 @@ profile_zram() {
     fi
     run_target update-grub
     run_target systemctl enable zram-pressure.service
-    # Confirm the root account is not locked; emergency requires it.
+    # Defense in depth: common preflight has already established recovery access
+    # before any selected profile (including this partition conversion).
     capture in-target passwd -S root || fatal 'Cannot inspect emergency root account'
     grep -E '^root[[:space:]]+P[[:space:]]' "$WORK/output" >/dev/null ||
         fatal 'Separate local root password is not enabled for ZRAM emergency recovery'
