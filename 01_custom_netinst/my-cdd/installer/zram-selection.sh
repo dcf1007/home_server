@@ -150,6 +150,14 @@ zram_validate_candidate() {
         fatal 'Backing partition is not on a GPT disk'
     [ "$(lsblk -dnro PARTUUID "$zram_device" | tr '[:upper:]' '[:lower:]')" = "$zram_uuid" ] ||
         fatal 'Backing PARTUUID changed before conversion'
+    # Include ineligible partitions in this collision check: cloned GPT disks
+    # can reuse a PARTUUID even when only one copy currently carries swap.
+    zc_id_count="$(lsblk -pnro PARTUUID,TYPE | awk -v id="$zram_uuid" '
+        tolower($1) == id && $2 == "part" {n++}
+        END {print n+0}
+    ')"
+    [ "$zc_id_count" -eq 1 ] ||
+        fatal 'Selected PARTUUID occurs on multiple block partitions; refusing ambiguous backing'
     zc_guid="$(lsblk -dnro PARTTYPE "$zram_device" | tr '[:upper:]' '[:lower:]')"
     zc_sig="$(blkid -p -s TYPE -o value "$zram_device" 2>/dev/null || true)"
     case "$zram_kind" in
