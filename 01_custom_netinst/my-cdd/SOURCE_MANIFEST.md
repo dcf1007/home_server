@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, replace the legacy package-manager command throughout the entire repository with `apt`. Earlier authorization: “i authorise”, following the user's agreement to support reused swap partitions, automatic target-assigned selection, native GTK/text manual fallback and separately confirmed targeted swapoff. The previous cleanup and 37-firmware inventory decisions remain in force.  
+**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, uploaded a screenshot of the graphical Debian Installer failing to run `/bin/sh /cdrom/simple-cdd/profile-confirm.sh && anna-install simple-cdd-profiles` (exit code 2); traced the missing installer assets to relative `all_extras` paths and corrected the packaging. Earlier on 2026-11-15, the user requested replacement of legacy package-manager commands throughout the repository with `apt`. Earlier authorization: “i authorise”, following the user's agreement to support reused swap partitions, automatic target-assigned selection, native GTK/text manual fallback and separately confirmed targeted swapoff. The previous cleanup and 37-firmware inventory decisions remain in force.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -108,6 +108,13 @@ remain open. The original embedded ZRAM source is retained.
 
 **Provenance:** The already-merged installer shell change was retained unchanged. Based on `main` commit `d5be1f583578ba2224a20e530dcb546b7ad8fa93`, this follow-up updates four planning documents and this manifest. All 61 tracked files were checked for remaining legacy command references. No package operations or installer build were performed for this wording-only update. The existing Debian warning about `apt` output instability in scripts still applies.
 
+## Installer packaging defect and correction (2026-11-15)
+
+- **Observed:** the user booted the generated 395 MiB Debian 13 installer-only ISO to the graphical Debian Installer, but at "Load debconf preconfiguration file" the preseeded command `/bin/sh /cdrom/simple-cdd/profile-confirm.sh && anna-install simple-cdd-profiles` exited with status **2**. The screenshot does not independently distinguish which subcommand failed.
+- **Source-level finding:** `simple-cdd.conf` listed 13 installer assets as relative entries in `all_extras`. Upstream Simple-CDD's Debian-CD tool changes its working directory before copying these paths and skips files it cannot read. This is consistent with an omitted `/cdrom/simple-cdd/profile-confirm.sh` (running `/bin/sh` on a nonexistent script exits 2).
+- **Correction:** `profiles/default.extra` now enumerates the original 13 assets. Simple-CDD resolves each relative entry against `simple_cdd_dir` before changing into the Debian-CD workspace. The old `all_extras` assignment was removed. `build.sh` verifies every staged asset's bytes against the source, plus the generated `simple-cdd.templates`.
+- **Validation boundary:** GitHub source contents, references and executable mode were checked; **a rebuilt ISO and successful graphical installation have not yet been demonstrated after the correction**. The original early Debconf method A remains unchanged. No disk operations were authorized or performed.
+
 ## Actual implementation state
 
 **Not a validated ISO.** The seven optional profiles are described; their
@@ -119,11 +126,10 @@ all 37 firmware/microcode inventory names are unchanged.
 
 Real APT transactions, native GTK/text prompts, destructive ZRAM conversion,
 OMV/Docker package service behavior, boot-menu changes and first-boot
-behavior remain unverified. No ISO, USB, actual package installation or disk
-modification has been performed in this source-writing turn. No mock/offline
+behavior remain unverified. That earlier source-writing turn did not perform an ISO build. Later on 2026-11-15, the user successfully built the ISO and tried the graphical installer, which failed at preseed loading. No installed-target package transaction or disk modification has been demonstrated. No mock/offline
 test harness was added.
 
-## Current tracked files (49)
+## Current tracked files (50)
 
 - `.gitignore`
 - `README.md`
@@ -147,6 +153,7 @@ test harness was added.
 - `profiles/debian-tweaks.packages`
 - `profiles/debian-tweaks.postinst`
 - `profiles/default.description`
+- `profiles/default.extra`
 - `profiles/default.packages`
 - `profiles/default.preseed`
 - `profiles/default.udebs`
