@@ -73,58 +73,34 @@ cp ./simple-cdd.conf "$build_conf"
 printf '\n# Generated from profile_defaults.conf for early editable prompts.\nexport KERNEL_PARAMS="debian-installer/language?=%s debian-installer/country?=%s debian-installer/locale?=%s keyboard-configuration/xkb-keymap?=%s"\n' \
     "$DEFAULT_LANGUAGE" "$default_country" "$DEFAULT_LOCALE" "$DEFAULT_KEYBOARD_LAYOUT" >> "$build_conf"
 
-# A previous two-stage build leaves extra udeb targets in reprepro's database.
-# Simple-CDD first recreates conf/distributions with UDebComponents: main, and
-# then reprepro rejects those no-longer-configured targets. Reconcile only
-# this generated mirror; keep its downloaded package cache.
-mirror_conf=./tmp/mirror/conf/distributions
-if [ -d ./tmp/mirror/db ]; then
-    [ -f "$mirror_conf" ] || {
-        printf >&2 'my-cdd: mirror database exists without conf/distributions; stop.\n'
-        exit 1
-    }
-    if grep -qx 'UDebComponents: main contrib non-free-firmware' "$mirror_conf"; then
-        sed -i 's/^UDebComponents: main contrib non-free-firmware$/UDebComponents: main/' "$mirror_conf"
-    fi
-    [ "$(grep -cx 'UDebComponents: main' "$mirror_conf")" -eq 1 ] || {
-        printf >&2 'my-cdd: unexpected local mirror components; not cleaning.\n'
-        exit 1
-    }
-    GNUPGHOME="$PWD/tmp/gpg-keyring" \
-        reprepro -V --basedir "$PWD/tmp/mirror" --delete clearvanished
-fi
+# Simple-CDD 0.6.9/0.6.10 hard-code UDebComponents: main in their
+# generated reprepro configuration. A build-local PATH wrapper adjusts that
+# generated file BEFORE reprepro's first import, so only one Simple-CDD build
+# is needed. This also avoids stale udeb targets across repeat builds.
+shim_dir="$PWD/tmp/generated/bin"
+mkdir -p "$shim_dir"
+install -m 0755 ./scripts/reprepro-udeb-wrapper.sh "$shim_dir/reprepro"
 
-# Simple-CDD's reprepro mirror otherwise limits installer udebs to main,
-# while Debian-CD also checks contrib and non-free-firmware udeb indexes.
 {
-    build-simple-cdd \
+    PATH="$shim_dir:$PATH" build-simple-cdd \
         --conf "$build_conf" \
         --dist trixie \
-        --mirror-only \
         --debug \
-        --logfile ./build-mirror-debug.log
+        --logfile ./build-debug.log
 
     mirror_conf=./tmp/mirror/conf/distributions
-    if [ ! -f "$mirror_conf" ] || [ "$(grep -cx 'UDebComponents: main' "$mirror_conf")" -ne 1 ]; then
-        printf >&2 'my-cdd: unexpected reprepro UDebComponents configuration; refusing to modify.\n'
+    [ -f "$mirror_conf" ] &&
+    [ "$(grep -cx 'UDebComponents: main contrib non-free-firmware' "$mirror_conf")" -eq 1 ] || {
+        printf >&2 'my-cdd: expected expanded udeb components missing from mirror config.\n'
         exit 1
-    fi
-    sed -i 's/^UDebComponents: main$/UDebComponents: main contrib non-free-firmware/' "$mirror_conf"
-    GNUPGHOME="$PWD/tmp/gpg-keyring" reprepro -V --basedir "$PWD/tmp/mirror" update
+    }
     for component in contrib non-free-firmware; do
         index_dir="$PWD/tmp/mirror/dists/trixie/$component/debian-installer/binary-amd64"
         if [ ! -f "$index_dir/Packages.gz" ] && [ ! -f "$index_dir/Packages.xz" ]; then
-            printf >&2 'my-cdd: missing Debian Installer package index after mirror update: %s\n' "$component"
+            printf >&2 'my-cdd: missing Debian Installer package index after build: %s\n' "$component"
             exit 1
         fi
     done
-
-    build-simple-cdd \
-        --conf "$build_conf" \
-        --dist trixie \
-        --build-only \
-        --debug \
-        --logfile ./build-debug.log
 
     # An ISO must not be reported as ready if an early/late installer
     # script was silently omitted from its staged /simple-cdd directory.
