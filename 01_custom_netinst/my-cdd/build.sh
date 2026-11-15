@@ -73,6 +73,27 @@ cp ./simple-cdd.conf "$build_conf"
 printf '\n# Generated from profile_defaults.conf for early editable prompts.\nexport KERNEL_PARAMS="debian-installer/language?=%s debian-installer/country?=%s debian-installer/locale?=%s keyboard-configuration/xkb-keymap?=%s"\n' \
     "$DEFAULT_LANGUAGE" "$default_country" "$DEFAULT_LOCALE" "$DEFAULT_KEYBOARD_LAYOUT" >> "$build_conf"
 
+# A previous two-stage build leaves extra udeb targets in reprepro's database.
+# Simple-CDD first recreates conf/distributions with UDebComponents: main, and
+# then reprepro rejects those no-longer-configured targets. Reconcile only
+# this generated mirror; keep its downloaded package cache.
+mirror_conf=./tmp/mirror/conf/distributions
+if [ -d ./tmp/mirror/db ]; then
+    [ -f "$mirror_conf" ] || {
+        printf >&2 'my-cdd: mirror database exists without conf/distributions; stop.\n'
+        exit 1
+    }
+    if grep -qx 'UDebComponents: main contrib non-free-firmware' "$mirror_conf"; then
+        sed -i 's/^UDebComponents: main contrib non-free-firmware$/UDebComponents: main/' "$mirror_conf"
+    fi
+    [ "$(grep -cx 'UDebComponents: main' "$mirror_conf")" -eq 1 ] || {
+        printf >&2 'my-cdd: unexpected local mirror components; not cleaning.\n'
+        exit 1
+    }
+    GNUPGHOME="$PWD/tmp/gpg-keyring" \
+        reprepro -V --basedir "$PWD/tmp/mirror" --delete clearvanished
+fi
+
 # Simple-CDD's reprepro mirror otherwise limits installer udebs to main,
 # while Debian-CD also checks contrib and non-free-firmware udeb indexes.
 {
