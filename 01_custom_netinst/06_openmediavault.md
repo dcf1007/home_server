@@ -32,7 +32,9 @@ omv-salt deploy run cronapt
 
 Before reporting success, inspect generated cron-apt configuration and ensure the job is genuinely disabled. Do not directly edit OMV-generated files if its supported environment-setting mechanism works. Independently verify Debian's automatic installation is disabled via [Debian tweaks](04_debian_tweaks.md), or a global installation guard if tweaks is not selected; OMV cron-apt is not equivalent to Debian unattended-upgrades.
 
-## Preserve already approved access settings
+## Preserve access settings within the explicitly selected OMV profile
+
+The unselected Debian base is not forced to install SSH or sudo. The OMV profile separately reviews installing `openssh-server` and `sudo` among its prerequisites, then adds the installer-confirmed administrator to `_ssh` and `sudo`, so its approved access policy does not depend on a global default package override.
 
 OMV's documented Debian installation can change network configuration and enable root SSH, and the Debian-created user may be blocked from SSH unless in the `_ssh` group.
 

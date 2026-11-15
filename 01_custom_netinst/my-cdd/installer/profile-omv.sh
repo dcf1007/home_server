@@ -3,7 +3,7 @@
 
 profile_omv() {
     # OMV warns that the resolver must work BEFORE package installation.
-    review_install 'OMV prerequisites: resolver, utilities and signing tools' systemd-resolved psmisc gnupg ca-certificates curl
+    review_install 'OMV prerequisites: resolver, SSH/sudo access and signing tools' systemd-resolved psmisc gnupg ca-certificates curl openssh-server sudo
     capture in-target getent ahostsv4 packages.openmediavault.io ||
         fatal 'Target DNS unavailable; stop rather than invent network configuration'
     capture in-target curl -fsSL --proto '=https' \
@@ -64,6 +64,4 @@ EOT
     run_target dpkg --audit
     log 'OMV 8 installed with cron-apt off; no NAS shares or plugins configured'
 }
-
-# Official Docker packages; daemon and socket MUST NOT start during install.
 

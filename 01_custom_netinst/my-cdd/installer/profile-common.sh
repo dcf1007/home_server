@@ -45,5 +45,3 @@ ensure_manual_updates() {
 }
 
 
-# Official OMV 8 installation from signed vendor repositories on Debian 13.
-

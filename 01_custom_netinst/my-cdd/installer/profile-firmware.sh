@@ -74,7 +74,3 @@ profile_firmware() {
 }
 
 
-# ZRAM: identify installation-assigned swap (new or reused), obtain explicit
-# destructive approval, safely deactivate only the selected device if needed,
-# and convert it BEFORE any ZRAM package or service provisioning.
-

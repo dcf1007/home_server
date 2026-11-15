@@ -4,6 +4,8 @@
 
 ## Scope
 
+Current source policy: The base Debian installation does not automatically install SSH or add a hardening override. If the optional tweaks profile is selected, it applies its SSH policy only when OpenSSH is present; it does not install an SSH server that the user deselected in native tasksel.
+
 Apply only the **non-default operating-system changes** below. Do **not** duplicate ordinary Debian Installer answers in this profile. Normal GUI questions and editable suggested values are in [profile_defaults.conf](my-cdd/profile_defaults.conf); disk layout is in [05 — Base installation](05_base_installation.md).
 
 The following are **independently selected** and never activated by Debian tweaks:

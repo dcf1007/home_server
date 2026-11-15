@@ -33,12 +33,17 @@ profile_tweaks() {
         fatal 'Cannot identify exactly one ext4 root mount in fstab'
     cp "$WORK/tweaks-fstab" /target/etc/fstab
 
-    # PermitRootLogin no is the only SSH override for this profile.
-    mkdir -p /target/etc/ssh/sshd_config.d
-    printf 'PermitRootLogin no\n' > /target/etc/ssh/sshd_config.d/01-my-cdd-root-login.conf
-    capture in-target sshd -T || fatal 'OpenSSH configuration invalid'
-    grep -Fx 'permitrootlogin no' "$WORK/output" >/dev/null ||
-        fatal 'Effective OpenSSH root-login setting is not no'
+    # The profile must not force OpenSSH onto a Debian installation where
+    # the native tasksel SSH option was intentionally deselected.
+    if capture in-target sh -c 'command -v sshd >/dev/null 2>&1'; then
+        mkdir -p /target/etc/ssh/sshd_config.d
+        printf 'PermitRootLogin no\n' > /target/etc/ssh/sshd_config.d/01-my-cdd-root-login.conf
+        capture in-target sshd -T || fatal 'OpenSSH configuration invalid'
+        grep -Fx 'permitrootlogin no' "$WORK/output" >/dev/null ||
+            fatal 'Effective OpenSSH root-login setting is not no'
+    else
+        log 'Debian tweaks: OpenSSH not installed; no SSH policy file created'
+    fi
     # Do not create a needless periodic-APT override if the policy is already
     # disabled. This guard is also checked after later selected profiles.
     ensure_manual_updates
