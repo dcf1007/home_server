@@ -15,8 +15,10 @@ zram_ref_matches() (
     case "$zr_ref" in
         PARTUUID=*) [ "$(printf '%s' "${zr_ref#PARTUUID=}" | tr '[:upper:]' '[:lower:]')" = "$zr_part" ] ;;
         UUID=*) [ -n "$zr_swap_uuid" ] &&
-            [ "$(printf '%s' "${zr_ref#UUID=}" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$zr_swap_uuid" | tr '[:upper:]' '[:lower:]')" ] ;;
-        LABEL=*) [ -n "$zr_swap_label" ] && [ "${zr_ref#LABEL=}" = "$zr_swap_label" ] ;;
+            [ "$(printf '%s' "${zr_ref#UUID=}" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$zr_swap_uuid" | tr '[:upper:]' '[:lower:]')" ] &&
+            [ "$(blkid -t "UUID=$zr_swap_uuid" -o device 2>/dev/null || true)" = "$zr_dev" ] ;;
+        LABEL=*) [ -n "$zr_swap_label" ] && [ "${zr_ref#LABEL=}" = "$zr_swap_label" ] &&
+            [ "$(blkid -t "LABEL=$zr_swap_label" -o device 2>/dev/null || true)" = "$zr_dev" ] ;;
         # PARTLABEL is not unique and cannot prove which raw partition
         # belongs to the target. Do not resolve it automatically.
         PARTLABEL=*) return 1 ;;
