@@ -123,6 +123,12 @@ printf '\n# Generated from profile_defaults.conf for early editable prompts.\nex
         printf >&2 'my-cdd: generated Simple-CDD Debconf template missing from ISO tree.\n'
         exit 1
     }
+    # Ensure the booted default preseed will actually load the generated values.
+    [ -f "$iso_extras_dir/default.preseed" ] &&
+    grep -Fqx 'd-i preseed/include string defaults.preseed' "$iso_extras_dir/default.preseed" || {
+        printf >&2 'my-cdd: generated defaults are not included by default.preseed.\n'
+        exit 1
+    }
     # confmodule may re-execute these scripts through the cdebconf frontend.
     for script in profile-confirm.sh run-selected.sh; do
         [ -x "$iso_extras_dir/$script" ] || {
