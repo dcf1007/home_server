@@ -16,8 +16,9 @@ Description: Review the selected custom installation profiles
   Docker: ${MYCDD_DOCKER}
  .
  Selection does not grant permission for destructive partition changes,
- package transactions, individual firmware omissions or service activation.
- The installer will request their separate approvals as applicable.
+ package transactions, or individual firmware omissions. The installer
+ will request their separate approvals. Services installed through an
+ approved package transaction follow their normal package startup defaults.
 
 Template: my-cdd/profile-invalid
 Type: note
