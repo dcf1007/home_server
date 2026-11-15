@@ -2,7 +2,7 @@
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
-**Nearest user prompt (latest change):** “prioritize simplicity and maintainability over reducing two commands to one. remove the wrapper and leave the two stage build”. This restores the two Simple-CDD stages and deletes the project-owned reprepro interception wrapper while retaining the generated local-mirror stale-database cleanup, Debian 13 netinst mode, editable defaults, ISO asset checks, and diagnostic logs. Earlier prompts and implementation history are preserved below.  
+**Nearest user prompt (latest change, paraphrased):** On 2026-11-15, uploaded graphical Debian Installer screenshots showing “Unable to install zstd” at base-system installation and `E: Package 'zstd' has no installation candidate`. Corrected the default package list and added a fail-closed check for the package's entry and archive in the staged ISO. Earlier on the same day, explicitly chose to remove the single-run wrapper and retain the simpler two-stage build; that choice remains in force.  
 **Repository location:** `dcf1007/home_server/01_custom_netinst/my-cdd/`.
 
 ## Source provenance
@@ -137,6 +137,14 @@ remain open. The original embedded ZRAM source is retained.
 - **Change:** deleted `scripts/reprepro-udeb-wrapper.sh` and removed all temporary PATH interception from `build.sh`. The build runs `build-simple-cdd --mirror-only`, expands the generated local `UDebComponents` to include `contrib` and `non-free-firmware`, runs `reprepro update`, checks both udeb indexes, and then runs `build-simple-cdd --build-only`. Separate `build-mirror-debug.log`, `build-debug.log` and combined `build-terminal.log` are retained.
 - **Repeat-build cleanup:** if a previous build's reprepro database exists, the script accepts only the expected local `UDebComponents` configuration, resets it to `main` and invokes `reprepro --delete clearvanished` on `tmp/mirror` before Simple-CDD's first stage. It does not delete the mirror package cache. This cleanup has not been validated in a successful repeat build.
 - **Unchanged:** `INSTALLER_CD="2"`, `profile_defaults.conf` and its generated editable boot/preseed files, all selected-profile scripts, ISO file comparisons, and executable-mode checks. The previously successful two-stage build used `INSTALLER_CD="1"`; the newly configured netinst still needs real build and installation tests.
+
+## Missing `zstd` during base installation (2026-11-15)
+
+- **Nearest user prompt:** uploaded two screenshots of the graphical Debian Installer and virtual console at “Install the base system,” showing `base-installer/kernel/failed-package-install` and `E: Package 'zstd' has no installation candidate`.
+- **Observed:** the new two-stage `INSTALLER_CD="2"` netinst built successfully (408 MiB, 509 packages). During its VM installation, target APT installed `busybox` from `cdrom:` but could not find the distinct `zstd` command-line package. Earlier logs showed `libzstd1` and `libzstd1-udeb` downloads, neither of which substitutes for `zstd`. The official Debian 13 `zstd` package exists in `main`. The CD package subset omission is the evidence-backed immediate reason; no additional installer syslog was provided.
+- **Source correction:** appended `zstd` to `profiles/default.packages` for unconditional inclusion via the existing Simple-CDD profile packaging. After `--build-only`, `build.sh` reads the staged `CD1/dists/trixie/main/binary-amd64/Packages.gz`, extracts the exact `Package: zstd` record's `Filename`, and requires that the corresponding `.deb` exists and is nonempty. This avoids another deceptively successful ISO if the package is omitted.
+- **Unchanged:** the documented two-stage mirror-build process, `INSTALLER_CD="2"`, editable installer defaults, seven unselected optional profiles and pre-existing ISO asset checks.
+- **Validation boundary:** source-only changes; the corrected `zstd` ISO has not been rebuilt or install-tested. A successful rebuilt ISO/package check would not by itself prove the whole installation, including locale/keyboard GUI values and optional profiles.
 
 ## Actual implementation state
 
