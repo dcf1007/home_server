@@ -181,8 +181,9 @@ profile_firmware() {
         check_critical_removals
         for licensed_pkg in firmware-ipw2x00 firmware-ivtv; do
             if grep -q "^$licensed_pkg: license declined;" "$WORK/firmware-omissions"; then
-                grep -Eq "^Inst $licensed_pkg([ :]|$)" "$WORK/plan" &&
+                if grep -Eq "^Inst $licensed_pkg([ :]|$)" "$WORK/plan"; then
                     fatal "Declined $licensed_pkg license is still required as a dependency"
+                fi
             fi
         done
         {
