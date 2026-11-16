@@ -9,7 +9,7 @@ This is a **build tutorial**. When you finish it you will have the two source fi
 | Create this file | Why it exists |
 | --- | --- |
 | `installer/ordered-selection.sh` | Takes the user's checkbox selection, rejects unknown combinations and produces a fixed execution order. ZRAM cannot be selected without the separately selected kernel profile. |
-| `installer/profile-common.sh` | Collects APT simulations, source/version lookups, essential-package removal checks, and target execution helpers so feature modules don't duplicate risky logic. |
+| `installer/profile-common.sh` | Contains only the suite/version lookup, Backports-selection and signed-APT-refresh operations shared by multiple profiles. APT simulations and approvals belong to the dispatcher. |
 
 These files **define functions only**. The late installer dispatcher *sources* them; you must not invoke them as standalone commands.
 
@@ -27,7 +27,7 @@ Open each listed file in a text editor (for example a text editor for `installer
 
 ## Step 3 — Understand the control flow
 
-The selection parser first validates the approved profile names and cross-profile dependency; it never adds choices automatically. The APT helpers always inspect the **target system** in `/target`, not the installer's temporary package database. A complete APT plan is shown through the dispatcher's native Debconf UI before a target package transaction is performed.
+The selection parser first validates the approved profile names and cross-profile dependency; it never adds choices automatically. The shared source/version helpers inspect the **target system** in `/target`, not the installer's temporary package database. One-time automatic-update configuration now belongs directly to the selected Debian tweaks module; no OpenSSH validation helper is retained. A complete APT plan is shown through the dispatcher's native Debconf UI before a target package transaction is performed.
 
 The shared functions expect the dispatcher to provide `capture`, `fatal`, `WORK`, `LOG`, `MEDIA` and the cdebconf helper functions. That's why you must complete [Installer framework](installer_framework.md) before using a feature module.
 
@@ -87,7 +87,7 @@ printf '%s\n' "$out"
 
 
 <details>
-<summary><strong>Complete file: installer/profile-common.sh</strong> (81 lines, current Git blob <code>4193c159eb137daa1c8e56ed1a13353a602b24f2</code>)</summary>
+<summary><strong>Complete file: installer/profile-common.sh</strong> (19 lines, current Git blob <code>d3dbd82c76cb65fa1b7a32c994ae0fc8ffd76bde</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -101,22 +101,6 @@ suite_version() {
     }' "$WORK/output"
 }
 
-normal_suite() {
-    best_suite=''
-    best_version=''
-    for suite in trixie-security trixie-updates trixie; do
-        v="$(suite_version "$1" "$suite")"
-        [ -n "$v" ] || continue
-        if [ -z "$best_version" ] ||
-            in-target dpkg --compare-versions "$v" gt "$best_version"; then
-            best_suite=$suite
-            best_version=$v
-        fi
-    done
-    [ -n "$best_suite" ] || return 1
-    printf '%s\n' "$best_suite"
-}
-
 backports_is_selected() {
     case " $ordered " in *' backports '*) return 0;; *) return 1;; esac
 }
@@ -124,52 +108,6 @@ backports_is_selected() {
 update_signed_apt() {
     run_target apt-get update
     capture in-target apt-cache policy || fatal 'Cannot inspect APT priorities'
-}
-
-# Automatic installs require both the unattended-upgrades package and an
-# enabled APT::Periodic::Unattended-Upgrade setting. Do not create an override
-# on a freshly installed system where no automatic installer is active.
-ensure_manual_updates() {
-    if ! capture in-target dpkg-query -W '-f=${Status}\n' unattended-upgrades; then
-        log 'unattended-upgrades is absent; no automatic-install override needed'
-        return 0
-    fi
-    if ! grep -Fx 'install ok installed' "$WORK/output" >/dev/null; then
-        log 'unattended-upgrades is not fully installed; no override needed'
-        return 0
-    fi
-    capture in-target apt-config dump || fatal 'Cannot inspect automatic APT settings'
-    if grep -Ei 'APT::Periodic::Unattended-Upgrade[[:space:]]+"?([1-9]|yes|true)' "$WORK/output" >/dev/null; then
-        mkdir -p /target/etc/apt/apt.conf.d
-        printf 'APT::Periodic::Unattended-Upgrade "0";\n' > \
-            /target/etc/apt/apt.conf.d/99-my-cdd-manual-updates
-        capture in-target apt-config dump ||
-            fatal 'Cannot verify manual-update APT override'
-        if grep -Ei 'APT::Periodic::Unattended-Upgrade[[:space:]]+"?([1-9]|yes|true)' "$WORK/output" >/dev/null; then
-            fatal 'Unattended upgrades still enabled after writing override'
-        fi
-        log 'Installed unattended-upgrades was enabled; automatic installations disabled'
-    else
-        log 'unattended-upgrades is installed but automatic installation already disabled'
-    fi
-}
-
-# ssh.service normally creates /run/sshd via RuntimeDirectory=sshd.
-# During Debian Installer late_command the target has not booted and
-# that transient directory may not exist. Do not mistake that condition
-# for an invalid sshd_config. Capture real diagnostics if checks still fail.
-verify_target_sshd() {
-    [ -x /target/usr/sbin/sshd ] || fatal 'Installed OpenSSH daemon is missing'
-    mkdir -p /target/run/sshd ||
-        fatal 'Cannot create transient target /run/sshd for validation'
-    chmod 755 /target/run/sshd ||
-        fatal 'Cannot set transient target /run/sshd directory mode'
-    capture in-target /usr/sbin/sshd -t ||
-        fatal 'OpenSSH syntax/prerequisite check failed; read sshd stderr in my-cdd.log'
-    capture in-target /usr/sbin/sshd -T ||
-        fatal 'OpenSSH effective configuration check failed; read sshd stderr in my-cdd.log'
-    grep -Fx 'permitrootlogin no' "$WORK/output" >/dev/null ||
-        fatal 'OpenSSH effective PermitRootLogin policy is not no'
 }
 ````
 
