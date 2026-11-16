@@ -92,7 +92,8 @@ Then test:
 - [ ] Kernel chooses an eligible **7.x** image/header pair, keeps a boot fallback and does not auto-enable Backports.
 - [ ] Firmware attempts both microcodes, handles conflicts, shows the **full actual vendor licenses**, and reruns the plan after a declined license.
 - [ ] Debian tweaks affect only selected target GRUB/root ext4/SSH/APT settings.
-- [ ] OMV installs only the signed **8.x** package and executes the official `omv-confdbadm populate` and `omv-salt deploy run hosts` steps; the OMV module makes no SSH, group, update, notification, plugin or Docker changes.
+- [ ] OMV uses only the first official manual-install signed APT repository (`packages.openmediavault.org/public`), checks its package origin, applies the same full-transaction/default-No review pattern as Docker, installs **8.x**, and runs `omv-confdbadm populate` and `omv-salt deploy run hosts`; it makes no custom SSH, group, update, notification, plugin or Docker changes.
+- [ ] Verify OMV's documented `systemd-resolved`/DNS prerequisite before and throughout installation, and verify first-boot network reachability without making unapproved CDD network changes.
 - [ ] Docker installs the five official signed packages without changing vendor service defaults or granting the administrator the Docker group.
 
 ## Step 5 — Test the destructive ZRAM module separately
