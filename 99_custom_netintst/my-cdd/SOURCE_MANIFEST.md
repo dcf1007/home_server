@@ -1,5 +1,7 @@
 # my-cdd source manifest and provenance
 
+> **Current location (2026-11-16):** `99_custom_netintst/my-cdd/` (relocated from `01_custom_netinst/my-cdd/`). The historical entries below are preserved as dated provenance, not all current operational instructions. For ordinary Debian setup see [numbered chapters](../../README.md); the active installer path is in [99's README](../README.md). No installer executables changed in the relocation.
+
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
 **Latest revision:** 2026-11-15 (Europe/Berlin).  
 **Nearest user prompt (latest change, paraphrased):** On 2026-11-15, uploaded four GTK installer screenshots confirming the custom kernel and headers transaction completed but ZRAM stopped because the installer-native `parted` executable was missing. Added the official `parted-udeb` to the existing Simple-CDD build-only media profile, native `anna-install` loading, and an ISO inclusion guard while preserving the original ZRAM partition approvals. Historic provenance follows.  
