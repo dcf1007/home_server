@@ -2,7 +2,7 @@
 
 **What this does:** installs Docker Engine, Docker Compose and the supporting packages from Docker's **official Debian repository**.
 
-Docker is independent of OpenMediaVault. This guide does not install OMV-Extras, `openmediavault-compose`, containers or additional server services.
+Docker is independent of OpenMediaVault. Both guides use the same basic method—official signing key, signed APT repository, reviewed package installation, then verification. Docker requires its own package set; OMV additionally initializes its database and hosts. This guide does not install OMV-Extras, `openmediavault-compose`, containers or additional server services.
 
 ## Step 1 — Check for conflicting software
 
