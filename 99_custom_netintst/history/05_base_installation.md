@@ -1,0 +1,51 @@
+# 05 — Base Debian 13 installation: normal installer screens
+
+**Latest observed installer outcome (2026-11-15):** The native root recovery prompt worked and set a usable root password. Before applying Backports, a target `apt update` encountered an active installer `cdrom:` source and returned a fatal error. A source-level fix now disables only those CD-ROM lines during selected custom-profile APT operation; a separate native finish-install hook returns status 10 to the main menu on incomplete custom installation, preventing an erroneous success screen. Neither change has yet been tested in a rebuilt ISO.\n\n
+**Latest VM result (2026-11-15):** Base Debian 13 boots, but the optional-profile late command failed before entering the profile loop because `in-target` did not pass its stdout to the custom runner. The source correction now invokes `in-target --pass-stdout` centrally and uses target `chroot` stdin for the conditional root password. It has not been rerun in Debian Installer. Native `tasksel` selection stays editable but still requires manually selecting SSH and standard, deselecting desktop and GNOME; `tasksel/first seen=false` overwrites the default list.
+
+**Current source policy (2026-11-15):** All nonstandard base-system policies were removed from the default package queue and late command. Country `DE` and domain `dcf1007-world` are suggestions only; native installation prompts remain editable. Earlier design history may describe superseded assumptions.
+
+**Status:** agreed choices, to be entered or confirmed in the interactive installer. **Recorded:** 2026-11-14. **Provenance:** custom server installation-planning decisions.
+
+The base installation is Debian 13 Trixie **amd64**, minimal/headless, with **SSH server** and **Standard system utilities**, **without** a desktop environment. Native GUI suggestions for installer language, localization, identities, networking, time and task selection come from [profile_defaults.conf](my-cdd/profile_defaults.conf) regardless of optional profile selections. The USB boots graphical installer by default, waits for Enter, and retains text/rescue. The target server is UEFI/GPT, Secure Boot disabled. No custom BIOS boot check.
+
+## Disk layout
+
+The reference design uses a **256 GB SSD/NVMe** for the OS. This is an example capacity, not a requirement for reuse. Select the intended OS installation disk and confirm partition writes **manually**; do not preselect a device by name. The OS installation does not use encryption or LVM.
+
+| Partition | Purpose |
+|---|---|
+| EFI System Partition | 1 GiB, FAT32, mount `/boot/efi` |
+| ext4 root | The rest of the SSD after other approved partitions; mount `/`; includes all application data |
+| New or reused swap partition (optional) | Suggested size **16 GB**, chosen and confirmed manually. **Without ZRAM:** ordinary swap. **With ZRAM:** the same confirmed partition becomes **raw/unformatted ZRAM writeback backing**, GPT Linux filesystem type **8300**, GPT partition name **`zram-writeback`**, referenced by **PARTUUID**; no conventional swap activation. |
+
+There is **no separate `/boot`** or application partition. Use filesystem UUIDs for root and ESP, and PARTUUID for the optional ZRAM raw backing. **The user decides in the normal manual partitioner whether to create a swap partition or reuse an existing one.** Debian Installer normally warns if no swap partition is assigned, and can continue without it after confirmation. If a swap partition exists it becomes ordinary swap **unless** the user selects ZRAM; then **at the very start of ZRAM profile execution**, first automatically identify the unique swap partition assigned in the new target fstab, or ask the user to choose a verified partition in native GTK/text when ambiguous, require explicit confirmation of the exact identity and destructive conversion, and **immediately** convert only that partition to GPT type **8300**, assigning **`zram-writeback`** as GPT name (**PARTLABEL**, not filesystem LABEL), and removing old swap signatures before any other ZRAM provisioning. If the partition was activated as conventional swap, the user must separately approve a **targeted `swapoff`** after memory safety checks; if unsafe or unsuccessful, stop without changing the partition type or signatures. Do not create a filesystem or mkswap-format the backing partition. **`/dev/zram0`** is separately formatted as swap by the generator. If ZRAM is selected but no eligible backing exists, the current late-stage profile stops without changing a partition; return-to-partitioner navigation remains an unverified release gate. Selection of a partition belonging to another OS is never automatic without explicit assignment to the new target and carries a separate destructive warning. The exact transition through partman and any swap signature removal must be tested before deployment.
+
+Root ext4 uses Debian's ordinary filesystem defaults, except for the **optional [Debian tweaks](04_debian_tweaks.md)** profile's non-default `noatime` and `errors=panic` mount options. Disk formatting and partition confirmation remain in Debian Installer; no default-setting override is needed.
+
+## Identity, credentials and networking
+
+- The **hostname, administrator username, DNS domain and wired DHCP suggestions** come from [profile_defaults.conf](my-cdd/profile_defaults.conf) and must be displayed in editable Debian Installer questions with explicit confirmation. The default local DNS domain is `dcf1007-world` (editable); the network uses router-side IP reservation. **None** of these GUI choices belongs to the Debian tweaks profile.
+- Use Debian Installer's native account, password, privilege and SSH screens without forcing sudo or SSH. **Recovery exception:** before executing any selected profile (including the empty-selection path), the late installer preflight checks the installed root account. If it is locked or lacks a password, it requires a separate local root password through the native password-type Debconf prompts, applies it securely and verifies the root account is usable. This prevents a sudo-created user with locked root from becoming stranded in systemd rescue/emergency mode. Existing valid root passwords are preserved; root SSH is not enabled by this check.
+- Profile-specific SSH, sudo, update and service policies apply only to the explicitly selected profiles; the root recovery guard is the one independent safety exception.
+- No firewall filtering or explicit Docker/OMV service-startup overrides are added during installation or for first boot.
+
+## Localization / time — normal installer GUI
+
+**[profile_defaults.conf](my-cdd/profile_defaults.conf) is the single canonical source for suggested GUI choices**, including English installer language, locale, Spanish (Spain) keyboard, `Europe/Berlin` timezone and a UTC hardware clock. Every shown value remains editable and must be confirmed on the standard setup screens, **whether or not Debian tweaks is selected**. The original example values are recorded in the config file rather than duplicated as fixed choices here.
+
+Retain `systemd-timesyncd` for time synchronization; use the user-confirmed timezone and locale from the ordinary installer GUI.
+
+## Repositories and ordinary package options
+
+- Base Debian repositories: `trixie`, `trixie-updates` and `trixie-security`; components `main contrib non-free non-free-firmware`; binary package sources only. **`trixie-backports` is enabled only if the user explicitly selects the separate Backports profile**.
+- Official HTTPS mirrors, no APT proxy. **Use Debian Installer's normal network, mirror-selection, retrieval/retry and installed-APT configuration prompts without duplicating them or adding a separate mirror-persistence decision.** Preserve signed metadata and HTTPS trust; custom selected-profile failures follow the documented stop-with-diagnostics rule when no safe native recovery is available. Re-simulate custom APT transactions only if package candidates change. [02 — Backports](02_backports_apt.md) documents optional repository enablement at **Debian default priority 100**, with explicit approval for package upgrades and subsequent autoremove/purge. The independently selectable [Ensure 7.x kernel branch](09_ensure_7x_kernel.md) profile **prefers suitable Backports kernel/header versions when Backports was explicitly selected**, otherwise checks normal Debian versions first and asks permission to activate Backports only if required.
+- Standard APT package policy: install `Recommends`, not `Suggests`.
+- Installer software-selection suggestions (**SSH server**, **Standard system utilities**, **no desktop**) live in [profile_defaults.conf](my-cdd/profile_defaults.conf) and must be confirmed via the normal installation GUI; symbolic tasksel identifiers require validation before automation.
+- No `popularity-contest`.
+- Always retain Debian Installer's normal automatic firmware detection. The optional [Extended device support](10_extended_device_support.md) profile attempts **both Intel and AMD microcode packages** (without filtering by actual CPU vendor), plus broad additional firmware. **If Backports was selected, prefer its viable firmware and microcode versions first** using targeted per-package requests without changing the global priority **100**; if Backports offers no usable version, evaluate normal repositories before considering omission. Simulate the combined transaction; any unavailable/conflicting microcode or firmware package may be omitted **only after its reason is shown and the user explicitly approves that individual omission**.
+- The unselected base follows Debian's default update policy; selected Debian tweaks/OMV policy applies only to those profiles. Do not impose additional unattended-update/reboot policies globally. The **separately selected Backports profile** owns the reviewed full-upgrade and post-upgrade cleanup steps, including explicit approval for proposed removals and purges.
+
+## Finish
+
+Use Debian's normal completion screen, **wait for manual Continue** before reboot. Installed GRUB is a separate five-second menu. Important installer acceptance checks are in [08_validation_and_pending.md](08_validation_and_pending.md).
