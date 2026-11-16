@@ -29,21 +29,11 @@ profile_omv() {
         /usr/share/keyrings/openmediavault-archive-keyring.gpg /tmp/my-cdd-omv-key
     rm -f /target/tmp/my-cdd-omv-key
 
-    # Mirror priorities and the signed sources match upstream install.sh.
-    mkdir -p /target/etc/apt/mirrors /target/etc/apt/sources.list.d
-    cat > /target/etc/apt/mirrors/openmediavault.txt <<'EOF'
-https://packages.openmediavault.org/public/ priority:1
-https://packages.openmediavault.io/ priority:2
-https://openmediavault.github.io/packages/ priority:3
-https://downloads.sourceforge.net/project/openmediavault/packages/ priority:4
-EOF
+    # Single official signed repository: first entry in OMV 8's
+    # manual Debian installation guide. No mirror list or extra suites.
+    mkdir -p /target/etc/apt/sources.list.d
     cat > /target/etc/apt/sources.list.d/openmediavault.list <<'EOF'
-deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] mirror+file:/etc/apt/mirrors/openmediavault.txt synchrony main
-## Uncomment the following line to add software from the proposed repository.
-# deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] mirror+file:/etc/apt/mirrors/openmediavault.txt synchrony-proposed main
-## This software is not part of OpenMediaVault, but is offered by third-party
-## developers as a service to OpenMediaVault users.
-# deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] mirror+file:/etc/apt/mirrors/openmediavault.txt synchrony partner
+deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] http://packages.openmediavault.org/public/ synchrony main
 EOF
     run_target apt-get update
 
