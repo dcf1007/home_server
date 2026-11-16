@@ -1,45 +1,122 @@
-# 01 — Base Debian 13 installation
+# 01 — Install a minimal Debian 13 server
 
-**Starting point:** a normal, freshly installed Debian 13 (Trixie) amd64 system. No customized ISO or Simple-CDD is required.
+This guide starts with a **normal Debian installation**. You do not need the custom ISO or any scripts from this repository.
 
-## Install a minimal headless system
+**Result:** Debian 13 (Trixie), a headless server with a working network connection, SSH access and standard system utilities.
 
-Use Debian Installer's normal, interactive partitioning and setup questions. The example home server uses UEFI/GPT, a 256 GB SSD, no LVM or disk encryption, with these manually chosen partitions:
+## Step 1 — Boot the Debian installer
 
-| Partition | Example |
+1. Download the official Debian 13 **amd64 netinst** image from the [Debian website](https://www.debian.org/distrib/netinst).
+2. Write it to a USB drive and boot the computer.
+3. Choose **Graphical install** or **Install**.
+4. Answer the normal questions about language, keyboard, network, hostname, accounts and time zone.
+
+For this project's example server, the suggested settings are English, the `en_US.UTF-8` locale, Spanish keyboard, Germany, `Europe/Berlin` time zone and DHCP. **These are examples, not hardcoded requirements.**
+
+Keep a working local administrator or root password. It is useful if a later ZRAM problem requires emergency-mode recovery.
+
+## Step 2 — Choose the disks yourself
+
+At **Partition disks**, choose **Manual**. Review the actual disk model and capacity before selecting anything.
+
+The example setup uses a 256 GB SSD, UEFI boot, GPT, and no LVM or encryption:
+
+| Partition | What to select |
 | --- | --- |
-| EFI system | 1 GiB FAT32, mounted at `/boot/efi` |
-| Root | ext4 on the rest of the SSD, mounted at `/` |
-| Optional swap | 16 GiB as a suggestion, new or reused; ordinary swap unless later converted for [ZRAM](../05_zram_writeback/README.md) |
+| EFI System Partition | 1 GiB, FAT32, mount point `/boot/efi` |
+| Root | ext4, mount point `/`, using the remaining space |
+| Optional swap partition | Around 16 GiB as an example; change this size to suit your system |
 
-**Always verify the actual disk model and capacity.** Never infer the install target from a fixed `/dev/sdX` path. With no ZRAM, Debian can use ordinary swap. For this project's optional ZRAM writeback, reserve a separate GPT partition and convert it later after explicit approval.
+If you plan to use the optional [ZRAM writeback guide](../05_zram_writeback/README.md), reserve a separate swap partition now. It will be converted later, **only after you approve that destructive change**. Otherwise, a normal swap partition can stay as swap.
 
-The project's editable example preferences are English, `en_US.UTF-8`, German country, Spanish keyboard, `Europe/Berlin`, DHCP and a router-side address reservation. Hostname, domain and admin username are chosen in the normal installer UI.
+**Before accepting the installer's partition changes**, check the selected disk and every partition again. Do not copy device names from an example.
 
-At Software selection, enable **SSH server** and **standard system utilities**, and disable desktop/GNOME. A minimal installation with no desktop is required for OMV.
+## Step 3 — Select the installed software
 
-## Confirm the first boot
+At **Software selection**:
+
+1. Select **SSH server**.
+2. Select **standard system utilities**.
+3. Deselect **Debian desktop environment**, **GNOME** and any other desktop.
+
+Finish the installer and reboot into Debian.
+
+## Step 4 — Check the new system
+
+Sign in with the account you created. Run these commands one at a time.
+
+Check the Debian version:
 
 ~~~sh
 cat /etc/os-release
-uname -m
-lsblk -o NAME,PATH,TYPE,SIZE,FSTYPE,PARTUUID,MOUNTPOINTS
-findmnt -no SOURCE,FSTYPE,OPTIONS /
-timedatectl
-ip -brief address
-sudo apt-get update
-sudo dpkg --audit
 ~~~
 
-Expect Debian `trixie`, x86_64 architecture, the correct disk layout and working network. If SSH is wanted but not installed:
+Look for `Debian GNU/Linux 13` and `trixie`.
+
+Check that the machine is 64-bit:
 
 ~~~sh
-sudo apt-get install openssh-server
+uname -m
+~~~
+
+The expected result for this project is `x86_64`.
+
+Review the disks and mount points:
+
+~~~sh
+lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS
+~~~
+
+Confirm that the expected disk contains your root filesystem and, if selected, the optional swap partition.
+
+Check network addresses and the clock:
+
+~~~sh
+ip -brief address
+~~~
+
+~~~sh
+timedatectl
+~~~
+
+Finally, refresh package information:
+
+~~~sh
+sudo apt update
+~~~
+
+If your administrator account does not have `sudo`, use the root account created during installation (`su -`) and run the administrative commands without `sudo`. Do not grant privileges to an unknown account.
+
+## Step 5 — Check SSH and recovery access
+
+If you selected SSH server in the installer, check its status:
+
+~~~sh
 sudo systemctl status ssh
 ~~~
 
-Use the installer-created administrative account; if it lacks sudo, use the authorized root account to grant it deliberately. To support the project's ZRAM emergency recovery, verify local root access with `sudo passwd -S root` and set a password with `sudo passwd root` when necessary. This does **not** enable root SSH.
+It should be running. If you did not select SSH but now want it, install it explicitly:
 
-Next, select only the chapters relevant to your server. Do not apply the optional tweaks or services by default.
+~~~sh
+sudo apt install openssh-server
+~~~
 
-References: [Debian 13 installation guide](https://www.debian.org/releases/trixie/amd64/) · [OpenMediaVault installation on Debian](https://docs.openmediavault.org/en/stable/installation/on_debian.html).
+Test logging in as your normal user from another computer before depending on SSH for administration.
+
+For the optional ZRAM emergency-recovery policy, check local root password status:
+
+~~~sh
+sudo passwd -S root
+~~~
+
+If root is locked or has no usable password, and you want local emergency recovery, set one interactively:
+
+~~~sh
+sudo passwd root
+~~~
+
+This does **not** allow root SSH logins.
+
+**Done when:** Debian boots from the correct disk, you can administer it, the network works and the required packages can be retrieved. Continue with whichever optional guide you want; none is mandatory.
+
+**Reference:** [Debian 13 installation guide](https://www.debian.org/releases/trixie/amd64/).

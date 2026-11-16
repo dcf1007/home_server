@@ -16,6 +16,14 @@ Each numbered chapter can be followed independently on an already installed Debi
 | [08 — Docker](08_docker/README.md) | Official Docker Engine and Compose, independent of OMV |
 | [99 — Custom netinst](99_custom_netintst/README.md) | Simple-CDD build, udeb limitations, installer integration |
 
+## How to follow the guides
+
+Each chapter is written for a person working at a terminal, **one command at a time**. Text shown as a configuration file belongs **inside that file**, not in the terminal. When a command contains a name such as `YOUR_PARTITION` or `YOUR_USERNAME`, replace it with the value from your own machine before running it. Do not use sample disk names verbatim.
+
+The instructions use the `nano` text editor, which you can install with `sudo apt install nano` if it is not already available. To save in nano, press **Ctrl+O**, Enter and **Ctrl+X**. When APT shows proposed package changes, read them before confirming.
+
+**Do not run every optional chapter just because it is numbered.** Choose the features you actually want.
+
 ## Usage
 
 On a normally installed server, obtain these guides with:

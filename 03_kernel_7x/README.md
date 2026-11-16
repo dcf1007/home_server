@@ -1,52 +1,89 @@
-# 03 — Eligible Linux 7.x kernel and matching headers (optional)
+# 03 — Install an eligible Linux 7.x kernel (optional)
 
-The project's [ZRAM writeback configuration](../05_zram_writeback/README.md) specifically requires an eligible **7.x** kernel and matching headers. Do not hardcode a point release or assume the current APT metapackages always point to 7.x.
+**What this does:** installs a Linux **7.x kernel and matching headers** while keeping your working Debian kernel as a boot fallback. This project's [ZRAM writeback setup](../05_zram_writeback/README.md) depends on this step.
 
-## Inspect the candidates
+Do not assume that a particular 7.x version will remain available. Check the versions offered by your configured Debian repositories at the time of installation.
 
-~~~sh
-sudo apt-get update
-apt-cache policy linux-image-amd64 linux-headers-amd64
-apt-cache show linux-image-amd64 | grep -E '^(Version|Depends):'
-apt-cache show linux-headers-amd64 | grep -E '^(Version|Depends):'
-~~~
-
-Confirm the selected **pair** resolves to `linux-image-7.*` and `linux-headers-7.*` for the same ABI. Check actual versions, repository origin, dependencies and possible removals. Do **not** silently install 6.x or 8.x as a substitute.
-
-If the normal Debian candidates both resolve to 7.x:
+## Step 1 — See which kernels Debian offers
 
 ~~~sh
-sudo apt-get -s install linux-image-amd64 linux-headers-amd64
-# After checking the plan and keeping your working fallback:
-sudo apt-get install linux-image-amd64 linux-headers-amd64
+sudo apt update
 ~~~
-
-If [Backports](../02_backports/README.md) was **already enabled**, first inspect whether its moving metapackages resolve to a compatible 7.x pair:
 
 ~~~sh
-sudo apt-get -s install linux-image-amd64/trixie-backports linux-headers-amd64/trixie-backports
-# ONLY IF both really resolve to matching 7.x packages:
-sudo apt-get install linux-image-amd64/trixie-backports linux-headers-amd64/trixie-backports
+apt policy linux-image-amd64 linux-headers-amd64
 ~~~
 
-If neither source has an eligible pair, stop and decide whether another signed repository is acceptable. Do not enable Backports automatically or remove the Stable fallback.
+Look at the available versions and where they come from. Both the kernel image and its headers must belong to the **7.x branch**.
 
-## Finish and verify
+For more information about their dependencies:
+
+~~~sh
+apt show linux-image-amd64
+~~~
+
+~~~sh
+apt show linux-headers-amd64
+~~~
+
+If you have Backports enabled, also inspect the package pages for **Trixie Backports** or the additional available versions listed by `apt policy`. The moving image and header packages must resolve to the **same 7.x kernel ABI**. Version numbers will change over time.
+
+If your enabled sources do not offer a compatible 7.x pair, **stop**. You can choose to enable [Backports](../02_backports/README.md); do not silently use a different kernel branch.
+
+## Step 2 — Install the matching image and headers
+
+**Option A — 7.x is already the normal Debian candidate.**
+
+~~~sh
+sudo apt install linux-image-amd64 linux-headers-amd64
+~~~
+
+**Option B — You enabled Backports and its image and headers resolve to 7.x.**
+
+~~~sh
+sudo apt install linux-image-amd64/trixie-backports linux-headers-amd64/trixie-backports
+~~~
+
+Use **only one** option after checking the offered versions. APT will show the planned changes before installing. If it proposes removing your working Debian kernel or bootloader, say **No** and investigate.
+
+## Step 3 — Update the boot files
 
 ~~~sh
 sudo update-initramfs -u -k all
-sudo update-grub
-sudo dpkg --audit
-ls /boot/vmlinuz-7.* /usr/src/linux-headers-7.* 2>/dev/null
 ~~~
 
-After reboot:
+~~~sh
+sudo update-grub
+~~~
+
+Keep the original Stable kernel available in GRUB until you have successfully booted the new one.
+
+## Step 4 — Reboot and confirm the result
+
+~~~sh
+sudo reboot
+~~~
+
+Once Debian starts, check the running kernel:
 
 ~~~sh
 uname -r
-test -d "/usr/src/linux-headers-$(uname -r)" && echo 'Matching headers present'
 ~~~
 
-The running kernel should be **7.x**; the exact headers ABI must match it. ZRAM compressed writeback still requires separate **kernel sysfs feature validation**, not just the version number.
+It must begin with `7.`. Now inspect the installed headers:
 
-References: [Debian Backports](https://backports.debian.org/Instructions/) · [Debian kernel metapackage](https://packages.debian.org/trixie-backports/linux-image-amd64).
+~~~sh
+ls /usr/src
+~~~
+
+Find a `linux-headers-...` directory that **exactly matches** the kernel reported by `uname -r`. If there is no matching directory, the kernel/header installation is incomplete.
+
+~~~sh
+sudo dpkg --audit
+~~~
+
+**Done when:** Linux 7.x is actually running, matching headers are installed, and the original Stable kernel remains a selectable fallback.
+
+**Important:** A 7.x version alone does not prove that ZRAM compressed writeback is supported. Check the actual ZRAM features in [05](../05_zram_writeback/README.md).
+
+**References:** [Debian Backports](https://backports.debian.org/Instructions/) · [Available Trixie Backports kernel](https://packages.debian.org/trixie-backports/linux-image-amd64).

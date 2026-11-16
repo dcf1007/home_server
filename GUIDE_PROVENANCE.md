@@ -1,5 +1,9 @@
 # Guide source provenance
 
+**Latest documentation revision:** 2026-11-16 (Europe/Berlin).  
+**Nearest user prompt for this revision:** “the individual guides should be step by step human readable and easy to understand and execute for a human. complex multi line commands with pipes and results tailored for machine interpreting should be avoided.”  
+**Change:** rewrote all eight `01`–`08` standalone `README.md` files as step-by-step human instructions, using ordinary interactive APT review, simple editor operations, copyable one-line commands and expected results. Removed shell array generation, compound command substitutions, pipelines and machine-oriented command glue from the documented operating procedures. OMV's vendor script is downloaded and reviewed before execution; Docker's source is entered in a text editor; ZRAM requires explicit human-readable device review and placeholders before writes. The firmware inventory, original ZRAM assets, OMV helper and all custom Simple-CDD executables remain unchanged. **No commands were run on a Debian server, no ISO was built and no first-boot validation was performed by this documentation change.**
+
 **Creation date:** 2026-11-16 (Europe/Berlin).  
 **Nearest user prompt:** “this repo is a full guide on how i set up my home NAS (+more) server. the final result is a custom install debian, but i want each step applicable on a freshly installed system individually as you would normally do it. therefore rename the 01_custom_netinst to 99_custom_netintst and add the various things we have been doing with their own howtos as 01 02 03 etc. these should take the easiest approach possible, so things we have modified to make them udeb compatible can follow the easier procedures with the tools of a full debian system. This refactoring might also move content from the actual guides, so the netinst guide focuses on that, how to make things viable within the netinst.”
 
