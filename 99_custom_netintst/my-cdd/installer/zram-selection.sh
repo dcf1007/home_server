@@ -8,22 +8,6 @@
 ZRAM_SWAP_GUID=0657fd6d-a4ab-43c4-84e5-0933c84b4f4f
 ZRAM_DATA_GUID=0fc63daf-8483-4772-8e79-3d69d8477de4
 
-zram_blkid() { blkid "$@"; }
-
-zram_check_utilities() {
-    for utility in parted blkid busybox readlink cmp awk sed; do
-        command -v "$utility" >/dev/null 2>&1 ||
-            fatal "ZRAM requires unavailable Debian Installer utility: $utility"
-    done
-    for applet in dd swapoff; do
-        busybox --list | grep -qx "$applet" ||
-            fatal "ZRAM requires unavailable Debian Installer BusyBox applet: $applet"
-    done
-    [ -d /sys/class/block ] && [ -r /proc/swaps ] &&
-        [ -r /proc/self/mountinfo ] && [ -d /dev/disk/by-partuuid ] ||
-        fatal 'ZRAM cannot inspect installer block devices, swaps, mounts or PARTUUID links'
-}
-
 zram_probe_value() {
     printf '%s\n' "$zi_output" | sed -n "s/^$1=//p" | head -n 1
 }
@@ -81,9 +65,9 @@ zram_ref_matches() (
         PARTUUID=*) [ "$(printf '%s' "${zr_ref#PARTUUID=}" | tr '[:upper:]' '[:lower:]')" = "$zr_part" ] ;;
         UUID=*) [ -n "$zr_swap_uuid" ] &&
             [ "$(printf '%s' "${zr_ref#UUID=}" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$zr_swap_uuid" | tr '[:upper:]' '[:lower:]')" ] &&
-            [ "$(readlink -f -- "$(zram_blkid -t "UUID=$zr_swap_uuid" -o device 2>/dev/null || true)" 2>/dev/null || true)" = "$zr_dev" ] ;;
+            [ "$(readlink -f -- "$(blkid -t "UUID=$zr_swap_uuid" -o device 2>/dev/null || true)" 2>/dev/null || true)" = "$zr_dev" ] ;;
         LABEL=*) [ -n "$zr_swap_label" ] && [ "${zr_ref#LABEL=}" = "$zr_swap_label" ] &&
-            [ "$(readlink -f -- "$(zram_blkid -t "LABEL=$zr_swap_label" -o device 2>/dev/null || true)" 2>/dev/null || true)" = "$zr_dev" ] ;;
+            [ "$(readlink -f -- "$(blkid -t "LABEL=$zr_swap_label" -o device 2>/dev/null || true)" 2>/dev/null || true)" = "$zr_dev" ] ;;
         # PARTLABEL is not unique and cannot prove which raw partition
         # belongs to the target. Do not resolve it automatically.
         PARTLABEL=*) return 1 ;;
@@ -131,8 +115,8 @@ zram_choose_candidate() {
     if [ "$(wc -l < "$WORK/zram-target-swap-refs")" -eq 1 ]; then
         za_ref="$(cat "$WORK/zram-target-swap-refs")"
         while IFS='|' read -r za_id za_dev za_kind za_size; do
-            za_swap_uuid="$(zram_blkid -s UUID -o value "$za_dev" 2>/dev/null || true)"
-            za_swap_label="$(zram_blkid -s LABEL -o value "$za_dev" 2>/dev/null || true)"
+            za_swap_uuid="$(blkid -s UUID -o value "$za_dev" 2>/dev/null || true)"
+            za_swap_label="$(blkid -s LABEL -o value "$za_dev" 2>/dev/null || true)"
             if [ "$za_kind" = swap ] &&
                 zram_ref_matches "$za_ref" "$za_id" "$za_dev" "$za_swap_uuid" "$za_swap_label"; then
                 za_count=$((za_count + 1))
