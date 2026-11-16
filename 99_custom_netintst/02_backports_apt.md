@@ -1,11 +1,42 @@
-# Netinst — Backports adaptation
+# Netinst — What the selected Backports profile actually does
 
-**Normal installed-system procedure:** [02 — Backports](../02_backports/README.md).
+**Goal:** add signed Trixie Backports to the new Debian system, review eligible upgrades and optional cleanup, while preserving normal APT priority **100**.
 
-During installation there is no standing administrator shell and the new OS is under `/target`. The selected-only [profile-backports.sh](my-cdd/installer/profile-backports.sh) copies the signed Debian Backports source into that target, uses reviewed `in-target apt-get` operations and checks the normal priority **100**.
+For a system that already boots Debian, use the simpler [02 — Backports how-to](../02_backports/README.md). The following steps happen **inside Debian Installer** when you selected Backports.
 
-The custom installer must show the *complete* simulation, request explicit approval for the upgrade and each proposed removal, preserve the working Stable kernel fallback, and avoid a priority-900 global pin. It must not activate Backports if the corresponding profile is unchecked.
+## Step 1 — Add the source to the installed target
 
-**Why different from the ordinary guide:** the extra Debconf approval, stdout passthrough and target-chroot handling exist solely because operations happen from Debian Installer. The post-install guide can simply run `apt-get` and ask the administrator to review the native APT transaction.
+The installer copies its staged [`debian-backports.sources`](my-cdd/scripts/debian-backports.sources) into the target's `/etc/apt/sources.list.d/`. It contains:
 
-Source: [installer/profile-backports.sh](my-cdd/installer/profile-backports.sh). Historical policy and design: [history/02_backports_apt.md](history/02_backports_apt.md).
+- `Suites: trixie-backports`, with Debian components including `non-free-firmware`;
+- Debian's archive signing key, not an unsigned third-party source.
+
+It rejects the project's old priority-override file if one unexpectedly exists. The selected profile must never silently raise Backports to priority 900.
+
+## Step 2 — Refresh package indexes and verify priorities
+
+It runs target `apt-get update` through Debian Installer's progress frontend and checks target `apt-cache policy`. The **Backports lines must have effective priority 100**. Any unexpected priority is an error, not something the installer silently fixes.
+
+**What you should check:** the proposed Backports versions appear as available alternatives; ordinary Stable/Security packages are not globally replaced.
+
+## Step 3 — Review the upgrade before APT changes packages
+
+The target runs an **APT dry-run full/dist-upgrade**. Debian Installer shows the **complete proposed package actions** and asks for a separate default-No approval.
+
+Check the package names, versions, repository origins, dependencies and **all removals**. If it proposes removing a kernel, GRUB, SSH, sudo, systemd or another critical package, the profile rejects it. An approved upgrade is executed through target `apt-get`, followed by a package-configuration audit and a second simulation to confirm that eligible work did not remain.
+
+## Step 4 — Consider safe cleanup individually
+
+The installer next simulates `autoremove --purge`. If APT proposes removals, it shows the full plan, then asks **separately for every package** whether that exact removal is approved. A refusal stops this cleanup instead of deleting an unapproved package.
+
+It also checks for packages left only with residual configuration (`dpkg` status `rc`). If present, it displays those exact names and requests review before purging their leftover configuration.
+
+Finally it checks package consistency and repeats the cleanup simulation; outstanding unapproved changes are an error.
+
+## Step 5 — What is left after the profile
+
+Only when these stages complete does it record the Backports profile as successful. The newly installed system should have the signed source configured at priority **100**, without a blanket pin. Your decision to select this does **not** automatically select the Linux 7.x or firmware profiles.
+
+**Why the installer needs special handling:** Debian Installer runs outside `/target`; it must route package operations into the target and show approvals through its own Debconf interface. An ordinary installed system can use interactive APT directly.
+
+**Validation:** the end-to-end GTK/text approval, target APT transaction and exact priorities must be checked in a VM; see [08 — Validation](08_validation_and_pending.md).

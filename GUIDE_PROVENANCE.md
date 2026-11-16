@@ -1,47 +1,30 @@
 # Guide source provenance
 
-**Latest revision date:** 2026-11-16 (Europe/Berlin).  
-**Nearest user prompt:** “if you put commands, the user must know what they do and their purpose. he/she should not execute commands blindly without being told what they are for or which needed information are we going to retrieve with them”.  
-**Changes:** Added a plain-language explanation before **every standalone-guide shell command** covering its purpose, the information or outcome expected, and where applicable its state-changing effects and stop conditions. The repository landing page similarly explains each Git command. The eight guide commands, firmware inventory, ZRAM configuration assets, OMV policy helper and custom Simple-CDD installer source remain unchanged. **Only documentation was edited.** No commands were executed on a real Debian system and no ISO/first-boot tests were performed.
+**Current documentation revision date:** 2026-11-16 (Europe/Berlin).
 
-**Latest documentation revision:** 2026-11-16 (Europe/Berlin).  
-**Nearest user prompt for this revision:** “the individual guides should be step by step human readable and easy to understand and execute for a human. complex multi line commands with pipes and results tailored for machine interpreting should be avoided.”  
-**Change:** rewrote all eight `01`–`08` standalone `README.md` files as step-by-step human instructions, using ordinary interactive APT review, simple editor operations, copyable one-line commands and expected results. Removed shell array generation, compound command substitutions, pipelines and machine-oriented command glue from the documented operating procedures. OMV's vendor script is downloaded and reviewed before execution; Docker's source is entered in a text editor; ZRAM requires explicit human-readable device review and placeholders before writes. The firmware inventory, original ZRAM assets, OMV helper and all custom Simple-CDD executables remain unchanged. **No commands were run on a Debian server, no ISO was built and no first-boot validation was performed by this documentation change.**
+**Nearest user prompt:** “in omv don't create external python scripts to do the tasks. one should do them by onelselves. also in the netinst way, i want the steps described in the guide, not just referenced to the profile sh script.”
 
-**Creation date:** 2026-11-16 (Europe/Berlin).  
-**Nearest user prompt:** “this repo is a full guide on how i set up my home NAS (+more) server. the final result is a custom install debian, but i want each step applicable on a freshly installed system individually as you would normally do it. therefore rename the 01_custom_netinst to 99_custom_netintst and add the various things we have been doing with their own howtos as 01 02 03 etc. these should take the easiest approach possible, so things we have modified to make them udeb compatible can follow the easier procedures with the tools of a full debian system. This refactoring might also move content from the actual guides, so the netinst guide focuses on that, how to make things viable within the netinst.”
+**What changed:**
+- Removed the standalone `07_openmediavault/disable-automatic-updates.py` helper and replaced that part of the OMV how-to with **manual OMV 8 web-interface settings**, explicit read-only database verification, Debian APT configuration editing and OMV Salt deployment when required.
+- Expanded the live `99_custom_netintst/` guides to describe **what the installer does step by step**, including choices, APT approvals, firmware licenses, ZRAM disk operations, target service policy, and post-install verification. Profile source links remain only as implementation references.
+- Kept the actual `my-cdd` installer shell modules, existing inline OMV database maintenance logic, seven profile choices, ZRAM assets, firmware inventory and ISO build behavior **unchanged**.
+- Kept previous historical Markdown planning under `99_custom_netintst/history/`. The prior standalone OMV helper is recoverable through Git history if its old provenance needs inspection.
 
-**Source revision:** `dcf1007/home_server`, `main` commit `96ead557168a61e230c6466c8d037754622603ad` (merged PR #11).  
-**Modification type:** documentation reorganization and additions; all existing Simple-CDD executable source, profiles, build variables, Debconf templates and staged ISO assets relocated **unchanged**.
+**Original restructuring basis:** `dcf1007/home_server` `main` at `96ead557168a61e230c6466c8d037754622603ad` (merged PR #11), followed by the organizational and readability revisions. The original Simple-CDD project was moved from `01_custom_netinst/` to `99_custom_netintst/` without changing the installer executables.
 
-## Content mapping
+## Current chapter map
 
-| New active chapter | Primary original source |
+| Ordinary Debian human how-to | Netinst adaptation |
 | --- | --- |
-| `01_base_debian/` | `01_custom_netinst/05_base_installation.md`, `profile_defaults.conf` |
-| `02_backports/` | `02_backports_apt.md`, `profile-backports.sh`, signed Backports template |
-| `03_kernel_7x/` | `09_ensure_7x_kernel.md`, `profile-kernel.sh` |
-| `04_extended_device_support/` | `10_extended_device_support.md`, `profile-firmware.sh`, firmware candidate list (same blob copied) |
-| `05_zram_writeback/` | `03_zram_writeback.md`, `profile-zram.sh`, `zram-selection.sh`, five original design assets (same blobs copied) |
-| `06_debian_tweaks/` | `04_debian_tweaks.md`, `profile-tweaks.sh` |
-| `07_openmediavault/` | `06_openmediavault.md`, `profile-omv.sh`; update-policy helper adapted from original Python subroutine |
-| `08_docker/` | `07_docker.md`, `profile-docker.sh` |
-| `99_custom_netintst/` | Entire previous `01_custom_netinst/` subtree, including all installer files, moved without executable changes |
+| [01 Base Debian](01_base_debian/README.md) | [Native screens and late stages](99_custom_netintst/05_base_installation.md) |
+| [02 Backports](02_backports/README.md) | [Installer APT procedure](99_custom_netintst/02_backports_apt.md) |
+| [03 Kernel 7.x](03_kernel_7x/README.md) | [Suite selection, kernel and headers](99_custom_netintst/09_ensure_7x_kernel.md) |
+| [04 Firmware](04_extended_device_support/README.md) | [Complete license/omission flow](99_custom_netintst/10_extended_device_support.md) |
+| [05 ZRAM writeback](05_zram_writeback/README.md) | [Full partition conversion](99_custom_netintst/03_zram_writeback.md) |
+| [06 Debian tweaks](06_debian_tweaks/README.md) | [Selected target file changes](99_custom_netintst/04_debian_tweaks.md) |
+| [07 OMV 8](07_openmediavault/README.md) | [Selected target OMV installation and policy](99_custom_netintst/06_openmediavault.md) |
+| [08 Docker](08_docker/README.md) | [Signed Docker installation](99_custom_netintst/07_docker.md) |
 
-Every former numbered planning document and landing page is retained in [99_custom_netintst/history](99_custom_netintst/history/); the technical content and uploaded ZRAM design are preserved, with only historical relative Markdown link destinations adjusted for the move. Its original chronology is **historical**, including superseded status and techniques.
+## Verification boundary
 
-The post-install commands were made independently runnable on a normal Debian installation; the simplified OMV quick install follows the vendor route, Docker follows its official signed apt repository, and ZRAM uses full installed-system `sgdisk` and `wipefs` rather than udeb-specific workarounds.
-
-## External technical references checked during extraction
-
-- [Debian 13 Backports instructions](https://backports.debian.org/Instructions/)
-- [OpenMediaVault 8 installer on Debian](https://www.openmediavault.org/install) and [official Debian-specific guidance](https://docs.openmediavault.org/en/stable/installation/on_debian.html)
-- [Docker Engine on Debian](https://docs.docker.com/engine/install/debian/)
-- [Linux kernel ZRAM](https://www.kernel.org/doc/html/latest/admin-guide/blockdev/zram.html) and [zram-generator configuration](https://github.com/systemd/zram-generator/blob/main/man/zram-generator.conf.md)
-- [Debian wipefs](https://manpages.debian.org/trixie/util-linux/wipefs.8.en.html) and [sgdisk](https://manpages.debian.org/trixie/gdisk/sgdisk.8.en.html)
-
-## Validation boundary
-
-Links and file-layout identity are checked statically where possible. **No new ISO build, Debian Installer run, physical disk conversion or first boot is claimed** for this documentation reorganization. The original installer functionality remains subject to the [active validation gates](99_custom_netintst/08_validation_and_pending.md).
-
-All new content is committed directly into the repository; no user-facing sandbox artifact is created for this change. Git retains the previous files by history, and the separate archival Markdown copies preserve their text.
+These edits are **documentation-only plus removal of the unused standalone OMV helper**. No ISO was rebuilt, no installer was run, no OMV 8 GUI configuration was clicked on a live system, and no ZRAM partition or hardware was changed. The step-by-step descriptions are derived from the actual tracked `my-cdd` profile source and Debian/OMV/Docker documentation; runtime claims still require the [VM test plan](99_custom_netintst/08_validation_and_pending.md).
