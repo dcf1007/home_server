@@ -1,141 +1,142 @@
-# 00 — How to construct a Simple-CDD optional profile
+# 00 — Recreate the shared profile rules and APT helpers
 
-This is the reusable **source-development procedure** for chapters 02, 03, 04, 06, 07, 09 and 10. It explains the source files you edit **on the build machine**. Do not run profile modules on a normal installed Debian system.
+This is a **build tutorial**. When you finish it you will have the two source files that every optional installer profile depends on. These run **inside Debian Installer**, not from a running NAS.
 
-## Step 1 — Understand the source layout
+**Starting point:** A directory `99_custom_netintst/my-cdd/` with the Simple-CDD configuration from [01](01_custom_cdd_preparation.md). If you are extending the existing repository, work on a separate Git branch. If you are reconstructing the project, start with [01](01_custom_cdd_preparation.md), complete this chapter, then [05](05_base_installation.md) and the feature you want.
 
-Work inside `99_custom_netintst/my-cdd`. The existing project already contains the framework; **modify the corresponding file rather than creating a second competing dispatcher**.
+## Step 1 — Know what each file provides
 
-| File or directory | Role |
+| Create this file | Why it exists |
 | --- | --- |
-| `simple-cdd.conf` | Lists the seven **offered** profiles and a separate build-only media profile |
-| `profiles/<name>.description` | Human-facing text for a Simple-CDD choice |
-| `profiles/<name>.extra` | List of source files to copy into the ISO's `/simple-cdd` directory |
-| `installer/profile-<module>.sh` | One **sourced function** implementing the selected feature |
-| `installer/run-selected.sh` | Shared late-stage entry point, approval helpers, fixed execution order |
-| `profiles/<name>.postinst` | **Verification only**, checking the completion marker; never reruns operations |
-| `installer/profile-confirm.templates` | Native Debian Installer (cdebconf) prompts and their defaults |
-| `installer/profile-common.sh` | Reused package, suite and policy helpers |
-| `scripts/` | Configuration templates staged in the ISO when needed |
+| `installer/ordered-selection.sh` | Takes the user's checkbox selection, rejects unknown combinations and produces a fixed execution order. ZRAM cannot be selected without the separately selected kernel profile. |
+| `installer/profile-common.sh` | Collects APT simulations, source/version lookups, essential-package removal checks, and target execution helpers so feature modules don't duplicate risky logic. |
 
-For example the profile choice `ensure-7x-kernel` maps to `installer/profile-kernel.sh` and the function `profile_kernel`. **The selection name, module name and function name are not interchangeable.**
+These files **define functions only**. The late installer dispatcher *sources* them; you must not invoke them as standalone commands.
 
-## Step 2 — Register the optional profile
+## Step 2 — Create the files
 
-In `simple-cdd.conf`, put its choice name in the `profiles="..."` line. **Do not** add it to either `auto_profiles` or `default_profiles`: both remain empty. These are actual lines from the project:
+In the `my-cdd` directory, create the installer directory if absent:
 
 ~~~sh
-profiles="backports ensure-7x-kernel extended-device-support zram-writeback debian-tweaks openmediavault docker"
-auto_profiles=""
-default_profiles=""
-build_profiles="installer-media"
+mkdir -p installer
 ~~~
 
-The last line is **only for ISO dependencies**, not an eighth user choice. Add a one-line `profiles/<name>.description` so the menu communicates what a choice does.
+Open each listed file in a text editor (for example `nano installer/ordered-selection.sh`), copy **the complete listing** with the matching filename from below, save with Ctrl+O, Enter, and exit with Ctrl+X. Repeat for `installer/profile-common.sh`.
 
-## Step 3 — Stage its inputs in a .extra manifest
+**Copy every line**, including the shell header and comments. The shorter excerpts in older guides were not complete programs. The complete listings below are copied directly from the recorded repository revision.
 
-Create `profiles/<name>.extra` containing paths relative to `my-cdd/`. For instance, the current Docker profile contains:
+## Step 3 — Understand the control flow
 
-~~~text
-installer/profile-docker.sh
-~~~
+The selection parser first validates the approved profile names and cross-profile dependency; it never adds choices automatically. The APT helpers always inspect the **target system** in `/target`, not the installer's temporary package database. A complete APT plan is shown through the dispatcher's native Debconf UI before a target package transaction is performed.
 
-The ZRAM profile includes its module, disk selector and generator/monitor assets instead. Every file needed by the selected profile must be in its manifest or in the shared `profiles/default.extra`.
+The shared functions expect the dispatcher to provide `capture`, `fatal`, `WORK`, `LOG`, `MEDIA` and the cdebconf helper functions. That's why you must complete [05 — Build the dispatcher](05_base_installation.md) before using a feature module.
 
-**Why:** Simple-CDD collects these inputs into the ISO's `/simple-cdd` directory. It does **not** execute a shell module merely because its file appears on the media.
-
-## Step 4 — Write a sourceable installer function, not a standalone shell executable
-
-The module is sourced by the shared late dispatcher. A minimal **illustrative shape** is:
+## Step 4 — Check your copies
 
 ~~~sh
+sh -n installer/ordered-selection.sh
+~~~
+
+This parses the selector without executing it. No output and exit status zero indicate syntax passed.
+
+~~~sh
+sh -n installer/profile-common.sh
+~~~
+
+This likewise checks the shared functions' shell syntax. Syntax validation cannot prove the APT logic works. Confirm the code is identical using the expected Git blob hashes in the file listings below (see the check instructions there).
+
+**Next:** [05 — Recreate the actual preseed/dispatcher framework](05_base_installation.md).
+
+## Complete, copyable source files
+
+Expand the file you want to create. **These are full files, not fragments.** Copy the contents between the code fences into the **exact path named in the heading**. After saving, use `git hash-object <path>` to calculate that file's Git blob SHA and compare it with the original SHA shown in the heading; a match proves a byte-for-byte copy. The command reads the file but makes no edits.
+
+
+<details>
+<summary><strong>Complete file: installer/ordered-selection.sh</strong> (25 lines, original Git blob <code>f320353746db5ee7c941ca56c5baa3b7ca494099</code>)</summary>
+
+````sh
 #!/bin/sh
-# Sourced by the confirmed installer dispatcher.
-profile_example() {
-    [ -r "$MEDIA/example.conf" ] || fatal 'Missing staged example'
-    review_install 'Example package and dependencies' example-package
-}
-~~~
-
-**Illustrative only:** this is a teaching pattern; `example-package` and `example.conf` do not exist in the project and must not be installed or staged. Actual modules are in `installer/profile-*.sh`.
-
-The common dispatcher defines:
-
-- `MEDIA` — `/cdrom/simple-cdd`; staged scripts and configuration assets;
-- `WORK` — temporary, private installer working directory;
-- `LOG` — installed-target log under `/target/var/log/installer`;
-- `fatal "reason"` — mark failure, display diagnostics and stop;
-- `capture in-target ...` — execute in the **installed target** while capturing stdout for reviews;
-- `simulate_target install ...` — produce the complete APT dry-run;
-- `review_plan "description" "$WORK/plan"` — display the plan and ask default-No approval;
-- `review_install "description" package...` — simulation, approval, target APT install and audit;
-- `run_target apt-get ...` — run an already-approved target transaction under Debian Installer progress;
-- `yes_no my-cdd/<question>` — ask a named **default-No** native Debconf question.
-
-**Never put an unconditional `apt-get install`, `swapoff` or disk write at file scope.** Every change belongs inside the selected profile's function and requires the correct approval path.
-
-## Step 5 — Attach your function to the fixed dispatcher
-
-The existing `run-selected.sh` reads the **approved, unchanged** list and maps choice names to module files and functions. The relevant pattern is:
-
-~~~sh
-for profile in $ordered; do
-    case "$profile" in
-        backports) module=backports; handler=profile_backports ;;
-        ensure-7x-kernel) module=kernel; handler=profile_kernel ;;
-        extended-device-support) module=firmware; handler=profile_firmware ;;
-        zram-writeback) module=zram; handler=profile_zram ;;
-        debian-tweaks) module=tweaks; handler=profile_tweaks ;;
-        openmediavault) module=omv; handler=profile_omv ;;
-        docker) module=docker; handler=profile_docker ;;
-        *) fatal "Unknown selected profile: $profile" ;;
-    esac
-    [ -r "$MEDIA/profile-$module.sh" ] || fatal "Missing selected module: $module"
-    . "$MEDIA/profile-$module.sh"
-    "$handler"
-    mark_complete "$profile"
-done
-~~~
-
-**Do not add a second runner:** modify this mapping only if you introduce or rename a selectable profile. The completion marker is written **after** the handler succeeds.
-
-## Step 6 — Make .postinst a verifier, not the implementation
-
-The corresponding `profiles/<name>.postinst` must be executable and should only check for its marker. For example, the Backports verifier checks:
-
-~~~sh
-#!/bin/sh
+# Pure selection validation. Does NOT enable, disable or execute profiles.
+# Usage: sh ordered-selection.sh 'docker, backports, ensure-7x-kernel'
 set -eu
-marker="/var/log/installer/my-cdd-completed/backports"
-if [ ! -f "$marker" ]; then
-    printf >&2 'Backports was selected but not applied.\n'
-    exit 1
-fi
-~~~
+[ "$#" -eq 1 ] || { printf >&2 'Expected one comma-separated selection string\n'; exit 2; }
+selected="$(printf %s "$1" | tr ',' ' ')"
+order='backports ensure-7x-kernel extended-device-support zram-writeback debian-tweaks openmediavault docker'
+for token in $selected; do
+  case " $order " in *" $token "*) ;; *)
+    printf >&2 'Unknown/unapproved profile: %s\n' "$token"; exit 1;;
+  esac
+done
+out=''
+for token in $order; do
+  case " $selected " in
+    *" $token "*)
+      if [ -n "$out" ]; then out="$out $token"; else out="$token"; fi ;;
+  esac
+done
+case " $out " in *' zram-writeback '*)
+  case " $out " in *' ensure-7x-kernel '*) ;; *)
+    printf >&2 'ZRAM requires explicitly selected Ensure 7.x\n'; exit 1;;
+  esac ;;
+esac
+printf '%s\n' "$out"
+````
 
-This example has equivalent semantics to the existing Backports verifier; the tracked script contains a fuller diagnostic. It must **not** install the feature a second time.
+</details>
 
-## Step 7 — Add any native installer prompts
 
-Create and document a separate template in `installer/profile-confirm.templates` for choices needing extra consent (for example a named firmware omission, targeted swapoff or destructive ZRAM conversion). Use `Type: boolean` and `Default: false` for state-changing approvals.
+<details>
+<summary><strong>Complete file: installer/profile-common.sh</strong> (47 lines, original Git blob <code>b2fa64b5bac89eb33ff76a7f91a0997cb27bbb9c</code>)</summary>
 
-The code must display the exact operation before requesting approval. **Selecting a profile at the beginning is not consent to destroy a partition or remove a package**.
+````sh
+#!/bin/sh
+# Sourced by the approved installer dispatcher; no automatic execution.
 
-## Step 8 — Check the source and rebuild
+suite_version() {
+    capture in-target apt-cache madison "$1" ||
+        fatal "Unable to inspect APT candidates for $1"
+    awk -F '|' -v s="$2" 'index($3,s"/") {
+        gsub(/^[[:space:]]+|[[:space:]]+$/,"",$2); print $2; exit
+    }' "$WORK/output"
+}
 
-From `my-cdd/`, the following checks parse shell syntax **without running the scripts**:
+normal_suite() {
+    best_suite=''
+    best_version=''
+    for suite in trixie-security trixie-updates trixie; do
+        v="$(suite_version "$1" "$suite")"
+        [ -n "$v" ] || continue
+        if [ -z "$best_version" ] ||
+            in-target dpkg --compare-versions "$v" gt "$best_version"; then
+            best_suite=$suite
+            best_version=$v
+        fi
+    done
+    [ -n "$best_suite" ] || return 1
+    printf '%s\n' "$best_suite"
+}
 
-~~~sh
-sh -n installer/profile-docker.sh
-~~~
+backports_is_selected() {
+    case " $ordered " in *' backports '*) return 0;; *) return 1;; esac
+}
 
-~~~sh
-sh -n installer/run-selected.sh
-~~~
+update_signed_apt() {
+    run_target apt-get update
+    capture in-target apt-cache policy || fatal 'Cannot inspect APT priorities'
+}
 
-Use the corresponding module name for the feature you changed. Then run `./build.sh`: it repeats these checks for every module, verifies staged sources and packages, and assembles the ISO. Build success **does not prove** that GTK/text Debconf, target APT or a destructive operation works.
+ensure_manual_updates() {
+    capture in-target apt-config dump || fatal 'Cannot inspect automatic APT settings'
+    if grep -Ei 'APT::Periodic::Unattended-Upgrade[[:space:]]+"?([1-9]|yes|true)' "$WORK/output" >/dev/null; then
+        mkdir -p /target/etc/apt/apt.conf.d
+        printf 'APT::Periodic::Unattended-Upgrade "0";\n' > \
+            /target/etc/apt/apt.conf.d/99-my-cdd-manual-updates
+        log 'Explicitly disabled an enabled unattended APT upgrade setting'
+    fi
+}
 
-Finally boot a **disposable VM** and test: profile unselected, selected+approved, selection denied, dependency missing, operation failed and first boot. The required cases are in [08 — Validation](08_validation_and_pending.md).
 
-**Exact source:** [my-cdd installer](my-cdd/installer/) and [profile manifests](my-cdd/profiles/).
+````
+
+</details>
