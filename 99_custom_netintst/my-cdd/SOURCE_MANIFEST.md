@@ -1,5 +1,15 @@
 # my-cdd source manifest and provenance
 
+## OMV keyring permission fix — 2026-11-16
+
+**Nearest user prompt:** Screenshot evidence from the newest Debian Installer VM, showing OMV `apt-get update` failed after key import with `/usr/bin/sqv` error `Failed to parse keyring ... Permission denied (os error 13)` and exit status 100.
+
+**Evidence and cause:** The shared `run-selected.sh` launcher sets `umask 077` to protect sensitive installer state. The OMV handler wrote its dedicated signing keyring without resetting its file permissions. Debian APT's unprivileged verification cannot read that keyring when created with mode `0600`. The official signed source itself was reachable; the evidence does not justify changing endpoints, mirrors, keys or disabling APT verification.
+
+**Patch:** Add one `run_target chmod 0644 /usr/share/keyrings/openmediavault-archive-keyring.gpg` immediately after dearmoring the official public key, and before the first OMV `apt-get update`. Preserve the global umask, single official OMV APT source, approved package transaction and both vendor init commands. Update standalone 07 and the complete CDD 07 source/hash.
+
+**Status:** The current VM diagnosis is confirmed; the corrected ISO has not yet been built or tested in a fresh disposable VM. OMV/Docker and first-boot ZRAM operation remain unverified.
+
 ## Shared installer failure popup / target stderr — 2026-11-16
 
 **Nearest user prompt:** “make the actual errors pop in the interface if you want to get them”, in response to the newer VM run showing an OMV `apt-get update` failure with no underlying error in the native GTK dialog.
