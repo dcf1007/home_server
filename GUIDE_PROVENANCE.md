@@ -1,5 +1,15 @@
 # Guide provenance and scope
 
+## Official OMV signing keyring read permission — 2026-11-16
+
+**Nearest user prompt:** Two screenshots of the Debian Installer GTK failure dialog showing `apt-get update` exit status 100 and `Permission denied (os error 13)` when `sqv` reads `/usr/share/keyrings/openmediavault-archive-keyring.gpg`.
+
+**Observed:** The earlier diagnostics/UI change succeeded in surfacing APT's actual error. Repository metadata was fetched, but cryptographic verification could not read the dedicated OMV keyring. The error does not establish a bad repository signature or DNS failure.
+
+**Source correction:** The installer keeps `umask 077` for private work/log files; the selected OMV handler changes the mode of only its new **public** APT keyring to `0644` immediately after dearmor, before refreshing package indexes. This fulfills Debian APT's `Signed-By` requirement that `_apt` can read the keyring. The standalone OMV 07 guide and the full CDD 07 construction source listing/hash are synchronized. The one official signed APT source and vendor-only OMV installation scope remain unchanged.
+
+**Validation boundary:** Source inspection and synchronized listings do not prove a successful ISO build, OMV installation or first boot. A fresh disposable-VM run must verify APT signature validation succeeds, before subsequent profiles and services are considered functional.
+
 ## Native installer error reporting — 2026-11-16
 
 **Nearest user prompt:** “make the actual errors pop in the interface if you want to get them”, following screenshots of the Debian Installer's OMV `apt-get update` failure without the underlying APT stderr.
