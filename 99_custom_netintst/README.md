@@ -72,6 +72,20 @@ Each chapter follows the same pattern:
 
 **Never execute `installer/profile-zram.sh`, `installer/profile-omv.sh` or any other sourced installer module directly on the build host or running NAS.** The modules assume they are loaded by Debian Installer and that `/target` is the new operating system.
 
+## Worked example — Recreate the Docker feature
+
+This example shows how to use **one** of the chapters without first rebuilding every shared file.
+
+1. Clone the existing repository using **approach A** above, then enter `home_server/99_custom_netintst/my-cdd`. The full working framework is already present.
+2. Open [07 — Docker](07_docker.md). It identifies **four exact files**: `profiles/docker.description`, `profiles/docker.extra`, `profiles/docker.postinst` and `installer/profile-docker.sh`. It explains the purpose of each.
+3. In a separate test checkout or branch, open `profiles/docker.description` with `nano`, copy the complete listing from the Docker chapter, then save it. Repeat for the other three files. The full module is included; you do **not** have to deduce missing code from a description.
+4. Mark `profiles/docker.postinst` executable. The Docker chapter gives that command and explains why `installer/profile-docker.sh` stays a sourced module.
+5. Compare each file's `git hash-object` output with the reference hash in the chapter. Any difference means the copy is not byte-for-byte identical.
+6. Run the chapter's `sh -n` syntax checks. They do **not** install Docker.
+7. Build via `./build.sh`, then boot the result in a **throwaway VM**, select Docker and verify the installer APT review, package origins and first boot.
+
+This same pattern applies to **every** feature chapter. The more complex ZRAM and firmware pages have more source files, but the guide lists **all of them** and includes every complete source file.
+
 ## Why even the full source listing is not a runtime test
 
 The complete listings reproduce the tracked code **as-is**. They do not certify that its current Debian Installer integration works. The native ZRAM conversion, selected-profile Debconf flow, OMV networking/Salt, and first-boot writeback still require VM validation. The earlier design history and failure reports are under [history](history/).
