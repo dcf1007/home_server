@@ -27,7 +27,7 @@ The example setup uses a 256 GB SSD, UEFI boot, GPT, and no LVM or encryption:
 | Root | ext4, mount point `/`, using the remaining space |
 | Optional swap partition | Around 16 GiB as an example; change this size to suit your system |
 
-If you plan to use the optional [ZRAM writeback guide](../05_zram_writeback/README.md), reserve a separate swap partition now. It will be converted later, **only after you approve that destructive change**. Otherwise, a normal swap partition can stay as swap.
+If you plan to use the optional [ZRAM writeback guide]( ../06_zram_writeback/README.md), reserve a separate swap partition now. It will be converted later, **only after you approve that destructive change**. Otherwise, a normal swap partition can stay as swap.
 
 **Before accepting the installer's partition changes**, check the selected disk and every partition again. Do not copy device names from an example.
 

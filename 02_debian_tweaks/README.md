@@ -18,7 +18,7 @@ Find the line beginning with `GRUB_CMDLINE_LINUX_DEFAULT=`.
 
 1. Remove the word `quiet`, if present.
 2. Add `fsck.repair=no` inside the existing quotation marks.
-3. Leave all other kernel parameters intact (including `zswap.enabled=0` if you configured [ZRAM](../05_zram_writeback/README.md)).
+3. Leave all other kernel parameters intact (including `zswap.enabled=0` if you configured [ZRAM]( ../06_zram_writeback/README.md)).
 
 Save the file, then update GRUB:
 
