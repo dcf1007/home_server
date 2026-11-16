@@ -172,7 +172,7 @@ capture parted -s "$disk" name "$partn" zram-writeback ||
 
 `$disk` is the parent disk; `$partn` is the selected partition number; the type GUID is standard Linux data (`8300` in gdisk terminology). This is **not** a hardcoded device-specific PARTUUID.
 
-Re-read metadata and require correct type, name, unchanged PARTUUID, no signature, no mount and no active conventional swap. A failed check prevents provisioning. **The live Debian Installer's low-level `blkid` and `parted` sequence still needs VM validation.**
+Re-read metadata and require correct type, name, unchanged PARTUUID, no signature, no mount and no active conventional swap. Holder checks are performed during pre-write candidate validation; the post-write code specifically rechecks mount and swap state. A failed check prevents provisioning. **The live Debian Installer's low-level `blkid` and `parted` sequence still needs VM validation.**
 
 ## Step 10 — Atomically install fstab and provision the target
 
@@ -202,4 +202,4 @@ sh -n installer/zram-selection.sh
 
 Build the image with `./build.sh`. On a **throwaway GPT VM disk**, test: no selection, missing 7.x prerequisite, ambiguous swap identity, wrong-device refusal, active swap/RAM margin, declined swapoff, declined destructive conversion, 1 MiB bounded erase, GPT type/name, PARTUUID, fstab, and first-boot ZRAM service/writeback behavior. The important steps remain **untested end to end**.
 
-**Source:** [profile-zram.sh](my-cdd/installer/profile-zram.sh), [zram-selection.sh](my-cdd/installer/zram-selection.sh), [firmware/ude b media list](my-cdd/profiles/installer-media.udebs), and the staged [ZRAM assets](my-cdd/scripts/).
+**Source:** [profile-zram.sh](my-cdd/installer/profile-zram.sh), [zram-selection.sh](my-cdd/installer/zram-selection.sh), [installer udeb media list](my-cdd/profiles/installer-media.udebs), and the staged [ZRAM assets](my-cdd/scripts/).
