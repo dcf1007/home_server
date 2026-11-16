@@ -9,10 +9,10 @@ Docker is independent of OpenMediaVault. This guide does not install OMV-Extras,
 Before installing, check whether Debian's `docker.io`, `docker-compose`, `podman-docker`, `containerd` or `runc` packages are already installed:
 
 ~~~sh
-apt list --installed
+apt list --installed docker.io docker-compose docker-doc docker-buildx podman-docker containerd runc
 ~~~
 
-Read the installed package list, or look for those names in your terminal's search function. If you find a conflicting package, follow the [official Docker removal guidance](https://docs.docker.com/engine/install/debian/) **after reviewing any existing containers and data**. Do not remove production data blindly.
+This checks just the potentially conflicting packages, rather than listing every installed package. If you find a conflicting package, follow the [official Docker removal guidance](https://docs.docker.com/engine/install/debian/) **after reviewing any existing containers and data**. Do not remove production data blindly.
 
 ## Step 2 — Install the tools needed to add Docker's repository
 
