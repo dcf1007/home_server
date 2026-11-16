@@ -37,7 +37,7 @@
   `preseed/early_command` hook before the unchanged upstream
   `simple-cdd-profiles` udeb. The user selected option A explicitly.
 - The four ZRAM generator/monitor/systemd assets are **verbatim extractions**
-  from the [approved original design](../06_zram_writeback.md#original-design--complete-source).
+  from the [approved original design in the historical archive](../history/03_zram_writeback.md#original-design--complete-source).
   They are not automatically deployed.
 - `scripts/firmware-candidates.txt` follows the
   [Extended device support inventory](../05_extended_device_support.md).
