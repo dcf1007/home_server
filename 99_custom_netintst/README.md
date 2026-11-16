@@ -27,8 +27,8 @@ A single feature's source module is **not** a complete ISO: it depends on the sh
 | [04 — Linux 7.x kernel](04_ensure_7x_kernel.md) | Eligible suite selection, image and matching headers, GRUB |
 | [05 — Extended device support](05_extended_device_support.md) | Firmware manifest, microcode and original vendor-license dialogs |
 | [06 — ZRAM writeback](06_zram_writeback.md) | Native udeb disk selector, safe confirmation, GPT conversion and ZRAM generator |
-| [07 — OpenMediaVault 8](07_openmediavault.md) | Official signed repository, reviewed installation and upstream initialization only |
-| [08 — Docker](08_docker.md) | Official signed packages with no forced OMV integration |
+| [07 — OpenMediaVault 8](07_openmediavault.md) | One official signed APT source, reviewed installation and required OMV initialization |
+| [08 — Docker](08_docker.md) | One official signed APT source, reviewed package set; independent of OMV |
 
 The installer executes **selected features in this fixed order**. In particular, Debian tweaks must complete before ZRAM performs any destructive conversion. Choosing ZRAM separately requires the **Linux 7.x profile**; the installer never selects it for you.
 
