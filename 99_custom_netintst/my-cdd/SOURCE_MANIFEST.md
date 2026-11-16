@@ -1,5 +1,17 @@
 # my-cdd source manifest and provenance
 
+## Shared installer failure popup / target stderr — 2026-11-16
+
+**Nearest user prompt:** “make the actual errors pop in the interface if you want to get them”, in response to the newer VM run showing an OMV `apt-get update` failure with no underlying error in the native GTK dialog.
+
+**Observed:** The latest VM successfully progressed beyond the old Debian tweaks SSH blocker, confirmed an automatically identified ZRAM GPT backing partition, separately approved targeted `swapoff` (0 used bytes), reviewed/installed the ZRAM generator and entered the OMV handler. OMV's key download/import succeeded; its first package-index refresh failed. Only “Target APT transaction failed: apt-get update” appeared; the actual APT diagnostics were not visible and the cause is still unknown.
+
+**Source change:** `installer/run-selected.sh` now wraps **only** `capture in-target ...` invocations with an in-target POSIX shell `exec "$@" 2>&1`, preserving `in-target --pass-stdout` and its chroot/service/Debconf setup while exposing actual target stderr alongside stdout. `capture` retains the failed command and exit status, logs both streams, and `fatal` places them, the recognized APT/dpkg error lines and recent command output at the top of its existing native GTK/text note. The unmodified log path remains `/target/var/log/installer/my-cdd.log`; the fallback uses recent syslog only when the failed command produces no output.
+
+**Source boundaries:** OMV remains one official signed APT repository and official package initialization, with no added OMV policy. The single ZRAM backed-partition selection/conversion procedure is unchanged. No change to any other selected-profile behavior was intended.
+
+**Reproduction and verification:** The full `installer/run-selected.sh` listing and its Git blob hash in `99_custom_netintst/installer_framework.md` must match this source. A fresh disposable ISO/VM run must confirm that the diagnostic popup displays actual APT errors, returns fail-closed status and preserves package Debconf progress/approvals. Do not infer a mirror/DNS failure or claim runtime validation from these screenshots.
+
 ## Approved Debian tweaks / helper refactor — 2026-11-16
 
 **Nearest user instruction:** “the noatime and errors=panic should be set no matter the filesystem of the root partition ... ensure_manual_updates sounds like a helper used only once. ... review all code for that kind of useless helpers”, approved by “i agree”.
