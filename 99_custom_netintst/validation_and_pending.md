@@ -1,28 +1,27 @@
 # Validation — Test the scripts and generated Debian installer
 
-## Most recent real installer VM run — user screenshots, 2026-11-16
+## Latest real installer VM evidence — 2026-11-16
 
-**What the screenshots show (observed, not inferred):**
+**Observed in the newer test screenshots and installer syslog:**
 
-1. A native GTK dialog displayed the exact automatically selected GPT backing partition, size, parent disk and PARTUUID; destructive conversion defaulted to **No**.
-2. The user approved converting the selected VM swap partition. The installer log shows targeted BusyBox `swapoff`, a bounded `dd` write of **1 MiB to the partition**, `parted` type/name updates and a completed ZRAM profile.
-3. The full `systemd-zram-generator` APT simulation was displayed, followed by the approved package installation.
-4. The next selected stage, **Debian tweaks**, ran `update-grub` and attempted `sshd -T`. It then stopped with **“OpenSSH configuration invalid”** and a FAILED status. The actual `sshd` stderr is **not visible in these screenshots**.
-5. There is **no verified first boot**, ZRAM writeback activity, emergency-mode recovery or completed custom installation in this evidence.
+1. The approved selections included Debian tweaks, Backports, the 7.x kernel, extended device support, ZRAM, OMV and Docker. The selected Debian tweaks profile executed **first**.
+2. Debian's own sudo administrator and the separately requested local root password were established. Target `update-grub` completed.
+3. The installer stopped when the former Debian tweaks code ran `sshd -t`. The installer syslog explicitly states **`Missing privilege separation directory: /run/sshd`**. This is a pre-boot runtime prerequisite, not evidence that `PermitRootLogin no` is invalid.
+4. ZRAM partition conversion and subsequent selected profiles were **not reached in this latest test**. The overall installation failed.
 
-**Working diagnosis, not a confirmed cause:** a not-yet-booted Debian target may not contain `/run/sshd`, a directory normally prepared by `ssh.service`. The revised installer shared SSH helper creates only that transient target directory, runs `sshd -t` and `sshd -T`, and records failures in `/target/var/log/installer/my-cdd.log`. This must be re-tested; host keys or real SSH configuration errors remain possible.
+**Earlier VM evidence (same date):** Under the former profile order, ZRAM's default-No GPT conversion confirmation, approved bounded 1 MiB erase, partition type/name change and reviewed generator installation were observed. That older test subsequently failed in Debian tweaks at `sshd -T`; it does **not** prove successful first boot or compressed writeback.
 
-**Safety improvement:** the approved new dispatcher order runs **Debian tweaks first**, so a recurrence of the same failure should stop **before** the ZRAM partition erase, rather than after it.
+**Current source correction, not runtime-tested:** Debian tweaks now edits the existing `sshd_config` directly and runs no pre-boot SSH daemon tests. It sets generic root `noatime` and filesystem-specific panic behavior (ext2/3/4: `errors=panic`; Btrfs: `fatal_errors=panic`), preserves the original `fstab` and leaves unsupported XFS error handling untouched. Automatic-update configuration happens only in this selected profile and is not rechecked by subsequent profiles.
 
 **Next disposable-VM retest:**
 
-- [ ] Use blank initial root-password fields, a regular first user, verify that user has `sudo`, and set the separate root recovery password via the native late-stage prompt.
-- [ ] Select Debian tweaks and ZRAM with its separately approved 7.x prerequisite; confirm the profile screen and dispatcher start with **Debian tweaks**.
-- [ ] Verify the SSH check reports full stderr in `my-cdd.log` if it fails and does not mislabel a missing runtime directory as invalid configuration.
-- [ ] Verify SSH host keys, `/run/sshd`, effective `PermitRootLogin no`, and a real normal-user SSH login on first boot.
-- [ ] Verify automatic-upgrade handling both when `unattended-upgrades` is absent and when installed/enabled.
-- [ ] Only after tweaks succeeds, approve the separate ZRAM conversion on a **throwaway partition**, then verify generator, zram0, backing device and first-boot writeback behavior.
-- [ ] Preserve actual logs and mark the test failed on any selected-profile or first-boot failure.
+- [ ] Leave initial Debian root-password fields blank, verify the normal sudo account and set the distinct local root recovery password.
+- [ ] Select Debian tweaks and ZRAM with its separately approved Linux 7.x dependency; confirm tweaks executes first and does not call `sshd -t` or `sshd -T`.
+- [ ] Check the installed root `fstab` behavior for ext4 and Btrfs; on XFS, check `noatime` without an unsupported panic option, preserving other mount entries and the backup.
+- [ ] Verify `PermitRootLogin no` in the installed main `sshd_config` and a successful normal-user SSH connection after first boot.
+- [ ] Verify manual APT upgrade policy with `unattended-upgrades` absent, disabled and enabled, and no subsequent OMV/Docker changes to that policy.
+- [ ] Only after tweaks succeeds, separately approve the ZRAM conversion on a **throwaway partition**; verify native candidate selection, generator, backing PARTUUID and actual first-boot writeback.
+- [ ] Preserve logs and treat any selected-profile or first-boot failure as a failed VM test.
 
 ## Step 0 — Test that the written guides can actually reproduce the source
 
@@ -91,7 +90,7 @@ Then test:
 - [ ] Backports has effective priority **100**, with its signed source and reviewed cleanup.
 - [ ] Kernel chooses an eligible **7.x** image/header pair, keeps a boot fallback and does not auto-enable Backports.
 - [ ] Firmware attempts both microcodes, handles conflicts, shows the **full actual vendor licenses**, and reruns the plan after a declined license.
-- [ ] Debian tweaks affect only selected target GRUB/root ext4/SSH/APT settings.
+- [ ] Debian tweaks affect only selected target GRUB/root-fstab/SSH/APT settings; no pre-boot SSH daemon checks or later APT-policy rechecks.
 - [ ] OMV uses only the first official manual-install signed APT repository (`packages.openmediavault.org/public`), checks its package origin, applies the same full-transaction/default-No review pattern as Docker, installs **8.x**, and runs `omv-confdbadm populate` and `omv-salt deploy run hosts`; it makes no custom SSH, group, update, notification, plugin or Docker changes.
 - [ ] Verify OMV's documented `systemd-resolved`/DNS prerequisite before and throughout installation, and verify first-boot network reachability without making unapproved CDD network changes.
 - [ ] Docker installs the five official signed packages without changing vendor service defaults or granting the administrator the Docker group.
