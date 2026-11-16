@@ -11,6 +11,7 @@ sudo apt-get update
 sudo apt-get install wget
 sudo -i
 wget -O - https://get.openmediavault.io | sh -
+exit  # return to your normal administrative shell
 ~~~
 
 **Security note:** this executes vendor-provided remote shell code as root. If you prefer to inspect each operation before running it, download and read the script first, or follow OMV's [manual Debian installation](https://docs.openmediavault.org/en/stable/installation/on_debian.html) with the signed archive repository. Do not substitute unofficial OMV-Extras scripts. Be prepared for network configuration changes; keep console/local access available.
