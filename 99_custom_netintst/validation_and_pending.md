@@ -1,5 +1,22 @@
 # Validation — Test the scripts and generated Debian installer
 
+## Latest OMV transaction guard false positive — 2026-11-16
+
+**Observed in the two newest user screenshots:** The OMV 8 APT simulation reached its `Inst`/`Conf` entries and proposed `Remv systemd-timesyncd [257.13-1~deb13u1]`. The common `check_critical_removals` rejected the plan as a boot/essential package removal, **before executing the actual OMV install**. The signature-keyring error from the prior VM is no longer shown; this latest result demonstrates progress past the repository-signature check, not a completed OMV installation. Docker and first boot remain unverified.
+
+**Cause confirmed by source inspection:** The shared protection pattern `^Remv (...|systemd|...)` matches `systemd-timesyncd` by prefix. Debian treats `systemd-timesyncd` as a separate NTP client, and OMV uses Chrony; removal of this client is consistent with that replacement. The matcher is overly broad for this exact package.
+
+**Targeted source correction:** Keep the original protection pattern unchanged, but exclude only `^Remv systemd-timesyncd([[:space:]:]|$)` from its matches. Apply the identical narrow exception to both the shared APT guard and firmware candidate safeguards. The original guard still rejects `systemd`, `systemd-sysv`, `systemd-resolved`, bootloader/kernel and core administration package removals. All APT simulations, complete-plan presentation, explicit default-No approval and other profiles remain unchanged. No one-use helper was added.
+
+**Source-level tests:** POSIX `grep -E` examples allow only `systemd-timesyncd` (including a multiarch suffix), while blocking actual `systemd`, `systemd-sysv`, `systemd-resolved`, other `systemd-*`, GRUB, kernel, openssh-server, apt and dpkg removal proposals. These synthetic checks are not a real APT transaction.
+
+**Required disposable-VM retest:**
+
+- [ ] Build a fresh ISO containing the corrected matcher; select the same profiles on a throwaway VM disk.
+- [ ] Verify the reviewed OMV APT plan explicitly displays the proposed `systemd-timesyncd` removal and receives default-No user approval before any real package install.
+- [ ] Confirm the OMV package installation, dpkg audit, database population, hosts initialization, subsequent Docker installation and full first boot complete.
+- [ ] Verify the actual installed time-sync implementation, normal-user SSH access, ZRAM compressed writeback and OMV networking after first boot.
+
 ## Confirmed OMV APT keyring permission failure — 2026-11-16
 
 **Newest user-provided VM evidence:** The custom GTK failure dialog now displays the actual command, exit code 100, APT `Err:4` and `E:` diagnostics. The signed OpenMediaVault repository metadata is reachable, but `/usr/bin/sqv` reports `Failed to parse keyring "/usr/share/keyrings/openmediavault-archive-keyring.gpg": Permission denied (os error 13)`; APT consequently reports the repository as unsigned. The attempted repository signature check **did not succeed**, but the error is attributable to inability to read the public keyring rather than demonstrated bad signature content.
