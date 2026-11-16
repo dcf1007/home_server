@@ -1,8 +1,8 @@
 # 06 — Recreate the ZRAM writeback installer profile
 
-**Goal:** reconstruct the exact source of this **destructive, optional Debian Installer feature**, including selection, confirmation, native GPT conversion and ZSTD ZRAM writeback configuration. Do not copy the following installer commands into a normal Debian terminal. For that use [05 — Standalone ZRAM](../06_zram_writeback/README.md) with ordinary full-system tools.
+**Goal:** reconstruct the exact source of this **destructive, optional Debian Installer feature**, including selection, confirmation, native GPT conversion and ZSTD ZRAM writeback configuration. Do not copy the following installer commands into a normal Debian terminal. For that use [06 — Standalone ZRAM](../06_zram_writeback/README.md) with ordinary full-system tools.
 
-**Safety:** this handler can zero the first **1 MiB of a GPT partition**. Only test on a disposable virtual disk. No live VM or physical partition test has been completed for the current native-udeb refactor.
+**Safety:** this handler can zero the first **1 MiB of a GPT partition**. Only test on a disposable virtual disk. The earlier VM confirmed a partition conversion, but the revised installation order and first-boot compressed writeback remain unverified.
 
 ## Step 1 — Complete the prerequisites
 
@@ -25,10 +25,10 @@ Work inside `99_custom_netintst/my-cdd/`, on a test branch or scratch copy.
 | `installer/profile-zram.sh` | The complete selected-only handler: confirmation, RAM/swapoff checks, bounded erase, native Parted, fstab and target provisioning. |
 | `installer/zram-selection.sh` | The complete installer-native GPT/sysfs/blkid candidate discovery, identity validation, mount/holder checks and fstab preparation. |
 | `scripts/zram-generator.conf.template` | ZSTD/ZRAM sizing and writeback config; dynamically replaced PARTUUID placeholders. |
-| `scripts/10-compressed-writeback.conf` | Systemd drop-in controlling compressed writeback setup. |
+| `scripts/override.conf` | Single systemd drop-in for pre-init compressed writeback and setup-failure emergency policy. |
 | `scripts/zram-pressure.sh` | Complete script monitoring memory pressure and issuing writeback operations. |
 | `scripts/zram-pressure.service` | Systemd service to supervise and restart the pressure monitor. |
-| `scripts/90-zram-swappiness.conf` | Swappiness setting applicable only to the explicitly selected ZRAM feature. |
+| `scripts/90-zram.conf` | Swappiness setting applicable only to the explicitly selected ZRAM feature. |
 
 All **ten** source/configuration files are included in full below. You do not need to invent any missing functions or generator scripts.
 
@@ -78,9 +78,9 @@ Open `scripts/zram-generator.conf.template` in a text editor, paste the indicate
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**7. Create `scripts/10-compressed-writeback.conf`.** Systemd drop-in controlling compressed writeback setup.
+**7. Create `scripts/override.conf`.** Systemd drop-in controlling compressed writeback setup.
 
-Open `scripts/10-compressed-writeback.conf` in a text editor, paste the indicated contents and save it at that path.
+Open `scripts/override.conf` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
@@ -96,9 +96,9 @@ Open `scripts/zram-pressure.service` in a text editor, paste the indicated conte
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**10. Create `scripts/90-zram-swappiness.conf`.** Swappiness setting applicable only to the explicitly selected ZRAM feature.
+**10. Create `scripts/90-zram.conf`.** Swappiness setting applicable only to the explicitly selected ZRAM feature.
 
-Open `scripts/90-zram-swappiness.conf` in a text editor, paste the indicated contents and save it at that path.
+Open `scripts/90-zram.conf` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
@@ -159,17 +159,17 @@ ZSTD ZRAM writeback; confirmed raw GPT backing, requires Linux 7.x
 </details>
 
 <details>
-<summary><strong>profiles/zram-writeback.extra</strong> — complete file; 8 lines; original blob <code>89ae2d962bd35fbb48f692c44f42b20fe6469c63</code></summary>
+<summary><strong>profiles/zram-writeback.extra</strong> — complete file; 8 lines; original blob <code>12962359382c64461dfb56f432a453a9ea1d249b</code></summary>
 
 ````text
 # zram-writeback: source assets copied by Simple-CDD (not automatically installed).
 installer/profile-zram.sh
 installer/zram-selection.sh
 scripts/zram-generator.conf.template
-scripts/10-compressed-writeback.conf
+scripts/override.conf
 scripts/zram-pressure.sh
 scripts/zram-pressure.service
-scripts/90-zram-swappiness.conf
+scripts/90-zram.conf
 ````
 
 </details>
@@ -194,7 +194,7 @@ fi
 </details>
 
 <details>
-<summary><strong>installer/profile-zram.sh</strong> — complete file; 180 lines; original blob <code>461b35a6a3d1ba53cf2e972f551109a7f4aae3bb</code></summary>
+<summary><strong>installer/profile-zram.sh</strong> — complete file; 178 lines; original blob <code>c3a4051bc36652008db5fe40baa29ad6795293a4</code></summary>
 
 ````sh
 #!/bin/sh
@@ -354,15 +354,13 @@ profile_zram() {
     [ "$(grep -o "$uuid" /target/etc/systemd/zram-generator.conf | wc -l)" -eq 2 ] &&
         ! grep -q YOUR_PARTUUID /target/etc/systemd/zram-generator.conf ||
         fatal 'ZRAM generator configuration contains unresolved or mismatched backing identity'
-    cp "$MEDIA/10-compressed-writeback.conf" \
-        /target/etc/systemd/system/systemd-zram-setup@zram0.service.d/10-compressed-writeback.conf
-    # Setup failure enters emergency, unlike a monitor failure.
-    printf '[Unit]\nOnFailure=emergency.target\nOnFailureJobMode=replace-irreversibly\n' > \
-        /target/etc/systemd/system/systemd-zram-setup@zram0.service.d/20-failure-emergency.conf
+    # One drop-in covers pre-initialization compressed writeback and setup failure.
+    cp "$MEDIA/override.conf" \
+        /target/etc/systemd/system/systemd-zram-setup@zram0.service.d/override.conf
     cp "$MEDIA/zram-pressure.sh" /target/usr/local/sbin/zram-pressure.sh
     chmod 755 /target/usr/local/sbin/zram-pressure.sh
     cp "$MEDIA/zram-pressure.service" /target/etc/systemd/system/zram-pressure.service
-    cp "$MEDIA/90-zram-swappiness.conf" /target/etc/sysctl.d/90-zram-swappiness.conf
+    cp "$MEDIA/90-zram.conf" /target/etc/sysctl.d/90-zram.conf
     # zswap must not intercept memory intended for zram.
     if ! grep -q 'zswap.enabled=0' /target/etc/default/grub; then
         sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/"$/ zswap.enabled=0"/' /target/etc/default/grub
@@ -698,9 +696,13 @@ swap-priority = 100
 </details>
 
 <details>
-<summary><strong>scripts/10-compressed-writeback.conf</strong> — complete file; 2 lines; original blob <code>901ebe1d7c228bb4053cc56ea766854048ba5f0f</code></summary>
+<summary><strong>scripts/override.conf</strong> — complete file; 6 lines; original blob <code>aa3b1e83a4ab4f0857287890483715a4e3ffd16b</code></summary>
 
 ````ini
+[Unit]
+OnFailure=emergency.target
+OnFailureJobMode=replace-irreversibly
+
 [Service]
 ExecStartPre=/bin/sh -c 'echo yes > /sys/block/zram0/compressed_writeback'
 ````
@@ -813,7 +815,7 @@ WantedBy=multi-user.target
 </details>
 
 <details>
-<summary><strong>scripts/90-zram-swappiness.conf</strong> — complete file; 3 lines; original blob <code>290648ab923c198a74a4c11774df270e01b679ab</code></summary>
+<summary><strong>scripts/90-zram.conf</strong> — complete file; 3 lines; original blob <code>290648ab923c198a74a4c11774df270e01b679ab</code></summary>
 
 ````ini
 # Deploy ONLY when the ZRAM profile was explicitly selected.
