@@ -1,46 +1,90 @@
-# Netinst — Step-by-step VM and release validation
+# 08 — Validate the custom scripts and the resulting installer ISO
 
-This is the **active test plan** for the custom Debian 13 image, not a declaration that the tests have passed. Earlier observed failures and full chronological notes remain in [history](history/08_validation_and_pending.md).
+This is a **developer's testing procedure** for the source you built in [01](01_custom_cdd_preparation.md), [05](05_base_installation.md), [00](00_profile_construction.md) and the individual profile-construction chapters.
 
-## Step 1 — Build and inspect the ISO
+A shell syntax check and a successful ISO build are **not** equivalent to testing the installer runtime.
 
-- [ ] On a compatible Debian build VM, follow [01 — Build preparation](01_custom_cdd_preparation.md) and run `./build.sh` from `99_custom_netintst/my-cdd`.
-- [ ] Confirm the build created `images/debian-13-amd64-CD-1.iso` and did not report missing staged assets or syntax errors.
-- [ ] Confirm the build's package-index checks found `zstd`, `parted-udeb` and `util-linux-udeb`; **this alone does not verify their runtime dependency closure**.
-- [ ] Check the generated GRUB and ISOLINUX boot-menu settings, including the intended indefinite wait.
+## Step 1 — Check the source before building
 
-## Step 2 — Check Debian Installer's human-facing screens
+From `99_custom_netintst/my-cdd`, parse your changed module without executing it:
 
-- [ ] Boot the ISO in a VM with a **throwaway GPT disk**, first using graphical Debian Installer and then the text interface.
-- [ ] Confirm normal language, Spanish-keyboard suggestion, country/timezone, DHCP, hostname, administrator and root-password prompts remain **editable**.
-- [ ] Verify the **seven optional profiles all start unchecked**, with a full selected/not-selected summary and default-No confirmation. Test **No**, corrected selection, and zero selected profiles.
-- [ ] Select ZRAM without Ensure Linux 7.x and verify the installer rejects the invalid combination without adding the kernel checkbox.
-- [ ] Confirm manual disk partitioning remains manual. At tasksel select **SSH server** and **standard system utilities**, with no desktop/GNOME.
+~~~sh
+sh -n installer/profile-zram.sh
+~~~
 
-## Step 3 — Check common late-install safeguards
+This is an example. Change the filename to the module you actually edited. `sh -n` checks POSIX shell syntax **without running disk writes or APT**.
 
-- [ ] Verify the installer validates the exact approved profile selection before any selected operations.
-- [ ] When root is locked, verify the **native root recovery password** prompt and its confirmation, without passwords in logs.
-- [ ] Check service-start suppression in the target and that only installer `cdrom:` APT entries are disabled before network APT work.
-- [ ] Review a complete APT simulation in the installer GUI and test the **default-No** cancellation path.
-- [ ] On an intentional failure, verify the status guard **does not** show a misleading success screen.
+Check that the relevant `profiles/<name>.description`, `.extra` and `.postinst` exist. The source file must be listed in the appropriate media manifest; the postinst should verify a completion marker, not repeat installation.
 
-## Step 4 — Check each selectable profile
+Confirm that `simple-cdd.conf` still has the seven offered profiles and **empty** `auto_profiles` and `default_profiles`. Verify that new code is inside a **selected function**, not executed when sourced unconditionally.
 
-- [ ] **Backports:** the signed source appears under the installed target, priority is **100**, package upgrades and proposed removals are separately reviewed, and essential packages remain.
-- [ ] **Kernel:** a viable Linux **7.x image and exact ABI-matching headers** are installed, and a Stable boot fallback survives. Test with and without Backports selected.
-- [ ] **Firmware:** both CPU microcode packages and the broad inventory are attempted. Test unavailable packages, fallback explanations, per-package omission prompts and **both full vendor firmware licenses**.
-- [ ] **ZRAM:** confirm exact PARTUUID discovery and manual-choice fallback, default-No destruction, separate targeted swapoff, RAM reserve, mounted/held/duplicate-device rejection, the approved 1 MiB erase, GPT type `8300` and label, absence of conventional swap signatures, and target `fstab`/generator identity.
-- [ ] **Debian tweaks:** verify only the approved GRUB/ext4/SSH/manual-APT changes were applied when selected; no changes when unselected.
-- [ ] **OMV 8:** verify the signed OMV source, version, admin SSH/sudo membership, OMV unattended-upgrade and APT-event settings, targeted Salt deploy and no active apticron schedule.
-- [ ] **Docker:** verify the official signed source and all five requested packages, with normal service startup and no OMV-Extras or Docker/OMV integration.
+## Step 2 — Run the guarded ISO build
 
-## Step 5 — Verify the installed server after boot
+Execute:
 
-- [ ] Confirm the running Linux kernel is **7.x** with matching headers and a working rescue boot path.
-- [ ] Verify `/dev/zram0` (not the former physical swap partition) is active, ZSTD compression and compressed-writeback interfaces exist, the correct PARTUUID resolves, and writeback counters move during **controlled** pressure.
-- [ ] Test ZRAM setup-failure **emergency mode** and independent monitor-restart behavior, on a disposable VM only.
-- [ ] Verify OMV web/SSH network access and Docker/containerd service behavior if selected.
-- [ ] Confirm `/var/log/installer/my-cdd-status` says `COMPLETE` and each approved profile has a completion marker; inspect the detailed operation log for unexpected errors.
+~~~sh
+./build.sh
+~~~
 
-**Release status as of 2026-11-16:** these runtime checks remain **open**. Do **not** interpret a successful ISO build, a shell syntax check or this documentation refactor as validation for a real-disk installation.
+This generates editable defaults, prepares the local mirror, builds the ISO and checks the staging tree. Inspect terminal logs on any failure.
+
+Verify that the resulting ISO path exists (`images/debian-13-amd64-CD-1.iso`) and that the staged ISO includes the files in **every** `profiles/*.extra`. Verify both udeb and normal binary indexes contain expected build-only requirements (`parted-udeb`, `util-linux-udeb` and `zstd`).
+
+Also inspect whether the generated boot menu really waits as intended. **Do not assume an indexed udeb has been successfully loaded into a running installer.**
+
+## Step 3 — Check GUI selection and preseed wiring
+
+Boot the ISO with a throwaway disk. Test both graphical and text Debian Installer.
+
+- [ ] All seven profiles appear and start **unchecked**.
+- [ ] The summary displays selected and unselected options, and its confirmation defaults to **No**.
+- [ ] No returns to selection; Yes preserves the exact approved list.
+- [ ] ZRAM without a separately chosen 7.x profile is rejected.
+- [ ] Ordinary language, network, user, mirror, storage and tasksel questions still appear and remain editable.
+- [ ] Tasksel is manually verified as SSH + standard utilities with no desktop.
+- [ ] Root recovery preflight uses native installer questions and does not log a password.
+
+## Step 4 — Test module isolation and package approvals
+
+For every optional module, test **not selected** first: there must be **no package, repository or disk change** for that feature.
+
+Then test:
+
+- [ ] A selected profile with an APT transaction shows the **whole simulation** before a default-No approval.
+- [ ] Refusing a package plan or a named removal/omission prevents unapproved work.
+- [ ] Backports has effective priority **100**, with its signed source and reviewed cleanup.
+- [ ] Kernel chooses an eligible **7.x** image/header pair, keeps a boot fallback and does not auto-enable Backports.
+- [ ] Firmware attempts both microcodes, handles conflicts, shows the **full actual vendor licenses**, and reruns the plan after a declined license.
+- [ ] Debian tweaks affect only selected target GRUB/root ext4/SSH/APT settings.
+- [ ] OMV installs the signed **8.x** package and applies only the intended update/notification states; no OMV-Extras, Compose plugin or Docker integration.
+- [ ] Docker installs the five official signed packages without changing vendor service defaults or granting the administrator the Docker group.
+
+## Step 5 — Test the destructive ZRAM module separately
+
+Use only a **disposable GPT virtual disk**. Test all of the following before using real disks:
+
+- [ ] Eligible candidate discovery through **native `blkid` and sysfs**; reject non-GPT, wrong identity and duplicate PARTUUID.
+- [ ] Automatic selection **only** for the single exact new-target swap reference; manual chooser defaults to Stop.
+- [ ] Exact partition, size, parent disk, PARTUUID and destructive scope are visible before default-No consent.
+- [ ] A cancelled conversion makes **no destructive write**.
+- [ ] Swapoff requires adequate RAM, a **separate** default-No consent, exact-device revalidation and verification that the device is inactive.
+- [ ] The first **1 MiB** of the **partition**, not its disk, is zeroed using BusyBox; no unrelated partition data changes.
+- [ ] GPT type becomes Linux data (8300), name becomes `zram-writeback`; PARTUUID is unchanged and no recognized swap/filesystem signature remains.
+- [ ] Target `fstab` loses **only** the selected conventional swap, while unrelated mounts remain.
+- [ ] Generated target ZRAM configuration contains the exact verified PARTUUID in both positions.
+
+## Step 6 — Test finish-install and first boot
+
+- [ ] Every successful selected profile creates its marker; status becomes `COMPLETE` **only after all selected profiles** succeed.
+- [ ] A deliberately failed profile leaves status `FAILED`, and the finish-install guard prevents a misleading installation-success message.
+- [ ] Log files under `/target/var/log/installer` are complete and contain no password secrets.
+- [ ] The installed system boots; `uname -r` is **7.x** when selected, with matching headers and a working Stable fallback.
+- [ ] ZRAM uses `/dev/zram0` instead of the physical partition as normal swap; compression, writeback counters and monitor services are tested under controlled conditions.
+- [ ] A deliberately broken ZRAM setup triggers the intended **emergency mode** and a monitor-only failure restarts without forcing emergency mode.
+- [ ] OMV web/SSH and Docker/containerd startup states reflect normal package behavior if those modules were selected.
+
+## Current release status
+
+**Open as of 2026-11-16:** the current native-udeb ZRAM conversion, complete GUI/target APT flow and first-boot writeback have **not** been validated end to end. Do not use the new ISO on important physical disks until these tests pass.
+
+Historical design and earlier failure logs remain in [history/08_validation_and_pending.md](history/08_validation_and_pending.md).

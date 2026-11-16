@@ -1,32 +1,54 @@
-# Netinst — Install official Docker during Debian installation
+# 07 — Build the independently selectable Docker installer profile
 
-**Purpose:** offer Docker Engine and the Compose plugin as **one independent optional profile**. It does not install OMV, OMV-Extras, the OMV Compose plugin, containers or user-group permissions.
+**Build goal:** create a Simple-CDD profile that adds Docker's signed Debian 13 source **inside the target**, simulates installation of the five official packages, requests default-No approval, then installs them without changing vendor service defaults.
 
-For a normal, running Debian system, follow [08 — Docker](../08_docker/README.md). The following steps are executed by the selected installer profile **inside the newly installed target**.
+For ordinary Debian commands, use [08 — Docker](../08_docker/README.md). Do **not** execute these installer-specific snippets on a normal host.
 
-## Step 1 — Select Docker explicitly
+## Step 1 — Stage the module and register the choice
 
-Tick **Docker** in the early seven-profile Simple-CDD screen and confirm the exact selection. This does not select OpenMediaVault. An unselected Docker profile should perform **no Docker package or repository operations**.
+Create `profiles/docker.description` with a human-facing explanation and `profiles/docker.extra`:
 
-## Step 2 — Install the signing prerequisites
+~~~text
+installer/profile-docker.sh
+~~~
 
-The installer first simulates installation of `ca-certificates` and `curl` and shows a reviewed APT transaction. These tools are needed to retrieve the signing key securely using HTTPS.
+Add `docker` to the offered Simple-CDD profile list **without** changing `auto_profiles=""`. The existing dispatch mapping is:
 
-After approval, the prerequisites are installed under `/target` using Debian Installer's native package progress interface.
+~~~sh
+docker) module=docker; handler=profile_docker ;;
+~~~
 
-## Step 3 — Install Docker's public signing key
+Write a sourced `profile_docker()` function in `installer/profile-docker.sh`. Its `profiles/docker.postinst` is only a completion-marker check.
 
-The installer downloads Docker's official Debian public key:
+## Step 2 — Install key-download prerequisites through reviewed APT
 
-`https://download.docker.com/linux/debian/gpg`
+The first action in `profile_docker` is:
 
-It stores the key in the target under `/etc/apt/keyrings/docker.asc`, with permissions allowing APT to read it. The key belongs only to Docker's repository; the installer does **not** disable APT signing verification.
+~~~sh
+review_install 'Docker signing prerequisites' ca-certificates curl
+~~~
 
-The target must identify as **Debian 13 Trixie**. If not, the profile stops rather than choosing another Docker repository automatically.
+**Purpose:** install HTTPS CA verification and a downloader in `/target`. The shared helper simulates APT, shows the complete plan, obtains default-No approval, installs and audits the result. Do not assume they exist in a minimal Debian target.
 
-## Step 4 — Add the exact Debian source
+## Step 3 — Download Docker's signing key to the target
 
-The profile writes an installed-target Deb822 source with:
+Create `/target/etc/apt/keyrings`, then download the official key into the **target's path**, not the installer's temporary root:
+
+~~~sh
+mkdir -p /target/etc/apt/keyrings
+capture in-target curl -fsSL --proto '=https' \
+    -o /etc/apt/keyrings/docker.asc https://download.docker.com/linux/debian/gpg ||
+    fatal 'Official Docker signing key download failed'
+chmod 644 /target/etc/apt/keyrings/docker.asc
+~~~
+
+This code belongs **inside the selected function**. `capture in-target` uses `--pass-stdout` and records failures. The key is downloaded from the official Docker URL; APT will restrict the source to this key with `Signed-By`.
+
+Check that the installed Debian target reports **`VERSION_CODENAME=trixie`**. Fail rather than guessing a source suite.
+
+## Step 4 — Construct the exact signed Deb822 source
+
+Write `/target/etc/apt/sources.list.d/docker.sources` with these contents:
 
 ~~~text
 Types: deb
@@ -37,39 +59,51 @@ Architectures: amd64
 Signed-By: /etc/apt/keyrings/docker.asc
 ~~~
 
-This source is for **amd64 Trixie** only. It is separate from OMV or Debian Backports sources.
+The current profile writes the file with a shell here-document. This is an **installed-target APT source**, not an ISO repository profile or an OMV plugin. It must not be added unconditionally when Docker was not selected.
 
-The installer updates target package indexes and verifies that **each** requested Docker package can be resolved through the official `download.docker.com` repository.
+Refresh target APT with `update_signed_apt`. For **each** package below, inspect `apt-cache policy` and confirm the official `download.docker.com/linux/debian` origin appears in the output.
 
-## Step 5 — Review the whole Docker installation
+## Step 5 — Build and review the exact Docker package transaction
 
-The selected package set is:
+The requested package set is:
 
-- `docker-ce` — Engine daemon;
-- `docker-ce-cli` — client commands;
-- `containerd.io` — container runtime;
-- `docker-buildx-plugin` — Buildx;
-- `docker-compose-plugin` — the `docker compose` subcommand.
+- `docker-ce` (Engine daemon);
+- `docker-ce-cli` (CLI);
+- `containerd.io` (runtime);
+- `docker-buildx-plugin` (Buildx);
+- `docker-compose-plugin` (`docker compose`).
 
-APT simulates installing **all five together**. The profile rejects planned removals of essential kernel, boot, SSH, sudo, systemd, APT or dpkg components.
+The real source uses this simulation:
 
-The Debconf interface displays the complete package transaction and asks for a **default-No** approval. Read the package changes before approving. A refused or failed transaction must not mark Docker complete.
+~~~sh
+simulate_target install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+check_critical_removals
+review_plan 'Docker: official packages and normal service defaults' "$WORK/plan"
+~~~
 
-## Step 6 — Install and leave normal service defaults alone
+**Purpose:** show the complete dependencies, installations and removals. Reject plans that remove kernel, GRUB, SSH, sudo, systemd, APT or dpkg components. The native Debconf approval defaults to **No**.
 
-With approval, the installer runs target `apt-get` and then `dpkg --audit`. It does **not** manually start, mask, disable or otherwise override Docker or containerd services: vendor package behavior controls startup and first boot.
+## Step 6 — Install the approved packages without changing services
 
-It does not add the Debian administrator to Docker's **root-equivalent** `docker` group or create containers.
+Only when approved, perform the target installation and audit:
 
-## Step 7 — Check Docker after reboot
+~~~sh
+run_target apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+run_target dpkg --audit
+~~~
 
-On the installed Debian server, verify:
+**Do not** write follow-up commands to mask/disable Docker or containerd, grant the administrator the root-equivalent `docker` group, launch a container, or link Docker into OMV. Package-provided service startup defaults are intentional.
 
-1. `docker --version` reports the installed CLI.
-2. `docker compose version` reports the Compose plugin.
-3. `sudo systemctl status docker` and `sudo systemctl status containerd` show expected service states.
-4. No OMV Docker integration, Compose stack, container or unintended firewall exposure was created.
+The installer may temporarily suppress maintainer-script service starts through its **native `policy-rc.d`**; this is distinct from permanently disabling services after boot.
 
-**Remaining validation:** package origins, first-boot service activation and interaction with an independently selected OMV profile must be tested in a VM.
+## Step 7 — Build and validate this source
 
-Implementation: [profile-docker.sh](my-cdd/installer/profile-docker.sh).
+Check the module's POSIX syntax:
+
+~~~sh
+sh -n installer/profile-docker.sh
+~~~
+
+Build via `./build.sh`. In a disposable VM test Docker **unselected**, selected+approved, a declined transaction, invalid repository credentials and first boot. Confirm `docker --version`, `docker compose version` and the Docker/containerd unit states on the installed target. Test OMV + Docker together **without** OMV-Extras or Compose plugin installation.
+
+**Source:** [profile-docker.sh](my-cdd/installer/profile-docker.sh). Its full function is short enough to inspect while following these construction steps.
