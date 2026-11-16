@@ -128,7 +128,7 @@ profile_zram() {
         fatal 'Installed target fstab changed after conversion; manual repair is required'
     # Stage the verified fstab on the target filesystem, then replace it
     # atomically. A failed copy must not truncate the active target fstab.
-    fstab_tmp="/target/etc/.fstab.my-cdd.$"
+    fstab_tmp="/target/etc/.fstab.my-cdd.$$"
     [ ! -e "$fstab_tmp" ] ||
         fatal 'Unexpected temporary target fstab path already exists'
     cp "$WORK/zram-safe-fstab" "$fstab_tmp" ||
