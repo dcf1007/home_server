@@ -33,6 +33,14 @@ Install it as a dedicated APT keyring (review an existing destination before rep
 sudo gpg --dearmor -o /usr/share/keyrings/openmediavault-archive-keyring.gpg openmediavault-archive.key
 ~~~
 
+Ensure the installed **public signing key** is readable by APT's unprivileged `_apt` user:
+
+~~~sh
+sudo chmod 0644 /usr/share/keyrings/openmediavault-archive-keyring.gpg
+~~~
+
+This does not weaken repository signature verification; it only makes the public keyring accessible to the signature verifier.
+
 ## Step 3 — Add OMV's official signed APT repository
 
 Create the standard APT source directory if necessary:
