@@ -1,5 +1,10 @@
 #!/bin/sh
 # Native Debian Installer ZRAM tools; no target util-linux block commands.
+# Standard GPT PARTITION TYPE GUIDs (not disk-specific PARTUUIDs):
+#   Linux swap:                 0657FD6D-A4AB-43C4-84E5-0933C84B4F4F
+#   Linux filesystem/data:      0FC63DAF-8483-4772-8E79-3D69D8477DE4 (gdisk 8300)
+# The ZRAM backing remains raw/unformatted. GNU Parted's "type" command
+# requires the GPT type GUID, whereas blkid reports it for eligibility checks.
 ZRAM_SWAP_GUID=0657fd6d-a4ab-43c4-84e5-0933c84b4f4f
 ZRAM_DATA_GUID=0fc63daf-8483-4772-8e79-3d69d8477de4
 
