@@ -23,9 +23,9 @@ The [build.sh](build.sh) script keeps upstream Simple-CDD `default.*` inputs, ru
 ## Source layout
 
 - [simple-cdd.conf](simple-cdd.conf): seven optional profiles, all initially unchecked, no automatic selection.
-- [profiles/](profiles/): profile descriptions, `.extra` packaging inputs, completion-verifying postinst scripts, and the **build-only** media profile.
-- [installer/](installer/): native GTK/text Debconf confirmation, ordered late-command dispatcher, selected-only modules and fail-closed completion guard.
-- [scripts/](scripts/): inputs staged on the ISO (Backports source, firmware inventory, ZRAM generator and monitor).
+- [profiles/](profiles): profile descriptions, `.extra` packaging inputs, completion-verifying postinst scripts, and the **build-only** media profile.
+- [installer/](installer): native GTK/text Debconf confirmation, ordered late-command dispatcher, selected-only modules and fail-closed completion guard.
+- [scripts/](scripts): inputs staged on the ISO (Backports source, firmware inventory, ZRAM generator and monitor).
 - [profile_defaults.conf](profile_defaults.conf): editable suggestions for native installer questions, **not** passwords, disk selection or preapproved optional profiles.
 - [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md): detailed chronological source provenance and past defects.
 
@@ -33,8 +33,8 @@ The [build.sh](build.sh) script keeps upstream Simple-CDD `default.*` inputs, ru
 
 ### Why the installer differs from the standalone guides
 
-`udebs` are not ordinary Debian packages: Debian Installer is a stripped-down environment. Partition discovery/conversion uses native `blkid` from `util-linux-udeb`, `parted-udeb`, BusyBox, `/sys` and `/proc`. The ordinary [ZRAM guide](../../05_zram_writeback/README.md) can use full `wipefs` and `sgdisk` instead. Other installer-only mechanisms include `in-target`, cdebconf and preseed/late_command.
+`udebs` are not ordinary Debian packages: Debian Installer is a stripped-down environment. Partition discovery/conversion uses native `blkid` from `util-linux-udeb`, `parted-udeb`, BusyBox, `/sys` and `/proc`. The ordinary [ZRAM guide](../../06_zram_writeback/README.md) can use full `wipefs` and `sgdisk` instead. Other installer-only mechanisms include `in-target`, cdebconf and preseed/late_command.
 
-**Validation:** The build and installer still need real testing after these source changes; no ISO build or first-boot validation is claimed by the documentation refactor. See [active release gates](../08_validation_and_pending.md).
+**Validation:** The build and installer still need real testing after these source changes; no ISO build or first-boot validation is claimed by the documentation refactor. See [active release gates](../validation_and_pending.md).
 
 The previous long README, including the detailed VM failures and obsolete interim tool strategies, is preserved in [history/my-cdd-README-20261115.md](../history/my-cdd-README-20261115.md).

@@ -13,7 +13,7 @@
   **unchanged** from the parent planning directory under the user's earlier
   instruction to name the project `my-cdd`.
 - `simple-cdd.conf`, `profiles/` and the minimal `build.sh` implement the
-  [documented installer project](../01_custom_cdd_preparation.md), based on
+  [documented installer project](../build_project.md), based on
   Debian Simple-CDD's native profile structure. Their source was initially
   generated after the user said “proceed”.
 - `installer/profile-confirm.sh`, `profile-confirm.templates` and
@@ -21,10 +21,10 @@
   `preseed/early_command` hook before the unchanged upstream
   `simple-cdd-profiles` udeb. The user selected option A explicitly.
 - The four ZRAM generator/monitor/systemd assets are **verbatim extractions**
-  from the [approved original design](../03_zram_writeback.md#original-design--complete-source).
+  from the [approved original design](../06_zram_writeback.md#original-design--complete-source).
   They are not automatically deployed.
 - `scripts/firmware-candidates.txt` follows the
-  [Extended device support inventory](../10_extended_device_support.md).
+  [Extended device support inventory](../05_extended_device_support.md).
   The signed Backports and ZRAM swappiness templates are only source material
   for their independently selected profiles.
 - `installer/run-selected.sh` and `installer/profile-actions.sh` were written
