@@ -57,6 +57,8 @@ status_of() {
 }
 
 display_summary() {
+    status_of debian-tweaks
+    db_subst my-cdd/profile-summary MYCDD_TWEAKS "$profile_status" || return 1
     status_of backports
     db_subst my-cdd/profile-summary MYCDD_BACKPORTS "$profile_status" || return 1
     status_of ensure-7x-kernel
@@ -65,8 +67,6 @@ display_summary() {
     db_subst my-cdd/profile-summary MYCDD_FIRMWARE "$profile_status" || return 1
     status_of zram-writeback
     db_subst my-cdd/profile-summary MYCDD_ZRAM "$profile_status" || return 1
-    status_of debian-tweaks
-    db_subst my-cdd/profile-summary MYCDD_TWEAKS "$profile_status" || return 1
     status_of openmediavault
     db_subst my-cdd/profile-summary MYCDD_OMV "$profile_status" || return 1
     status_of docker

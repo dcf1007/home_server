@@ -38,9 +38,7 @@ profile_tweaks() {
     if capture in-target sh -c 'command -v sshd >/dev/null 2>&1'; then
         mkdir -p /target/etc/ssh/sshd_config.d
         printf 'PermitRootLogin no\n' > /target/etc/ssh/sshd_config.d/01-my-cdd-root-login.conf
-        capture in-target sshd -T || fatal 'OpenSSH configuration invalid'
-        grep -Fx 'permitrootlogin no' "$WORK/output" >/dev/null ||
-            fatal 'Effective OpenSSH root-login setting is not no'
+        verify_target_sshd
     else
         log 'Debian tweaks: OpenSSH not installed; no SSH policy file created'
     fi
