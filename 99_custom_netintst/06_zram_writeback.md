@@ -78,7 +78,7 @@ Open `scripts/zram-generator.conf.template` in a text editor, paste the indicate
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**7. Create `scripts/override.conf`.** Systemd drop-in controlling compressed writeback setup.
+**7. Create `scripts/override.conf`.** Single systemd drop-in for compressed writeback before initialization and emergency mode on setup failure.
 
 Open `scripts/override.conf` in a text editor, paste the indicated contents and save it at that path.
 
@@ -122,7 +122,7 @@ The main `installer/profile-zram.sh` handler is **sourced**; it is never invoked
 7. **fstab preparation:** before writes, the helper prepares removal of only that partition's conventional swap entry. It must not delete unrelated root, EFI or NAS mounts.
 8. **Bounded signature erase:** once all checks pass, the handler runs BusyBox `dd` with `bs=4096 count=256` against the **verified partition**, not its parent disk. That writes exactly **1 MiB**.
 9. **GPT conversion without recreation:** native Parted changes that partition's **type** to standard Linux data (gdisk 8300, GUID `0FC63DAF-8483-4772-8E79-3D69D8477DE4`) and its **name** to `zram-writeback`. It does **not** format a filesystem, delete the partition or hardcode the machine's PARTUUID. Post-write checks must confirm correct identity and no residual swap signature.
-10. **Target provisioning:** an atomically staged `fstab` is installed; the user approves installing `systemd-zram-generator`; both template `YOUR_PARTUUID` placeholders are replaced with the **actual detected PARTUUID**. The generator, writeback overrides, pressure monitor and swappiness file are installed under `/target`; GRUB is updated for `zswap.enabled=0`.
+10. **Target provisioning:** an atomically staged `fstab` is installed; the user approves installing `systemd-zram-generator`; both template `YOUR_PARTUUID` placeholders are replaced with the **actual detected PARTUUID**. The generator, single setup override, pressure monitor and swappiness file are installed under `/target`; GRUB is updated for `zswap.enabled=0`.
 
 ## Step 5 — Check copied source before any disk operation
 
