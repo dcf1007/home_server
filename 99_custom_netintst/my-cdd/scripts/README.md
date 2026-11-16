@@ -8,4 +8,4 @@ These files are **inputs to selected Simple-CDD profiles**, staged on the custom
 
 The installer loads these from the ISO and provisions `/target` only when the corresponding profile was explicitly selected. The source `YOUR_PARTUUID` placeholder is replaced by the actual verified GPT partition UUID.
 
-The full original ZRAM design remains in [history](../../history/06_zram_writeback.md#original-design--complete-source). Runtime behavior has not been validated on the target 7.x kernel.
+The full original ZRAM design remains in [history](../../history/03_zram_writeback.md#original-design--complete-source). Runtime behavior has not been validated on the target 7.x kernel.
