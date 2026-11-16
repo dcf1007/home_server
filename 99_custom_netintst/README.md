@@ -42,8 +42,8 @@ After all required files exist, use the guarded `./build.sh` wrapper to create t
 
 ## Recent installer test and open blocker
 
-The latest Debian 13 VM (16 November 2026) progressed through the fixed Debian tweaks stage, the selected ZRAM swap conversion and generator installation, and OMV's signing-key import. The OMV profile then stopped at `apt-get update`; the native failure dialog omitted the actual APT error because `in-target` logged its stderr only to the installer syslog. Docker and first boot were not reached.
+The latest Debian 13 VM (16 November 2026) progressed through the corrected Debian tweaks stage, selected ZRAM partition conversion and generator, and OMV's official signed APT repository. An OMV package **simulation** then proposed removing `systemd-timesyncd`, which the shared boot-package guard incorrectly matched as `systemd`. The guard stopped the installer **before the actual OMV package transaction**. Docker and first boot were not reached.
 
-The current shared installer source redirects the target program's stderr to captured stdout **inside** `in-target`, and presents the failing command, exit code, recognized error lines and actual command output in the same GTK/text failure note. OMV's official repository and installation behavior are unchanged pending the actual error. **This logging fix is not yet VM-validated.**
+The installer now displays its actual command errors in GTK/text (verified by the preceding VM screenshots), and the shared matcher permits **only** that specific replaceable NTP client removal while preserving all other protected-package checks. A fresh VM run is needed to verify the corrected simulation, review, OMV installation and first boot.
 
 Earlier design notes and test history remain under [history](history/). [Provenance](../GUIDE_PROVENANCE.md) records why the standalone and installer versions must be updated together.
