@@ -1,10 +1,10 @@
 # 04 — Recreate the optional Debian tweaks installer profile
 
-**Goal:** build the actual installer source for the opt-in filesystem, boot, SSH and manual-update changes. For a normal installed Debian system follow [06 — Debian tweaks](../06_debian_tweaks/README.md), not this installer code.
+**Goal:** build the actual installer source for the opt-in filesystem, boot, SSH and manual-update changes. For a normal installed Debian system follow [06 — Debian tweaks](../02_debian_tweaks/README.md), not this installer code.
 
 ## Before you start
 
-Finish the shared [ISO build project](01_custom_cdd_preparation.md), [common helpers](00_profile_construction.md) and [installer hooks](05_base_installation.md). Work from `99_custom_netintst/my-cdd/` in a test branch or disposable copy. This optional profile shares the common dispatcher; it is **not a standalone shell script**.
+Finish the shared [ISO build project](build_project.md), [common helpers](profile_construction.md) and [installer hooks](installer_framework.md). Work from `99_custom_netintst/my-cdd/` in a test branch or disposable copy. This optional profile shares the common dispatcher; it is **not a standalone shell script**.
 
 ## Step 1 — Make the four feature files
 

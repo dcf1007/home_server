@@ -2,7 +2,7 @@
 
 This is a **build tutorial**. When you finish it you will have the two source files that every optional installer profile depends on. These run **inside Debian Installer**, not from a running NAS.
 
-**Starting point:** A directory `99_custom_netintst/my-cdd/` with the Simple-CDD configuration from [01](01_custom_cdd_preparation.md). If you are extending the existing repository, work on a separate Git branch. If you are reconstructing the project, start with [01](01_custom_cdd_preparation.md), complete this chapter, then [05](05_base_installation.md) and the feature you want.
+**Starting point:** A directory `99_custom_netintst/my-cdd/` with the Simple-CDD configuration from [01](build_project.md). If you are extending the existing repository, work on a separate Git branch. If you are reconstructing the project, start with [01](build_project.md), complete this chapter, then [05](installer_framework.md) and the feature you want.
 
 ## Step 1 — Know what each file provides
 
@@ -29,7 +29,7 @@ Open each listed file in a text editor (for example `nano installer/ordered-sele
 
 The selection parser first validates the approved profile names and cross-profile dependency; it never adds choices automatically. The APT helpers always inspect the **target system** in `/target`, not the installer's temporary package database. A complete APT plan is shown through the dispatcher's native Debconf UI before a target package transaction is performed.
 
-The shared functions expect the dispatcher to provide `capture`, `fatal`, `WORK`, `LOG`, `MEDIA` and the cdebconf helper functions. That's why you must complete [05 — Build the dispatcher](05_base_installation.md) before using a feature module.
+The shared functions expect the dispatcher to provide `capture`, `fatal`, `WORK`, `LOG`, `MEDIA` and the cdebconf helper functions. That's why you must complete [05 — Build the dispatcher](installer_framework.md) before using a feature module.
 
 ## Step 4 — Check your copies
 
@@ -45,7 +45,7 @@ sh -n installer/profile-common.sh
 
 This likewise checks the shared functions' shell syntax. Syntax validation cannot prove the APT logic works. Confirm the code is identical using the expected Git blob hashes in the file listings below (see the check instructions there).
 
-**Next:** [05 — Recreate the actual preseed/dispatcher framework](05_base_installation.md).
+**Next:** [05 — Recreate the actual preseed/dispatcher framework](installer_framework.md).
 
 ## Complete, copyable source files
 

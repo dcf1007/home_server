@@ -1,10 +1,10 @@
 # 02 — Recreate the Backports installer profile, file by file
 
-**Goal:** build this exact optional feature from its source files, not operate the completed installer. A **normal Debian system** uses [the simpler Backports guide](../02_backports/README.md).
+**Goal:** build this exact optional feature from its source files, not operate the completed installer. A **normal Debian system** uses [the simpler Backports guide](../03_backports/README.md).
 
 ## Before you start
 
-Complete the shared [build project](01_custom_cdd_preparation.md), [installer helpers](00_profile_construction.md) and [dispatcher](05_base_installation.md) first. Their scripts are **shared prerequisites** for every feature. Work in `99_custom_netintst/my-cdd/`, using a test branch or scratch copy of the repository.
+Complete the shared [build project](build_project.md), [installer helpers](profile_construction.md) and [dispatcher](installer_framework.md) first. Their scripts are **shared prerequisites** for every feature. Work in `99_custom_netintst/my-cdd/`, using a test branch or scratch copy of the repository.
 
 ## Step 1 — Identify the files you need
 

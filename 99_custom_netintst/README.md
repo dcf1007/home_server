@@ -34,11 +34,11 @@ You must create the **shared framework first**. The seven selectable profiles de
 
 The complete build order is:
 
-1. [01 — Build project](01_custom_cdd_preparation.md): create `simple-cdd.conf`, editable defaults, `build.sh` and build-only package lists.
-2. [00 — Common helpers](00_profile_construction.md): create the selection order and APT helper functions.
-3. [05 — Installer framework](05_base_installation.md): create the early and late preseed hooks, Debconf templates, dispatcher and finish-install guard.
+1. [01 — Build project](build_project.md): create `simple-cdd.conf`, editable defaults, `build.sh` and build-only package lists.
+2. [00 — Common helpers](profile_construction.md): create the selection order and APT helper functions.
+3. [05 — Installer framework](installer_framework.md): create the early and late preseed hooks, Debconf templates, dispatcher and finish-install guard.
 4. Create **each profile** below, one at a time. Each page includes **all of its feature-specific source files**.
-5. [08 — Validate and build](08_validation_and_pending.md): syntax checks, complete ISO build, VM installation and first boot.
+5. [08 — Validate and build](validation_and_pending.md): syntax checks, complete ISO build, VM installation and first boot.
 
 **Every non-document source file in the tracked `my-cdd` project is represented by a complete listing** in one of the build chapters. Each listing gives the expected original Git blob hash so you can detect a missing line or incorrect copy.
 
@@ -48,13 +48,13 @@ If you only want to implement **one** feature from scratch, begin with an existi
 
 | Build chapter | What source files you recreate |
 | --- | --- |
-| [02 — Backports](02_backports_apt.md) | Choice/manifest/verifier, complete target APT profile and signed Debian source |
-| [09 — Linux 7.x](09_ensure_7x_kernel.md) | Choice/manifest/verifier, complete kernel image/header selection and install module |
-| [10 — Firmware](10_extended_device_support.md) | Choice/manifest/verifier, full package inventory, license/omission handling module |
-| [03 — ZRAM writeback](03_zram_writeback.md) | Choice/manifest/verifier, native disk selector and conversion code, all five ZRAM assets |
-| [04 — Debian tweaks](04_debian_tweaks.md) | Choice/manifest/verifier and complete target GRUB/fstab/SSH/APT tweaks |
-| [06 — OpenMediaVault 8](06_openmediavault.md) | Choice/manifest/verifier and complete signed OMV installation/policy module |
-| [07 — Docker](07_docker.md) | Choice/manifest/verifier and complete official Docker installation module |
+| [02 — Backports](03_backports_apt.md) | Choice/manifest/verifier, complete target APT profile and signed Debian source |
+| [09 — Linux 7.x](04_ensure_7x_kernel.md) | Choice/manifest/verifier, complete kernel image/header selection and install module |
+| [10 — Firmware](05_extended_device_support.md) | Choice/manifest/verifier, full package inventory, license/omission handling module |
+| [03 — ZRAM writeback](06_zram_writeback.md) | Choice/manifest/verifier, native disk selector and conversion code, all five ZRAM assets |
+| [04 — Debian tweaks](02_debian_tweaks.md) | Choice/manifest/verifier and complete target GRUB/fstab/SSH/APT tweaks |
+| [06 — OpenMediaVault 8](07_openmediavault.md) | Choice/manifest/verifier and complete signed OMV installation/policy module |
+| [07 — Docker](08_docker.md) | Choice/manifest/verifier and complete official Docker installation module |
 
 Follow this order when building the full project, because the dispatcher executes the selected features in that order.
 
@@ -68,7 +68,7 @@ Each chapter follows the same pattern:
 4. Save the file. If the chapter instructs you to use `chmod +x`, do so for the **entry point or verifier only**; sourced `profile-*.sh` files are not independent programs.
 5. Run the displayed `sh -n` / `bash -n` checks; those parse code **without executing APT or disk operations**.
 6. To check for a copy error, run `git hash-object <path>` (with the real filename) and compare its output to the **original blob SHA** shown in the expanded listing. This command reads the file; it does not modify it.
-7. Only after **all shared and selected source files** are present, run `./build.sh` from `my-cdd`, then boot the ISO with a **disposable VM disk** for the tests in [08](08_validation_and_pending.md).
+7. Only after **all shared and selected source files** are present, run `./build.sh` from `my-cdd`, then boot the ISO with a **disposable VM disk** for the tests in [08](validation_and_pending.md).
 
 **Never execute `installer/profile-zram.sh`, `installer/profile-omv.sh` or any other sourced installer module directly on the build host or running NAS.** The modules assume they are loaded by Debian Installer and that `/target` is the new operating system.
 
@@ -77,7 +77,7 @@ Each chapter follows the same pattern:
 This example shows how to use **one** of the chapters without first rebuilding every shared file.
 
 1. Clone the existing repository using **approach A** above, then enter `home_server/99_custom_netintst/my-cdd`. The full working framework is already present.
-2. Open [07 — Docker](07_docker.md). It identifies **four exact files**: `profiles/docker.description`, `profiles/docker.extra`, `profiles/docker.postinst` and `installer/profile-docker.sh`. It explains the purpose of each.
+2. Open [07 — Docker](08_docker.md). It identifies **four exact files**: `profiles/docker.description`, `profiles/docker.extra`, `profiles/docker.postinst` and `installer/profile-docker.sh`. It explains the purpose of each.
 3. In a separate test checkout or branch, open `profiles/docker.description` with `nano`, copy the complete listing from the Docker chapter, then save it. Repeat for the other three files. The full module is included; you do **not** have to deduce missing code from a description.
 4. Mark `profiles/docker.postinst` executable. The Docker chapter gives that command and explains why `installer/profile-docker.sh` stays a sourced module.
 5. Compare each file's `git hash-object` output with the reference hash in the chapter. Any difference means the copy is not byte-for-byte identical.
@@ -88,6 +88,6 @@ This same pattern applies to **every** feature chapter. The more complex ZRAM an
 
 ## Why even the full source listing is not a runtime test
 
-The complete listings reproduce the tracked code **as-is**. They do not certify that its current Debian Installer integration works. The native ZRAM conversion, selected-profile Debconf flow, OMV networking/Salt, and first-boot writeback still require VM validation. The earlier design history and failure reports are under [history](history/).
+The complete listings reproduce the tracked code **as-is**. They do not certify that its current Debian Installer integration works. The native ZRAM conversion, selected-profile Debconf flow, OMV networking/Salt, and first-boot writeback still require VM validation. The earlier design history and failure reports are under [history](history).
 
 **Provenance:** these full-file listings are copied from source revision `bf5090eb37338d9304be7e7c88fcd063b5db7b0e` (the `main` branch before this documentation rewrite). If implementation code changes later, the complete listings and their blob hashes must be updated together.

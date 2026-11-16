@@ -1,17 +1,17 @@
 # 03 — Recreate the complete ZRAM installer profile, step by step
 
-**Goal:** reconstruct the exact source of this **destructive, optional Debian Installer feature**, including selection, confirmation, native GPT conversion and ZSTD ZRAM writeback configuration. Do not copy the following installer commands into a normal Debian terminal. For that use [05 — Standalone ZRAM](../05_zram_writeback/README.md) with ordinary full-system tools.
+**Goal:** reconstruct the exact source of this **destructive, optional Debian Installer feature**, including selection, confirmation, native GPT conversion and ZSTD ZRAM writeback configuration. Do not copy the following installer commands into a normal Debian terminal. For that use [05 — Standalone ZRAM](../06_zram_writeback/README.md) with ordinary full-system tools.
 
 **Safety:** this handler can zero the first **1 MiB of a GPT partition**. Only test on a disposable virtual disk. No live VM or physical partition test has been completed for the current native-udeb refactor.
 
 ## Step 1 — Complete the prerequisites
 
-1. Build the Simple-CDD project in [01](01_custom_cdd_preparation.md).
-2. Create the shared code and profile rules in [00](00_profile_construction.md).
-3. Create the native early/late selection UI and dispatcher in [05](05_base_installation.md).
-4. Also create the **independently selectable Linux 7.x profile** from [09](09_ensure_7x_kernel.md). ZRAM may not run unless that profile was separately selected and successfully completed.
+1. Build the Simple-CDD project in [01](build_project.md).
+2. Create the shared code and profile rules in [00](profile_construction.md).
+3. Create the native early/late selection UI and dispatcher in [05](installer_framework.md).
+4. Also create the **independently selectable Linux 7.x profile** from [09](04_ensure_7x_kernel.md). ZRAM may not run unless that profile was separately selected and successfully completed.
 
-The build-only `profiles/installer-media.udebs` already includes `parted-udeb` and `util-linux-udeb` from [01](01_custom_cdd_preparation.md); they provide native commands in the installer, not the installed target. The default Debconf template in [05](05_base_installation.md) supplies the separate default-No ZRAM destructive and swapoff questions.
+The build-only `profiles/installer-media.udebs` already includes `parted-udeb` and `util-linux-udeb` from [01](build_project.md); they provide native commands in the installer, not the installed target. The default Debconf template in [05](installer_framework.md) supplies the separate default-No ZRAM destructive and swapoff questions.
 
 Work inside `99_custom_netintst/my-cdd/`, on a test branch or scratch copy.
 

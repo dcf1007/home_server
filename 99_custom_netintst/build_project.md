@@ -1,6 +1,6 @@
 # 01 — Recreate the Simple-CDD build project
 
-**Outcome:** a working *build project* for Debian 13 amd64 containing the complete source of `simple-cdd.conf`, editable installer defaults and the guarded two-stage `build.sh`. This does **not** yet include the per-feature implementation; those are constructed in [00](00_profile_construction.md), [05](05_base_installation.md) and the feature chapters.
+**Outcome:** a working *build project* for Debian 13 amd64 containing the complete source of `simple-cdd.conf`, editable installer defaults and the guarded two-stage `build.sh`. This does **not** yet include the per-feature implementation; those are constructed in [00](profile_construction.md), [05](installer_framework.md) and the feature chapters.
 
 ## Step 1 — Prepare a Debian build computer
 
@@ -99,7 +99,7 @@ bash -n build.sh
 
 This checks Bash syntax without running the builder. **Do not run `./build.sh` yet if you have not created** the common installer files and feature modules: its checks will stop on missing source.
 
-**Next:** [00 — Shared profile code](00_profile_construction.md), then [05 — Installer hooks and dispatcher](05_base_installation.md), then one or more feature guides. When all media manifests and modules exist, run `./build.sh` from `my-cdd` and test the ISO in a disposable VM.
+**Next:** [00 — Shared profile code](profile_construction.md), then [05 — Installer hooks and dispatcher](installer_framework.md), then one or more feature guides. When all media manifests and modules exist, run `./build.sh` from `my-cdd` and test the ISO in a disposable VM.
 
 ## Complete, copyable source files
 
@@ -111,7 +111,7 @@ Expand the file you want to create. **These are full files, not fragments.** Cop
 
 ````text
 # my-cdd Simple-CDD 0.6.9 build configuration for Debian 13 Trixie, amd64.
-# Source: ../01_custom_cdd_preparation.md and Debian Simple-CDD 0.6.9 variables.py
+# Source: ../build_project.md and Debian Simple-CDD 0.6.9 variables.py
 # Status: source configuration; not evidence of a validated ISO.
 #
 # These are INCLUDED / OFFERED profiles, NOT AUTO-SELECTED profiles.
