@@ -109,6 +109,7 @@ update_signed_apt() {
     run_target apt-get update
     capture in-target apt-cache policy || fatal 'Cannot inspect APT priorities'
 }
+
 ````
 
 </details>
