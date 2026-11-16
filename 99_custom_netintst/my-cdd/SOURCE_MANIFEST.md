@@ -295,14 +295,15 @@ OMV/Docker package service behavior, boot-menu changes and first-boot
 behavior remain unverified. That earlier source-writing turn did not perform an ISO build. Later on 2026-11-15, the user successfully built the ISO and tried the graphical installer, which failed at preseed loading. No installed-target package transaction or disk modification has been demonstrated. No mock/offline
 test harness was added.
 
-## Current tracked files (54)
+## Current tracked CDD files (56; updated 2026-11-16)
 
-Source inventory at commit `c03c95c75429` before the documentation-only follow-up:
+Current source filenames on the review branch; historical SHA-specific inventories above describe their own dated revisions.
 
 - `.gitignore`
 - `README.md`
 - `SOURCE_MANIFEST.md`
 - `build.sh`
+- `installer/15my-cdd-status`
 - `installer/IMPLEMENTATION_GATES.md`
 - `installer/README.md`
 - `installer/ordered-selection.sh`
@@ -338,17 +339,18 @@ Source inventory at commit `c03c95c75429` before the documentation-only follow-u
 - `profiles/extended-device-support.extra`
 - `profiles/extended-device-support.postinst`
 - `profiles/installer-media.downloads`
+- `profiles/installer-media.udebs`
 - `profiles/openmediavault.description`
 - `profiles/openmediavault.extra`
 - `profiles/openmediavault.postinst`
 - `profiles/zram-writeback.description`
 - `profiles/zram-writeback.extra`
 - `profiles/zram-writeback.postinst`
-- `scripts/10-compressed-writeback.conf`
-- `scripts/90-zram-swappiness.conf`
+- `scripts/90-zram.conf`
 - `scripts/README.md`
 - `scripts/debian-backports.sources`
 - `scripts/firmware-candidates.txt`
+- `scripts/override.conf`
 - `scripts/zram-generator.conf.template`
 - `scripts/zram-pressure.service`
 - `scripts/zram-pressure.sh`
