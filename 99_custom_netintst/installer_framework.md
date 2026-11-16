@@ -39,7 +39,7 @@ Paste the complete matching listings below. The early hook must run **before** `
 | `installer/run-selected.sh` | Supplies `capture`, `fatal`, target-APT simulation and review helpers; checks local root recovery access; sources and runs only selected functions; writes completion markers and shows real failed-command output in the native failure dialog. |
 | `installer/15my-cdd-status` | Finish-install hook that blocks success if status is not `COMPLETE` or a selected marker is absent. |
 
-Paste both entire listings below. **Do not trim `run-selected.sh` down to the short dispatcher excerpt.** Its review and error-handling code is necessary for safety. Target stderr is redirected to stdout **inside the `in-target` chroot**, because Debian Installer otherwise sends it only to syslog. On failure, the native GTK/text note shows the failed command, return status, recognized APT/dpkg error lines and the last 100 lines of actual command output. The complete log is still retained in `/target/var/log/installer/my-cdd.log`. The guard uses Debian Installer's finish-install **exit status 10**, not a generic shell exit 1.
+Paste both entire listings below. **Do not trim `run-selected.sh` down to the short dispatcher excerpt.** Its review and error-handling code is necessary for safety. The essential-package removal guard preserves its original protected list, excluding only the replaceable `systemd-timesyncd` time client; it still blocks a proposed removal of `systemd` itself, boot packages or core administration tools. Target stderr is redirected to stdout **inside the `in-target` chroot**, because Debian Installer otherwise sends it only to syslog. On failure, the native GTK/text note shows the failed command, return status, recognized APT/dpkg error lines and the last 100 lines of actual command output. The complete log is still retained in `/target/var/log/installer/my-cdd.log`. The guard uses Debian Installer's finish-install **exit status 10**, not a generic shell exit 1.
 
 Mark only the actual **entry points** as executable:
 
@@ -379,7 +379,7 @@ Description: Remove the package ${MYCDD_REMOVAL}?
 
 
 <details>
-<summary><strong>Complete file: installer/run-selected.sh</strong> (392 lines, current Git blob <code>c59a0f935a2911357a318fc558d68960bf77b35c</code>)</summary>
+<summary><strong>Complete file: installer/run-selected.sh</strong> (395 lines, current Git blob <code>76fb10f38c2aed04cfc5f4029a62b672fc74188b</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -569,7 +569,10 @@ simulate_target() {
     cp "$WORK/output" "$WORK/plan"
 }
 check_critical_removals() {
-    if grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/plan" > "$WORK/critical"; then
+    # APT may replace the separate systemd-timesyncd NTP client (e.g. with
+    # OMV's chrony). Keep every other existing protected-package rule.
+    if grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/plan" |
+        grep -Ev '^Remv systemd-timesyncd([[:space:]:]|$)' > "$WORK/critical"; then
         cat "$WORK/critical" >> "$LOG"
         fatal 'Proposed removal of boot/essential administration packages; explicit manual resolution required'
     fi
