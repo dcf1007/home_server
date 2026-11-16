@@ -18,9 +18,10 @@ findmnt -no SOURCE,FSTYPE,OPTIONS /
 
 The example design suggested **16 GiB** of backing, but this is not a hard requirement. If the chosen backing is currently active swap, inspect `free -h` and `swapon --show`; run `sudo swapoff <exact-partition>` **only when sufficient RAM is available and you have approved deactivation**. Recheck that this *exact* device is absent from `swapon --show`. Do not use `swapoff -a`.
 
-Use a root shell for the following commands (`sudo -i`) and replace the prompt value with the **partition path** you have inspected—**never the whole disk**:
+From a regular Bash shell, enter the repository's `05_zram_writeback` directory first. Keep that same shell for the later `PART`/`UUID` variables. Replace the prompt value with the **partition path** you inspected—**never the whole disk**:
 
 ~~~bash
+cd /path/to/home_server/05_zram_writeback  # change to your actual clone path
 read -r -p 'Confirmed backing PARTITION path (e.g. /dev/nvme0n1p3): ' PART
 PART=$(readlink -f -- "$PART")
 test -b "$PART" && test "$(lsblk -dnro TYPE "$PART")" = part || exit 1
@@ -28,8 +29,8 @@ DISK="/dev/$(lsblk -dnro PKNAME "$PART")"
 NUM=$(lsblk -dnro PARTN "$PART")
 test -b "$DISK" && test "$(lsblk -dnro PTTYPE "$DISK")" = gpt || exit 1
 lsblk -o NAME,PATH,TYPE,SIZE,FSTYPE,PARTTYPE,PARTUUID,MOUNTPOINTS "$DISK"
-wipefs "$PART"
-swapon --show
+sudo wipefs "$PART"
+sudo swapon --show
 findmnt -S "$PART" || true
 ~~~
 
@@ -40,22 +41,22 @@ Verify manually that `PART` really is the correct GPT swap or previously dedicat
 First remove the chosen partition's conventional-swap entry (by UUID, PARTUUID or exact device) from `/etc/fstab` using a text editor, leaving all unrelated entries intact. Keep a copy of the original file for recovery:
 
 ~~~sh
-cp -a /etc/fstab /etc/fstab.before-zram
-editor /etc/fstab
+sudo cp -a /etc/fstab /etc/fstab.before-zram
+sudoedit /etc/fstab
 ~~~
 
 Make a final explicit decision to destroy the old contents/signatures on **only `$PART`**. On the same root shell:
 
 ~~~bash
 # Review detected signatures and precise scope before confirming:
-wipefs --no-act "$PART"
+sudo wipefs --no-act "$PART"
 # After explicit approval:
-wipefs --all "$PART"
-sgdisk --typecode="$NUM":8300 --change-name="$NUM":zram-writeback "$DISK"
-partprobe "$DISK"
-udevadm settle
+sudo wipefs --all "$PART"
+sudo sgdisk --typecode="$NUM":8300 --change-name="$NUM":zram-writeback "$DISK"
+sudo partprobe "$DISK"
+sudo udevadm settle
 lsblk -no PARTTYPE,PARTLABEL,PARTUUID,FSTYPE "$PART"
-blkid -p "$PART" || true
+sudo blkid -p "$PART" || true
 swapon --show
 ~~~
 
@@ -71,7 +72,7 @@ printf 'Confirmed ZRAM backing PARTUUID: %s\n' "$UUID"
 
 ## 3. Install the existing ZRAM configuration and monitor
 
-From the repository's `05_zram_writeback` directory, as your regular sudo user, copy the source assets. **They are the same planned generator/pressure-monitor assets as the custom installer; first-boot behavior is not yet established.**
+From the same repository directory and shell, copy the source assets. **They are the same planned generator/pressure-monitor assets as the custom installer; first-boot behavior is not yet established.**
 
 ~~~sh
 sudo install -d -m 755 /etc/systemd/system/systemd-zram-setup@zram0.service.d /etc/sysctl.d /usr/local/sbin
