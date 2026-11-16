@@ -20,7 +20,7 @@
 | `08_docker/` | `07_docker.md`, `profile-docker.sh` |
 | `99_custom_netintst/` | Entire previous `01_custom_netinst/` subtree, including all installer files, moved without executable changes |
 
-Every former numbered planning document and landing page is retained in [99_custom_netintst/history](99_custom_netintst/history/), preserving the original text and uploaded ZRAM design. Its original chronology is **historical**, including superseded status and techniques.
+Every former numbered planning document and landing page is retained in [99_custom_netintst/history](99_custom_netintst/history/); the technical content and uploaded ZRAM design are preserved, with only historical relative Markdown link destinations adjusted for the move. Its original chronology is **historical**, including superseded status and techniques.
 
 The post-install commands were made independently runnable on a normal Debian installation; the simplified OMV quick install follows the vendor route, Docker follows its official signed apt repository, and ZRAM uses full installed-system `sgdisk` and `wipefs` rather than udeb-specific workarounds.
 
