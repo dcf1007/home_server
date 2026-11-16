@@ -1,116 +1,240 @@
-# 09 — Build the Linux 7.x kernel installer profile
+# 09 — Recreate the Linux 7.x kernel installer profile
 
-**Build goal:** write a selected-only script that discovers the newest **eligible Linux 7.x** image/header pair from the approved repositories, asks for package-review consent and installs it into `/target`. Do not hardcode a point release or silently add Backports.
+**Outcome:** reconstruct the **entire** installer-side Linux 7.x profile and understand which part is responsible for package-source selection, real APT changes and verification. The normal Debian how-to is [03 — Linux 7.x](../03_kernel_7x/README.md).
 
-For normal Debian instructions use [03 — Linux 7.x](../03_kernel_7x/README.md). For source-file conventions read [00](00_profile_construction.md).
+## Before you start
 
-## Step 1 — Register the module
+Build the common Simple-CDD project in [01](01_custom_cdd_preparation.md), shared code in [00](00_profile_construction.md) and dispatcher/selection UI in [05](05_base_installation.md). This feature cannot run without that framework. Work from the directory `99_custom_netintst/my-cdd/` on a test branch or scratch copy.
 
-Use the selectable name `ensure-7x-kernel` in `simple-cdd.conf` and label it in `profiles/ensure-7x-kernel.description`.
+## Step 1 — Identify your four files
 
-Its media manifest, `profiles/ensure-7x-kernel.extra`, contains:
+| Path to create | Purpose |
+| --- | --- |
+| `profiles/ensure-7x-kernel.description` | User-visible description for the separate kernel checkbox. |
+| `profiles/ensure-7x-kernel.extra` | Copies the kernel installer module to the ISO. |
+| `profiles/ensure-7x-kernel.postinst` | Verifies the success marker, without executing the install twice. |
+| `installer/profile-kernel.sh` | The full suite-selection, 7.x dependency, package-consent and boot-verification code. |
 
-~~~text
-installer/profile-kernel.sh
-~~~
+The **selection name** is `ensure-7x-kernel`. The **module file** is `installer/profile-kernel.sh`. The **function called by the dispatcher** is `profile_kernel()`. All three names are deliberately different; do not rename one without updating its dispatcher mapping.
 
-The common dispatcher has this mapping:
+## Step 2 — Write the exact sources
 
-~~~sh
-ensure-7x-kernel) module=kernel; handler=profile_kernel ;;
-~~~
-
-This means the **actual function** must be named `profile_kernel` in `installer/profile-kernel.sh`. The `.postinst` verifier checks the marker `ensure-7x-kernel`; it must not reinstall a kernel.
-
-## Step 2 — Build a version/ABI validator
-
-APT's moving metapackages may point to 6.x, 7.x or a later branch. Create a helper to retrieve the **actual version** from a suite (`suite_version` is already in `profile-common.sh`), inspect that version's `Depends` field, and accept only a real 7.x kernel dependency. The current source checks that both metapackages depend on 7.x and relies on joint APT resolution, then verifies an exact matching installed pair later; it does **not** explicitly compare the two dependency ABI strings before installation.
-
-The tracked implementation's core test is:
+If necessary, make the project source folders:
 
 ~~~sh
-case "$1" in
-    linux-image-amd64) grep -E '^Depends: .*linux-image-7\.[0-9]' "$WORK/output" >/dev/null;;
-    linux-headers-amd64) grep -E '^Depends: .*linux-headers-7\.[0-9]' "$WORK/output" >/dev/null;;
-    *) return 1;;
-esac
+mkdir -p profiles installer
 ~~~
 
-This runs inside the helper `is_7x_metapackage` after target `apt-cache show` has populated `$WORK/output`. **Do not use the name `linux-image-amd64` alone as proof** that the selected dependency is 7.x.
+This prepares directories, not system packages.
 
-A complete build simulates installing both metapackages together and validates that at least one installed 7.x image has an exact matching header directory afterwards.
-
-## Step 3 — Implement suite selection without changing APT policy
-
-Create `try_kernel_suite` to:
-
-1. Read the image and header metapackage versions from a named suite.
-2. Reject missing versions or non-7.x dependency results.
-3. Simulate installing **both** metapackages from that exact suite.
-4. Reject any plan removing the existing kernel, headers or GRUB.
-5. Record the chosen suite, version pair and complete simulation only when viable.
-
-The important APT call is:
+**1. Create `profiles/ensure-7x-kernel.description`.** User-visible description for the separate kernel checkbox.
 
 ~~~sh
-capture in-target apt-get -s install "linux-image-amd64/$ks" "linux-headers-amd64/$ks"
+nano profiles/ensure-7x-kernel.description
 ~~~
 
-`ks` is the suite passed to `try_kernel_suite`. This command **only simulates** a transaction inside the target; it does not install a kernel.
+This opens that file for editing. **Expand the complete listing with the identical path at the end of this guide** and paste the entire listing, including comments and final newline. Save with Ctrl+O, Enter, and exit with Ctrl+X. Nothing runs merely because the file has been saved.
 
-Build `choose_normal_kernel` to inspect `trixie-security`, `trixie-updates` and `trixie`, choosing the **newest viable 7.x pair** according to Debian version comparison, not a hardcoded preferred normal suite.
-
-## Step 4 — Respect the separately selected Backports choice
-
-Inside `profile_kernel`, use the already-defined `backports_is_selected` helper:
+**2. Create `profiles/ensure-7x-kernel.extra`.** Copies the kernel installer module to the ISO.
 
 ~~~sh
-if backports_is_selected; then
-    try_kernel_suite trixie-backports ||
-        choose_normal_kernel ||
-        fatal 'No compatible moving 7.x kernel image+headers in selected repositories'
-else
-    choose_normal_kernel ||
-        fatal 'No normal-repository 7.x kernel: explicitly select Backports or stop/deselect this profile'
-fi
+nano profiles/ensure-7x-kernel.extra
 ~~~
 
-**Why:** the kernel profile must never enable Backports for the user. If selected Backports has no usable pair, a viable normal 7.x pair can be used. If no allowed source contains 7.x, the script stops instead of installing 6.x/8.x.
+This opens that file for editing. **Expand the complete listing with the identical path at the end of this guide** and paste the entire listing, including comments and final newline. Save with Ctrl+O, Enter, and exit with Ctrl+X. Nothing runs merely because the file has been saved.
 
-## Step 5 — Show the exact kernel transaction for consent
-
-After candidate selection, build a review document that includes the chosen suite, image/header versions, any fallback explanation and **the entire APT simulation**.
-
-Pass it to `review_plan`:
+**3. Create `profiles/ensure-7x-kernel.postinst`.** Verifies the success marker, without executing the install twice.
 
 ~~~sh
-review_plan 'Linux 7.x image, matching headers and complete APT simulation' "$WORK/kernel-review"
+nano profiles/ensure-7x-kernel.postinst
 ~~~
 
-The common helper displays the plan in the native Debian Installer GUI and requires **default-No** approval.
+This opens that file for editing. **Expand the complete listing with the identical path at the end of this guide** and paste the entire listing, including comments and final newline. Save with Ctrl+O, Enter, and exit with Ctrl+X. Nothing runs merely because the file has been saved.
 
-## Step 6 — Install and validate the target system
-
-Only after that approval, run the exact suite selectors:
+**4. Create `installer/profile-kernel.sh`.** The full suite-selection, 7.x dependency, package-consent and boot-verification code.
 
 ~~~sh
-run_target apt-get -y install "linux-image-amd64/$KERNEL_SUITE" "linux-headers-amd64/$KERNEL_SUITE"
-run_target update-initramfs -u -k all
-run_target update-grub
+nano installer/profile-kernel.sh
 ~~~
 
-These calls run against **the installed target**, not the installer kernel. Preserve the existing Debian kernel as boot fallback.
+This opens that file for editing. **Expand the complete listing with the identical path at the end of this guide** and paste the entire listing, including comments and final newline. Save with Ctrl+O, Enter, and exit with Ctrl+X. Nothing runs merely because the file has been saved.
 
-The implementation scans `/target/boot/vmlinuz-7.*` and requires that at least one installed image's **exact ABI** matches a directory `/target/usr/src/linux-headers-<ABI>`. It then runs `dpkg --audit`. Failure means no completion marker.
 
-## Step 7 — Test build-time and first-boot behavior
+Set executable permission on only the completion verifier:
 
-Parse the source without executing it:
+~~~sh
+chmod +x profiles/ensure-7x-kernel.postinst
+~~~
+
+The main module is **sourced** by `run-selected.sh`; never execute it as a standalone installer.
+
+## Step 3 — Follow the handler's logic
+
+1. The early Simple-CDD checkbox offers the kernel profile but does not select it by default. **ZRAM requires this separate selection**; ZRAM must not automatically select a kernel.
+2. The dispatcher maps this profile ID to `profile_kernel()`, after any selected Backports stage has completed.
+3. The function inspects available **signed target APT repositories**. If Backports was selected, it tries a viable Backports pair first; otherwise it considers normal Debian suites only. It **does not add a repository**.
+4. It reads the image and header metapackage dependencies and requires **Linux 7.x**. APT simulations for both packages are reviewed together and must not remove the existing working kernel or GRUB.
+5. A default-No Debian Installer approval shows the complete transaction. Only after approval does the function install into `/target`, regenerate initramfs/GRUB, check `dpkg --audit` and verify **an installed 7.x image has headers with the same ABI**.
+6. First boot still needs verification: the installed package presence does not prove the running kernel is actually 7.x.
+
+**Important limitation from the actual source:** its checks establish that the moving packages depend on 7.x and verify an exact installed image/header match **after** installation; the guide should not imply that all image/header ABI strings are paired before installing.
+
+## Step 4 — Parse and verify the rebuilt source
 
 ~~~sh
 sh -n installer/profile-kernel.sh
 ~~~
 
-Build with `./build.sh`, then test with **Backports selected/unselected**, no 7.x candidate, unsafe removals, a declined transaction, and a successful install. After reboot, confirm the **running** kernel with `uname -r` and matching headers. The installed-image test does not prove GRUB chose that image.
+This checks shell grammar but does **not** install a kernel.
 
-**Source:** [profile-kernel.sh](my-cdd/installer/profile-kernel.sh). These are implementation instructions; don't paste target `in-target` commands into a normal Debian session.
+~~~sh
+sh -n profiles/ensure-7x-kernel.postinst
+~~~
+
+This checks the verifier's shell syntax.
+
+~~~sh
+chmod +x profiles/ensure-7x-kernel.postinst
+~~~
+
+This only ensures the verifier has executable permission; it does not run it. You can use `git hash-object <filename>` to compare each recreated file with the original blob SHA in the listings below; differences mean the file content was not copied exactly.
+
+When the common framework and complete feature manifests are ready, run the project's `./build.sh`. Boot a **disposable VM** and test no 7.x candidate, a declined plan, Backports selected/unselected, unsafe removals, actual `uname -r` and matching headers after boot. **The current project has not yet passed those end-to-end checks.**
+
+## Exact, complete source listings
+
+These are actual full source files from the tracked reference revision—not shortened examples.
+<details>
+<summary><strong>profiles/ensure-7x-kernel.description</strong> — complete file (1 lines; blob <code>42d78a024266247f24c13853dc9bfdccb493ec5d</code>)</summary>
+
+````text
+Linux 7.x image and headers; review source and kernel transaction
+````
+
+</details>
+
+<details>
+<summary><strong>profiles/ensure-7x-kernel.extra</strong> — complete file (2 lines; blob <code>8792517327ba43ba76b56c7b66714d1d8aad1655</code>)</summary>
+
+````text
+# ensure-7x-kernel: source assets copied by Simple-CDD (not automatically installed).
+installer/profile-kernel.sh
+````
+
+</details>
+
+<details>
+<summary><strong>profiles/ensure-7x-kernel.postinst</strong> — complete file (11 lines; blob <code>09aa36918289732ea8b981191e2d524eee00d324</code>)</summary>
+
+````sh
+#!/bin/sh
+# Simple-CDD finish-install verification only.
+# The selected profile was performed beforehand by the native Debian
+# Installer late command, where its Debconf approvals were visible.
+# Never execute the profile twice or claim success from mere selection.
+set -eu
+marker="/var/log/installer/my-cdd-completed/ensure-7x-kernel"
+if [ ! -f "$marker" ]; then
+    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'ensure-7x-kernel'
+    exit 1
+fi
+````
+
+</details>
+
+<details>
+<summary><strong>installer/profile-kernel.sh</strong> — complete file (89 lines; blob <code>3134cb92c50632722d71a4974099a0fbf4c6a0f0</code>)</summary>
+
+````sh
+#!/bin/sh
+# Sourced by the approved installer dispatcher; no automatic execution.
+
+is_7x_metapackage() {
+    [ -n "$2" ] || return 1
+    capture in-target apt-cache show "$1=$2" || return 1
+    case "$1" in
+        linux-image-amd64) grep -E '^Depends: .*linux-image-7\.[0-9]' "$WORK/output" >/dev/null;;
+        linux-headers-amd64) grep -E '^Depends: .*linux-headers-7\.[0-9]' "$WORK/output" >/dev/null;;
+        *) return 1;;
+    esac
+}
+
+try_kernel_suite() {
+    ks=$1
+    iv="$(suite_version linux-image-amd64 "$ks")"
+    hv="$(suite_version linux-headers-amd64 "$ks")"
+    [ -n "$iv" ] && [ -n "$hv" ] || return 1
+    is_7x_metapackage linux-image-amd64 "$iv" || return 1
+    is_7x_metapackage linux-headers-amd64 "$hv" || return 1
+    if capture in-target apt-get -s install "linux-image-amd64/$ks" "linux-headers-amd64/$ks"; then
+        cp "$WORK/output" "$WORK/plan"
+        if grep -E '^Remv (linux-image|linux-headers|grub)' "$WORK/plan" >/dev/null; then
+            log "Rejected candidate kernel suite: $ks would remove initial fallback/boot support"
+            return 1
+        fi
+        KERNEL_SUITE=$ks
+        KERNEL_IMAGE_VERSION=$iv
+        KERNEL_HEADERS_VERSION=$hv
+        return 0
+    fi
+    log "Rejected candidate kernel suite: $ks did not resolve safely"
+    return 1
+}
+
+choose_normal_kernel() {
+    # Among normal Debian repositories, use the newest *viable* 7.x pair,
+    # not an arbitrarily preferred security/updates suite.
+    best_suite=''
+    best_version=''
+    for normal in trixie-security trixie-updates trixie; do
+        if try_kernel_suite "$normal"; then
+            if [ -z "$best_version" ] ||
+                in-target dpkg --compare-versions "$KERNEL_IMAGE_VERSION" gt "$best_version"; then
+                best_suite=$normal
+                best_version=$KERNEL_IMAGE_VERSION
+            fi
+        fi
+    done
+    [ -n "$best_suite" ] || return 1
+    try_kernel_suite "$best_suite"
+}
+
+profile_kernel() {
+    update_signed_apt
+    if backports_is_selected; then
+        try_kernel_suite trixie-backports ||
+            choose_normal_kernel ||
+            fatal 'No compatible moving 7.x kernel image+headers in selected repositories'
+    else
+        choose_normal_kernel ||
+            fatal 'No normal-repository 7.x kernel: explicitly select Backports or stop/deselect this profile'
+    fi
+    {
+        echo "Chosen kernel suite: $KERNEL_SUITE"
+        echo "linux-image-amd64: $KERNEL_IMAGE_VERSION"
+        echo "linux-headers-amd64: $KERNEL_HEADERS_VERSION"
+        if backports_is_selected && [ "$KERNEL_SUITE" != trixie-backports ]; then
+            echo 'Stable fallback to a viable 7.x pair; rejected Backports reasons in full log'
+        fi
+        cat "$WORK/plan"
+    } > "$WORK/kernel-review"
+    review_plan 'Linux 7.x image, matching headers and complete APT simulation' "$WORK/kernel-review"
+    run_target apt-get -y install "linux-image-amd64/$KERNEL_SUITE" "linux-headers-amd64/$KERNEL_SUITE"
+    run_target update-initramfs -u -k all
+    run_target update-grub
+    paired=0
+    for image in /target/boot/vmlinuz-7.*; do
+        [ -f "$image" ] || continue
+        abi="${image##*/vmlinuz-}"
+        if [ -d "/target/usr/src/linux-headers-$abi" ]; then
+            paired=1
+        fi
+    done
+    [ "$paired" = 1 ] ||
+        fatal 'No Linux 7.x boot image with exactly matching installed headers'
+    run_target dpkg --audit
+}
+
+````
+
+</details>
