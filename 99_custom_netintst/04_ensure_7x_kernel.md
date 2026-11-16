@@ -1,10 +1,10 @@
-# 09 — Recreate the Linux 7.x kernel installer profile
+# 04 — Recreate the Linux 7.x installer profile
 
-**Outcome:** reconstruct the **entire** installer-side Linux 7.x profile and understand which part is responsible for package-source selection, real APT changes and verification. The normal Debian how-to is [03 — Linux 7.x](../03_kernel_7x/README.md).
+**Outcome:** reconstruct the **entire** installer-side Linux 7.x profile and understand which part is responsible for package-source selection, real APT changes and verification. The normal Debian how-to is [03 — Linux 7.x](../04_kernel_7x/README.md).
 
 ## Before you start
 
-Build the common Simple-CDD project in [01](01_custom_cdd_preparation.md), shared code in [00](00_profile_construction.md) and dispatcher/selection UI in [05](05_base_installation.md). This feature cannot run without that framework. Work from the directory `99_custom_netintst/my-cdd/` on a test branch or scratch copy.
+Build the common Simple-CDD project in [Build project](build_project.md), shared code in [Shared profile helpers](profile_construction.md) and dispatcher/selection UI in [Installer framework](installer_framework.md). This feature cannot run without that framework. Work from the directory `99_custom_netintst/my-cdd/` on a test branch or scratch copy.
 
 ## Step 1 — Identify your four files
 
@@ -29,35 +29,27 @@ This prepares directories, not system packages.
 
 **1. Create `profiles/ensure-7x-kernel.description`.** User-visible description for the separate kernel checkbox.
 
-~~~sh
-nano profiles/ensure-7x-kernel.description
-~~~
+Open `profiles/ensure-7x-kernel.description` in a text editor, paste the indicated contents and save it at that path.
 
-This opens that file for editing. **Expand the complete listing with the identical path at the end of this guide** and paste the entire listing, including comments and final newline. Save with Ctrl+O, Enter, and exit with Ctrl+X. Nothing runs merely because the file has been saved.
+This opens that file for editing. **Expand the complete listing with the identical path at the end of this guide** and paste the entire listing, including comments and final newline. Save the document after reviewing the pasted contents. Nothing runs merely because the file has been saved.
 
 **2. Create `profiles/ensure-7x-kernel.extra`.** Copies the kernel installer module to the ISO.
 
-~~~sh
-nano profiles/ensure-7x-kernel.extra
-~~~
+Open `profiles/ensure-7x-kernel.extra` in a text editor, paste the indicated contents and save it at that path.
 
-This opens that file for editing. **Expand the complete listing with the identical path at the end of this guide** and paste the entire listing, including comments and final newline. Save with Ctrl+O, Enter, and exit with Ctrl+X. Nothing runs merely because the file has been saved.
+This opens that file for editing. **Expand the complete listing with the identical path at the end of this guide** and paste the entire listing, including comments and final newline. Save the document after reviewing the pasted contents. Nothing runs merely because the file has been saved.
 
 **3. Create `profiles/ensure-7x-kernel.postinst`.** Verifies the success marker, without executing the install twice.
 
-~~~sh
-nano profiles/ensure-7x-kernel.postinst
-~~~
+Open `profiles/ensure-7x-kernel.postinst` in a text editor, paste the indicated contents and save it at that path.
 
-This opens that file for editing. **Expand the complete listing with the identical path at the end of this guide** and paste the entire listing, including comments and final newline. Save with Ctrl+O, Enter, and exit with Ctrl+X. Nothing runs merely because the file has been saved.
+This opens that file for editing. **Expand the complete listing with the identical path at the end of this guide** and paste the entire listing, including comments and final newline. Save the document after reviewing the pasted contents. Nothing runs merely because the file has been saved.
 
 **4. Create `installer/profile-kernel.sh`.** The full suite-selection, 7.x dependency, package-consent and boot-verification code.
 
-~~~sh
-nano installer/profile-kernel.sh
-~~~
+Open `installer/profile-kernel.sh` in a text editor, paste the indicated contents and save it at that path.
 
-This opens that file for editing. **Expand the complete listing with the identical path at the end of this guide** and paste the entire listing, including comments and final newline. Save with Ctrl+O, Enter, and exit with Ctrl+X. Nothing runs merely because the file has been saved.
+This opens that file for editing. **Expand the complete listing with the identical path at the end of this guide** and paste the entire listing, including comments and final newline. Save the document after reviewing the pasted contents. Nothing runs merely because the file has been saved.
 
 
 Set executable permission on only the completion verifier:

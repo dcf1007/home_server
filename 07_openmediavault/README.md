@@ -28,9 +28,7 @@ wget https://get.openmediavault.io -O openmediavault-install.sh
 
 This saves the vendor script as `openmediavault-install.sh` in the current directory. Review the actual file before running code as root:
 
-~~~sh
-nano openmediavault-install.sh
-~~~
+Open `openmediavault-install.sh` in a text editor; review the existing content, make the described change and save the file.
 
 Read the instructions it will execute. If you cannot evaluate or accept them, stop and use OMV's [manual Debian installation guide](https://docs.openmediavault.org/en/stable/installation/on_debian.html). When satisfied, run the downloaded script, **with full administrative privileges**:
 
@@ -139,9 +137,7 @@ Look for `APT::Periodic::Update-Package-Lists` and `APT::Periodic::Unattended-Up
 
 Otherwise, **manually** open an APT override file:
 
-~~~sh
-sudo nano /etc/apt/apt.conf.d/99-home-server-manual-updates
-~~~
+Open `/etc/apt/apt.conf.d/99-home-server-manual-updates` in a text editor with administrator privileges; review the existing content, make the described change and save the file.
 
 Enter these two lines **into the file**:
 
@@ -166,9 +162,7 @@ Look for `openmediavault-apticron`. If it remains active, the policy is **not fu
 
 On systems upgraded from older OMV versions, there may also be a legacy `cron-apt` schedule. **If** `/etc/cron.d/cron-apt` exists, open it for inspection:
 
-~~~sh
-sudo nano /etc/cron.d/cron-apt
-~~~
+Open `/etc/cron.d/cron-apt` in a text editor with administrator privileges; review the existing content, make the described change and save the file.
 
 This shows whether an actual, uncommented scheduled command remains. **Do not edit the file merely because it exists**; identify whether another package or OMV still manages the schedule and disable it through that configuration. A legacy active update schedule means the manual-only policy is not yet complete.
 

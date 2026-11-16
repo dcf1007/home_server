@@ -17,8 +17,8 @@ This directory contains **Debian Installer integration**, not generic post-insta
 
 The seven optional profiles start unchecked, no disk is chosen by device-name guesswork, no ZRAM conversion happens without an explicit destructive confirmation, and no package plan is executed before review. Root rescue access must be usable. OMV and Docker are independent; no OMV-Extras/Compose plugin is installed.
 
-Installer udebs are not interchangeable with full util-linux binaries. The installed-system [ZRAM chapter](../../../05_zram_writeback/README.md) deliberately uses the simpler full-Debian tools.
+Installer udebs are not interchangeable with full util-linux binaries. The installed-system [ZRAM chapter](../../../06_zram_writeback/README.md) deliberately uses the simpler full-Debian tools.
 
-**Not yet established:** reliable early/late Debconf behavior, native partition metadata probing, approved BusyBox erase, full ZRAM first boot and OMV network/Salt behavior. Use disposable VM disks to validate. See [active release checklist](../../08_validation_and_pending.md).
+**Not yet established:** reliable early/late Debconf behavior, native partition metadata probing, approved BusyBox erase, full ZRAM first boot and OMV network/Salt behavior. Use disposable VM disks to validate. See [active release checklist](../../validation_and_pending.md).
 
 The former long installer README, including observed screenshot failures and earlier workarounds, is preserved in [history](../../history/installer-README-20261115.md).

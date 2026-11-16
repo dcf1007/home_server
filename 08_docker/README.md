@@ -60,9 +60,7 @@ Open a new file:
 
 This opens the Docker APT source file in an editor. Paste the shown `trixie`/`amd64` repository information **inside the file**, then save it; you are choosing the Docker package source and scoping its signing key.
 
-~~~sh
-sudo nano /etc/apt/sources.list.d/docker.sources
-~~~
+Open `/etc/apt/sources.list.d/docker.sources` in a text editor with administrator privileges; review the existing content, make the described change and save the file.
 
 Paste these **file contents**:
 
@@ -75,7 +73,7 @@ Architectures: amd64
 Signed-By: /etc/apt/keyrings/docker.asc
 ~~~
 
-Save with **Ctrl+O**, Enter, then **Ctrl+X**.
+Save the file after reviewing the content.
 
 This example is specifically for **Debian 13 amd64**, the system used by this project. If you use another Debian release or architecture, consult Docker's documentation instead of copying these values.
 

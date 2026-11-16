@@ -1,142 +1,140 @@
 # 01 — Install a minimal Debian 13 server
 
-This guide starts with a **normal Debian installation**. You do not need the custom ISO or any scripts from this repository.
+**Goal:** install headless Debian 13 (Trixie), create a regular user with **sudo** privileges, and establish a separate **local root password for recovery and emergency mode**. Root SSH access will be disabled in [02 — Debian tweaks](../02_debian_tweaks/README.md).
 
-**Result:** Debian 13 (Trixie), a headless server with a working network connection, SSH access and standard system utilities.
+You do not need the custom ISO or any repository scripts for this chapter.
 
-## Step 1 — Boot the Debian installer
+## Step 1 — Boot the ordinary Debian installer
 
-1. Download the official Debian 13 **amd64 netinst** image from the [Debian website](https://www.debian.org/distrib/netinst).
-2. Write it to a USB drive and boot the computer.
-3. Choose **Graphical install** or **Install**.
-4. Answer the normal questions about language, keyboard, network, hostname, accounts and time zone.
+1. Download the official **Debian 13 amd64 netinst** image from the [Debian website](https://www.debian.org/distrib/netinst).
+2. Write the image to USB media, boot the server and choose **Graphical install** or **Install**.
+3. Answer the ordinary language, keyboard, network, hostname and time-zone questions.
 
-For this project's example server, the suggested settings are English, the `en_US.UTF-8` locale, Spanish keyboard, Germany, `Europe/Berlin` time zone and DHCP. **These are examples, not hardcoded requirements.**
+Example preferences for this project are English / `en_US.UTF-8`, a Spanish keyboard, Germany / `Europe/Berlin`, and DHCP. These are examples **you can change**.
 
-Keep a working local administrator or root password. It is useful if a later ZRAM problem requires emergency-mode recovery.
+## Step 2 — Leave the initial root password empty
 
-## Step 2 — Choose the disks yourself
+When Debian Installer asks you to configure the **root (administrator) password**:
 
-At **Partition disks**, choose **Manual**. Review the actual disk model and capacity before selecting anything.
+1. Leave the **root password** field completely empty.
+2. Leave its **confirmation** field completely empty.
+3. Continue and acknowledge Debian's explanation of sudo administration.
 
-The example setup uses a 256 GB SSD, UEFI boot, GPT, and no LVM or encryption:
+**Why:** Debian Installer disables direct root login at this stage and arranges for the **first normal user** to use `sudo`. This lets you do everyday administration with your personal account, without logging in as root.
 
-| Partition | What to select |
+Next, let Debian Installer create a **regular user**. Enter that person's name, a chosen username and a strong **user password**. This regular account is the one you will log in with after installation.
+
+**Do not set the root password in the installer at this stage.** We will establish it separately, *after confirming sudo works*, in Step 6. The root password and the user's own password are distinct credentials.
+
+## Step 3 — Partition the correct disk
+
+At **Partition disks**, choose **Manual**. Identify the intended disk from its device name, model and capacity before making changes.
+
+An example layout for a 256 GB SSD uses UEFI/GPT, no LVM or encryption:
+
+| Partition | Example purpose |
 | --- | --- |
-| EFI System Partition | 1 GiB, FAT32, mount point `/boot/efi` |
-| Root | ext4, mount point `/`, using the remaining space |
-| Optional swap partition | Around 16 GiB as an example; change this size to suit your system |
+| EFI system partition | 1 GiB FAT32 mounted at `/boot/efi` |
+| Root partition | ext4 mounted at `/` |
+| Optional separate swap partition | Around 16 GiB reserved if you plan to follow [06 — ZRAM writeback](../06_zram_writeback/README.md) |
 
-If you plan to use the optional [ZRAM writeback guide](../05_zram_writeback/README.md), reserve a separate swap partition now. It will be converted later, **only after you approve that destructive change**. Otherwise, a normal swap partition can stay as swap.
+These are **not** fixed device names or required sizes. If you do not plan to use ZRAM writeback, you can keep ordinary Debian swap. Do not modify another operating system's partitions without understanding the consequences.
 
-**Before accepting the installer's partition changes**, check the selected disk and every partition again. Do not copy device names from an example.
+**Before approving writes**, confirm the exact disk and each mount point in Debian Installer's own summary.
 
-## Step 3 — Select the installed software
+## Step 4 — Install a headless system
 
-At **Software selection**:
+At Debian's **Software selection**, select:
 
-1. Select **SSH server**.
-2. Select **standard system utilities**.
-3. Deselect **Debian desktop environment**, **GNOME** and any other desktop.
+- **SSH server**;
+- **standard system utilities**.
 
-Finish the installer and reboot into Debian.
+Deselect **Debian desktop environment**, **GNOME** and other desktops. Finish the installer and boot the installed Debian system.
 
-## Step 4 — Check the new system
+## Step 5 — Verify the first user can administer Debian
 
-Sign in with the account you created. Run these commands one at a time.
-
-Check the Debian version:
-
-This reads Debian’s release information without changing anything. Look for `PRETTY_NAME` or `VERSION_ID` identifying **Debian 13 (Trixie)**; if it is another release, these instructions may not apply.
+Log in as your **regular user**. These commands are for **inspection only** unless otherwise stated.
 
 ~~~sh
 cat /etc/os-release
 ~~~
 
-Look for `Debian GNU/Linux 13` and `trixie`.
-
-Check that the machine is 64-bit:
-
-This prints the CPU architecture of the running system. Look for `x86_64`, which confirms the amd64 system expected by these guides.
+This shows the installed operating system. Confirm it says Debian GNU/Linux **13** and `trixie`.
 
 ~~~sh
 uname -m
 ~~~
 
-The expected result for this project is `x86_64`.
-
-Review the disks and mount points:
-
-This lists disks and partitions, their sizes, filesystem types and where they are mounted. Identify the root mount `/` and any swap partition; **this is inspection only** and does not modify the disks.
+This reports the machine architecture. Expect `x86_64` for the amd64 build.
 
 ~~~sh
-lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS
+id
 ~~~
 
-Confirm that the expected disk contains your root filesystem and, if selected, the optional swap partition.
-
-Check network addresses and the clock:
-
-This displays each network interface and its IP address in a compact form. Find the address of your active wired or wireless interface; if it has no usable address, investigate network setup before continuing.
+This shows the account you're using and its group memberships. Confirm your regular account is listed and that its groups include **`sudo`**. If not, **stop** and investigate the account setup instead of attempting administrative changes blindly.
 
 ~~~sh
-ip -brief address
+sudo id -u
 ~~~
 
-This shows the system clock, time zone and synchronization status. Confirm the time zone matches your choice and that the clock is correct before downloading packages.
+This asks `sudo` to run the identity check as the administrator. Type **your regular user's password** when prompted. The expected result is **`0`**, the numeric ID of root. If this command fails, resolve the sudo issue before moving on.
 
-~~~sh
-timedatectl
-~~~
+## Step 6 — Create a local root password for recovery
 
-Finally, refresh package information:
-
-This downloads the latest package **indexes** from your configured repositories. It does **not** install or upgrade packages. Look for successful repository refreshes and stop if APT reports signature or download errors.
-
-~~~sh
-sudo apt update
-~~~
-
-If your administrator account does not have `sudo`, use the root account created during installation (`su -`) and run the administrative commands without `sudo`. Do not grant privileges to an unknown account.
-
-## Step 5 — Check SSH and recovery access
-
-If you selected SSH server in the installer, check its status:
-
-This asks systemd whether the SSH server is running. Look for `active (running)`; if it is inactive, inspect the reported error before relying on remote access.
-
-~~~sh
-sudo systemctl status ssh
-~~~
-
-It should be running. If you did not select SSH but now want it, install it explicitly:
-
-This installs OpenSSH Server from Debian only if you have chosen to make the server accessible over SSH. APT will show the packages and ask for approval; afterwards check the SSH service status.
-
-~~~sh
-sudo apt install openssh-server
-~~~
-
-Test logging in as your normal user from another computer before depending on SSH for administration.
-
-For the optional ZRAM emergency-recovery policy, check local root password status:
-
-This shows the *status* of the local root account password without revealing it. In Debian’s output, `P` means a usable password and `L` means locked; confirm your planned emergency login is actually possible.
-
-~~~sh
-sudo passwd -S root
-~~~
-
-If root is locked or has no usable password, and you want local emergency recovery, set one interactively:
-
-This interactively **sets or changes the local root password**. You will be asked to type it twice; use this only if you decided you need emergency recovery, and store the password securely.
+Debian's normal rescue/emergency shell may use `sulogin`, which requires a usable **local root password**. Because you deliberately left it empty in Step 2, set one **now**, once you know `sudo` works.
 
 ~~~sh
 sudo passwd root
 ~~~
 
-This does **not** allow root SSH logins.
+This starts the system's interactive password-change command for **root**. It requests your regular account's sudo password (if necessary), then the **new root password twice**. Choose a separate strong password and keep it in a secure recovery location.
 
-**Done when:** Debian boots from the correct disk, you can administer it, the network works and the required packages can be retrieved. Continue with whichever optional guide you want; none is mandatory.
+It changes the local root account password; **it does not enable root login over SSH**.
 
-**Reference:** [Debian 13 installation guide](https://www.debian.org/releases/trixie/amd64/).
+Verify the account state:
+
+~~~sh
+sudo passwd -S root
+~~~
+
+This displays root's password **status**, not the password itself. In Debian's output, `root P ...` indicates a usable password; `L` indicates a locked account. If root is still locked, stop and resolve it before relying on rescue or emergency mode.
+
+**Why not skip this step?** A server can work normally with sudo while its root account remains locked, but an emergency login requiring a root password could then be inaccessible. Setting the password after sudo validation provides both everyday least-privilege administration and emergency recovery.
+
+## Step 7 — Check network, storage, time and SSH
+
+~~~sh
+lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS
+~~~
+
+This displays the disks, partitions, filesystem types and mount points. Check that `/` and `/boot/efi` belong to the intended disk and any reserved ZRAM swap is the one you created.
+
+~~~sh
+ip -brief address
+~~~
+
+This shows network-interface addresses. Identify the assigned IP address on the active interface; there should be one if you intend to administer the machine remotely.
+
+~~~sh
+timedatectl
+~~~
+
+This displays the time, time zone and synchronization status. Confirm they match your choices.
+
+~~~sh
+sudo systemctl status ssh
+~~~
+
+This checks whether the installed OpenSSH service is running. Look for `active (running)`. If you intentionally omitted SSH during installation, this check does not apply.
+
+~~~sh
+sudo apt update
+~~~
+
+This **downloads current package indexes** from the configured Debian repositories; it does not install or upgrade packages. Check for signature or network errors. If APT fails, investigate the repository setup before the next optional chapter.
+
+**Done when:** your regular user can use sudo, root has a usable **local recovery password**, Debian boots from the correct disk, and the intended network and SSH access work.
+
+**Next:** [02 — Debian tweaks](../02_debian_tweaks/README.md). That guide makes root SSH inaccessible while preserving the local root password.
+
+**Reference:** [Debian 13 amd64 installation guide](https://www.debian.org/releases/trixie/amd64/).

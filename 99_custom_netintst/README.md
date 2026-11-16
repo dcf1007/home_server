@@ -1,93 +1,49 @@
-# 99 — Rebuild the custom Debian installer from the guides
+# 99 — Build the custom Debian 13 installer
 
-**This directory is a developer's construction manual.** It tells you exactly **which files to make, what each file does, its full contents, how it connects to Simple-CDD and how to check the result**. It is not a guide to clicking through the finished installer.
+This section teaches you **how to construct the Simple-CDD scripts**, not how to operate the finished installer. Each feature chapter explains its source files, why they exist, what the code does, and how to verify the resulting files. Full copyable source listings are included.
 
-The [ordinary Debian guides 01–08](../README.md) are for installing each feature **manually on a running Debian server**. The documents here are for creating the **custom Debian Installer scripts** that automate those operations.
+For manual configuration of a **normally installed Debian system**, use the corresponding [01–08 how-tos](../README.md).
 
-## Choose the task you are doing
+## Choose your starting point
 
-### A. Recreate or modify just one feature in the existing project
+**To work on one feature**, clone the existing repository and follow that feature's construction chapter. You already have the common dispatcher and the other profiles; use a test branch or copy to avoid changing your reference.
 
-This is the easiest way to study **one** feature, because the shared installer framework and the other six profiles already exist.
+**To reconstruct the complete installer**, follow this order:
 
-First, download a separate working copy:
+1. [Build project](build_project.md) — create Simple-CDD configuration, editable defaults, ISO media lists and the build wrapper.
+2. [Shared profile helpers](profile_construction.md) — create selection validation and target-APT helper functions.
+3. [Installer framework](installer_framework.md) — create native Debian Installer hooks, checkbox/confirmation templates, dispatcher, root recovery preflight and completion guard.
+4. Create the **seven optional profile implementations**, in the logical order below. They are all offered but **none is selected automatically**.
+5. [Validation and VM testing](validation_and_pending.md) — compare complete source hashes, build the ISO, exercise approvals and failure paths in a disposable VM.
 
-~~~sh
-git clone https://github.com/dcf1007/home_server.git
-~~~
+A single feature's source module is **not** a complete ISO: it depends on the shared framework. The currently shipped Simple-CDD configuration includes all seven optional choices.
 
-This copies the project files onto your build computer. It **does not install the NAS or execute any installer code**.
+## Feature construction order
 
-Move into the installer source project:
-
-~~~sh
-cd home_server/99_custom_netintst/my-cdd
-~~~
-
-Then open the chapter for your chosen feature in the table below. **Follow its steps in order.** You will be told the exact filename to open with `nano`, why it exists, how it works, and where to find its **complete file contents** in that same chapter.
-
-The repository already contains those files. To practise recreating them without losing the reference, make your edits on a test Git branch or in a separate scratch checkout, and compare each recreated file's Git blob hash with the original shown in the guide.
-
-### B. Recreate the entire current installer from an empty directory
-
-You must create the **shared framework first**. The seven selectable profiles depend on it, and the current `simple-cdd.conf` lists **all seven**. A single profile file is **not a bootable ISO**.
-
-The complete build order is:
-
-1. [01 — Build project](01_custom_cdd_preparation.md): create `simple-cdd.conf`, editable defaults, `build.sh` and build-only package lists.
-2. [00 — Common helpers](00_profile_construction.md): create the selection order and APT helper functions.
-3. [05 — Installer framework](05_base_installation.md): create the early and late preseed hooks, Debconf templates, dispatcher and finish-install guard.
-4. Create **each profile** below, one at a time. Each page includes **all of its feature-specific source files**.
-5. [08 — Validate and build](08_validation_and_pending.md): syntax checks, complete ISO build, VM installation and first boot.
-
-**Every non-document source file in the tracked `my-cdd` project is represented by a complete listing** in one of the build chapters. Each listing gives the expected original Git blob hash so you can detect a missing line or incorrect copy.
-
-If you only want to implement **one** feature from scratch, begin with an existing clone (approach A). The current shared configuration is deliberately fixed to seven choices; creating just one profile from an empty directory without adjusting the shared configuration **will not produce a complete image**. That would be a separate, explicitly designed variant, not the currently documented build.
-
-## The profile-by-profile construction chapters
-
-| Build chapter | What source files you recreate |
+| Chapter | What you will create |
 | --- | --- |
-| [02 — Backports](02_backports_apt.md) | Choice/manifest/verifier, complete target APT profile and signed Debian source |
-| [09 — Linux 7.x](09_ensure_7x_kernel.md) | Choice/manifest/verifier, complete kernel image/header selection and install module |
-| [10 — Firmware](10_extended_device_support.md) | Choice/manifest/verifier, full package inventory, license/omission handling module |
-| [03 — ZRAM writeback](03_zram_writeback.md) | Choice/manifest/verifier, native disk selector and conversion code, all five ZRAM assets |
-| [04 — Debian tweaks](04_debian_tweaks.md) | Choice/manifest/verifier and complete target GRUB/fstab/SSH/APT tweaks |
-| [06 — OpenMediaVault 8](06_openmediavault.md) | Choice/manifest/verifier and complete signed OMV installation/policy module |
-| [07 — Docker](07_docker.md) | Choice/manifest/verifier and complete official Docker installation module |
+| [02 — Debian tweaks](02_debian_tweaks.md) | Selected-only GRUB, ext4, SSH and conditional unattended-upgrade policy |
+| [03 — Backports](03_backports_apt.md) | Signed Backports source, priority 100, reviewed upgrades and removals |
+| [04 — Linux 7.x kernel](04_ensure_7x_kernel.md) | Eligible suite selection, image and matching headers, GRUB |
+| [05 — Extended device support](05_extended_device_support.md) | Firmware manifest, microcode and original vendor-license dialogs |
+| [06 — ZRAM writeback](06_zram_writeback.md) | Native udeb disk selector, safe confirmation, GPT conversion and ZRAM generator |
+| [07 — OpenMediaVault 8](07_openmediavault.md) | Signed repository, reviewed target installation, SSH and OMV policy |
+| [08 — Docker](08_docker.md) | Official signed packages with no forced OMV integration |
 
-Follow this order when building the full project, because the dispatcher executes the selected features in that order.
+The installer executes **selected features in this fixed order**. In particular, Debian tweaks must complete before ZRAM performs any destructive conversion. Choosing ZRAM separately requires the **Linux 7.x profile**; the installer never selects it for you.
 
-## How to use the complete file listings
+## How to use the complete listings
 
-Each chapter follows the same pattern:
+Open the exact file path specified in the chapter **in any text editor**, copy the chapter's entire file listing, paste it, review what you entered, and save it at that path. Do not run the sourced installer module on the build host.
 
-1. **Read the prerequisite and filename table.** Do not guess a path or function name.
-2. Use the supplied `nano <path>` command to create that exact file **inside `my-cdd`**.
-3. Expand **Complete file: ...** at the bottom of the chapter. Copy the **entire contents** between the code fences, including comments and final newline. The listing is actual source, **not an abbreviated example**.
-4. Save the file. If the chapter instructs you to use `chmod +x`, do so for the **entry point or verifier only**; sourced `profile-*.sh` files are not independent programs.
-5. Run the displayed `sh -n` / `bash -n` checks; those parse code **without executing APT or disk operations**.
-6. To check for a copy error, run `git hash-object <path>` (with the real filename) and compare its output to the **original blob SHA** shown in the expanded listing. This command reads the file; it does not modify it.
-7. Only after **all shared and selected source files** are present, run `./build.sh` from `my-cdd`, then boot the ISO with a **disposable VM disk** for the tests in [08](08_validation_and_pending.md).
+Each listing includes its expected **Git blob SHA**. The command `git hash-object <path>` reads the created file and prints its hash, which you can compare with the listed value. A mismatch means the file differs and should be reviewed before building. No package or disk changes are made by that command.
 
-**Never execute `installer/profile-zram.sh`, `installer/profile-omv.sh` or any other sourced installer module directly on the build host or running NAS.** The modules assume they are loaded by Debian Installer and that `/target` is the new operating system.
+After all required files exist, use the guarded `./build.sh` wrapper to create the image. Building a valid ISO does **not** prove Debian Installer runtime compatibility: use the [VM checklist](validation_and_pending.md).
 
-## Worked example — Recreate the Docker feature
+## Recent installer test and open blocker
 
-This example shows how to use **one** of the chapters without first rebuilding every shared file.
+The latest user-supplied Debian 13 VM screenshots (16 November 2026) show a ZRAM partition conversion and a reviewed generator-package installation, followed by a failure during the Debian-tweaks OpenSSH check. The actual `sshd` stderr was not visible in the screenshot.
 
-1. Clone the existing repository using **approach A** above, then enter `home_server/99_custom_netintst/my-cdd`. The full working framework is already present.
-2. Open [07 — Docker](07_docker.md). It identifies **four exact files**: `profiles/docker.description`, `profiles/docker.extra`, `profiles/docker.postinst` and `installer/profile-docker.sh`. It explains the purpose of each.
-3. In a separate test checkout or branch, open `profiles/docker.description` with `nano`, copy the complete listing from the Docker chapter, then save it. Repeat for the other three files. The full module is included; you do **not** have to deduce missing code from a description.
-4. Mark `profiles/docker.postinst` executable. The Docker chapter gives that command and explains why `installer/profile-docker.sh` stays a sourced module.
-5. Compare each file's `git hash-object` output with the reference hash in the chapter. Any difference means the copy is not byte-for-byte identical.
-6. Run the chapter's `sh -n` syntax checks. They do **not** install Docker.
-7. Build via `./build.sh`, then boot the result in a **throwaway VM**, select Docker and verify the installer APT review, package origins and first boot.
+The current source addresses a **possible** unbooted-target issue by preparing the temporary `/run/sshd` directory before validation and preserving the true diagnostic in the installer log. It also moves Debian tweaks **before** ZRAM, so a failure there stops before the partition conversion. The fix is **not yet runtime-verified**.
 
-This same pattern applies to **every** feature chapter. The more complex ZRAM and firmware pages have more source files, but the guide lists **all of them** and includes every complete source file.
-
-## Why even the full source listing is not a runtime test
-
-The complete listings reproduce the tracked code **as-is**. They do not certify that its current Debian Installer integration works. The native ZRAM conversion, selected-profile Debconf flow, OMV networking/Salt, and first-boot writeback still require VM validation. The earlier design history and failure reports are under [history](history/).
-
-**Provenance:** these full-file listings are copied from source revision `bf5090eb37338d9304be7e7c88fcd063b5db7b0e` (the `main` branch before this documentation rewrite). If implementation code changes later, the complete listings and their blob hashes must be updated together.
+Earlier design notes and test history remain under [history](history/). [Provenance](../GUIDE_PROVENANCE.md) records why the standalone and installer versions must be updated together.

@@ -1,10 +1,10 @@
-# 04 — Recreate the optional Debian tweaks installer profile
+# 02 — Recreate the optional Debian tweaks profile
 
-**Goal:** build the actual installer source for the opt-in filesystem, boot, SSH and manual-update changes. For a normal installed Debian system follow [06 — Debian tweaks](../06_debian_tweaks/README.md), not this installer code.
+**Goal:** build the actual installer source for the opt-in filesystem, boot, SSH and manual-update changes. For a normal installed Debian system follow [06 — Debian tweaks](../02_debian_tweaks/README.md), not this installer code.
 
 ## Before you start
 
-Finish the shared [ISO build project](01_custom_cdd_preparation.md), [common helpers](00_profile_construction.md) and [installer hooks](05_base_installation.md). Work from `99_custom_netintst/my-cdd/` in a test branch or disposable copy. This optional profile shares the common dispatcher; it is **not a standalone shell script**.
+Finish the shared [Build project](build_project.md), [Shared profile helpers](profile_construction.md) and [Installer framework](installer_framework.md). Work from `99_custom_netintst/my-cdd/` in a test branch or disposable copy. This optional profile shares the common dispatcher; it is **not a standalone shell script**.
 
 ## Step 1 — Make the four feature files
 
@@ -29,35 +29,27 @@ This makes directories only.
 
 **1. Create `profiles/debian-tweaks.description`.** The label shown only when the optional tweaks checkbox is offered.
 
-~~~sh
-nano profiles/debian-tweaks.description
-~~~
+Open `profiles/debian-tweaks.description` in a text editor, paste the indicated contents and save it at that path.
 
-This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, copy all lines, save with Ctrl+O and Enter, then exit with Ctrl+X.
+This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, Save the document after reviewing the pasted contents.
 
 **2. Create `profiles/debian-tweaks.extra`.** Stages the selected-only tweaks module on the ISO.
 
-~~~sh
-nano profiles/debian-tweaks.extra
-~~~
+Open `profiles/debian-tweaks.extra` in a text editor, paste the indicated contents and save it at that path.
 
-This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, copy all lines, save with Ctrl+O and Enter, then exit with Ctrl+X.
+This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, Save the document after reviewing the pasted contents.
 
 **3. Create `profiles/debian-tweaks.postinst`.** Checks the marker after successful application; it does not reconfigure Debian.
 
-~~~sh
-nano profiles/debian-tweaks.postinst
-~~~
+Open `profiles/debian-tweaks.postinst` in a text editor, paste the indicated contents and save it at that path.
 
-This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, copy all lines, save with Ctrl+O and Enter, then exit with Ctrl+X.
+This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, Save the document after reviewing the pasted contents.
 
 **4. Create `installer/profile-tweaks.sh`.** Complete code that edits target GRUB, root ext4 fstab, SSH and the manual APT-update policy.
 
-~~~sh
-nano installer/profile-tweaks.sh
-~~~
+Open `installer/profile-tweaks.sh` in a text editor, paste the indicated contents and save it at that path.
 
-This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, copy all lines, save with Ctrl+O and Enter, then exit with Ctrl+X.
+This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, Save the document after reviewing the pasted contents.
 
 
 Set execute permission on the marker-checking postinst only:
@@ -73,8 +65,8 @@ The installer `profile-tweaks.sh` module is *sourced*, not independently execute
 1. The early profile selector makes `debian-tweaks` **optional**, never a normal Debian default. Its module runs only when that choice is approved.
 2. The module changes the target's **`/etc/default/grub`** to remove `quiet` and add `fsck.repair=no`, preserving other boot options. It regenerates GRUB in the **target**.
 3. It parses the **target's `/etc/fstab`** and requires one root ext4 entry. Only that entry receives `noatime,errors=panic`; EFI and NAS data mounts must remain unchanged. `errors=panic` is a deliberate failure-handling policy.
-4. If a target OpenSSH daemon exists, the module creates an SSH drop-in with `PermitRootLogin no` and checks the **effective** SSH config. It does not install OpenSSH solely for the tweak.
-5. The shared APT helper handles the project's **manual-only package update** policy; the administrator must then perform security updates manually.
+4. If a target OpenSSH daemon exists, the module creates an SSH drop-in with `PermitRootLogin no` and uses the shared `verify_target_sshd` helper. That helper prepares the transient `/target/run/sshd` directory, tests syntax with `sshd -t`, checks the effective policy with `sshd -T`, and records actual OpenSSH errors in the installer log. This is necessary because the target has not yet booted systemd. It does not install OpenSSH solely for the tweak.
+5. The shared APT helper first checks whether the **`unattended-upgrades` package is installed**. If it is absent or automatic installation is already disabled, it makes **no override**. Only when both the package and an enabled `APT::Periodic::Unattended-Upgrade` setting exist does it create a target override disabling unattended installations, then verify the effective setting. This also disables automated **security updates**; the administrator must maintain those manually.
 6. The late dispatcher marks the profile complete only when every required operation succeeds.
 
 The full source below includes the validations, error handling and file-editing logic. Earlier short AWK and `sed` fragments were **not complete enough to reproduce this behavior**.
@@ -139,7 +131,7 @@ fi
 </details>
 
 <details>
-<summary><strong>Complete installer/profile-tweaks.sh</strong> — 51 lines; Git blob <code>053f6fdd2abb9afe9c51bccca0f53502aef4435b</code></summary>
+<summary><strong>Complete installer/profile-tweaks.sh</strong> — 49 lines; Git blob <code>e032039024912a41ff03044c227fd8498a68bdb6</code></summary>
 
 ````sh
 #!/bin/sh
@@ -182,9 +174,7 @@ profile_tweaks() {
     if capture in-target sh -c 'command -v sshd >/dev/null 2>&1'; then
         mkdir -p /target/etc/ssh/sshd_config.d
         printf 'PermitRootLogin no\n' > /target/etc/ssh/sshd_config.d/01-my-cdd-root-login.conf
-        capture in-target sshd -T || fatal 'OpenSSH configuration invalid'
-        grep -Fx 'permitrootlogin no' "$WORK/output" >/dev/null ||
-            fatal 'Effective OpenSSH root-login setting is not no'
+        verify_target_sshd
     else
         log 'Debian tweaks: OpenSSH not installed; no SSH policy file created'
     fi

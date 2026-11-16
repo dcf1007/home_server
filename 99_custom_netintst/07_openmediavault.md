@@ -1,10 +1,10 @@
-# 06 — Recreate the OpenMediaVault 8 installer profile
+# 07 — Recreate OpenMediaVault 8 installer support
 
 **Outcome:** build the full **optional OMV 8 profile source** for the custom Debian netinst image, not a script someone must run manually after installation. On a running Debian server, follow [07 — Manual OMV setup](../07_openmediavault/README.md); that guide uses the OMV GUI and requires **no external project Python helper**.
 
 ## Step 1 — Prepare the shared installer code
 
-Complete [01 — Simple-CDD build](01_custom_cdd_preparation.md), [00 — Common helpers](00_profile_construction.md) and [05 — Selection and dispatcher](05_base_installation.md), then work inside `99_custom_netintst/my-cdd/` on a test branch or scratch copy.
+Complete [Build project](build_project.md), [Shared profile helpers](profile_construction.md) and [Installer framework](installer_framework.md), then work inside `99_custom_netintst/my-cdd/` on a test branch or scratch copy.
 
 The optional profile ID is `openmediavault`. Its source file is `installer/profile-omv.sh`, which defines `profile_omv()`. The existing dispatcher maps the ID to that function **only when selected**.
 
@@ -27,35 +27,27 @@ This only creates folders.
 
 **1. Create `profiles/openmediavault.description`.** The OMV 8 checkbox label.
 
-~~~sh
-nano profiles/openmediavault.description
-~~~
+Open `profiles/openmediavault.description` in a text editor, paste the indicated contents and save it at that path.
 
-Open the file in `nano`, expand its **entire source listing below**, paste all its lines, save with Ctrl+O, Enter, and exit with Ctrl+X. The source is **not executed** while you edit it.
+Open the named file in any text editor, expand the complete source listing below, paste all its lines, review the result and save the file at that path. The source is **not executed** while you edit it.
 
 **2. Create `profiles/openmediavault.extra`.** Stages the OMV installer-side module onto the ISO.
 
-~~~sh
-nano profiles/openmediavault.extra
-~~~
+Open `profiles/openmediavault.extra` in a text editor, paste the indicated contents and save it at that path.
 
-Open the file in `nano`, expand its **entire source listing below**, paste all its lines, save with Ctrl+O, Enter, and exit with Ctrl+X. The source is **not executed** while you edit it.
+Open the named file in any text editor, expand the complete source listing below, paste all its lines, review the result and save the file at that path. The source is **not executed** while you edit it.
 
 **3. Create `profiles/openmediavault.postinst`.** Verifies completion; it must be executable and must not reinstall OMV.
 
-~~~sh
-nano profiles/openmediavault.postinst
-~~~
+Open `profiles/openmediavault.postinst` in a text editor, paste the indicated contents and save it at that path.
 
-Open the file in `nano`, expand its **entire source listing below**, paste all its lines, save with Ctrl+O, Enter, and exit with Ctrl+X. The source is **not executed** while you edit it.
+Open the named file in any text editor, expand the complete source listing below, paste all its lines, review the result and save the file at that path. The source is **not executed** while you edit it.
 
 **4. Create `installer/profile-omv.sh`.** Full code for prerequisites, official OMV key/source, APT approval, admin SSH, OMV update database and Salt deployment.
 
-~~~sh
-nano installer/profile-omv.sh
-~~~
+Open `installer/profile-omv.sh` in a text editor, paste the indicated contents and save it at that path.
 
-Open the file in `nano`, expand its **entire source listing below**, paste all its lines, save with Ctrl+O, Enter, and exit with Ctrl+X. The source is **not executed** while you edit it.
+Open the named file in any text editor, expand the complete source listing below, paste all its lines, review the result and save the file at that path. The source is **not executed** while you edit it.
 
 
 The postinst is a marker verifier and needs execute permission:
@@ -71,7 +63,7 @@ Do **not** mark the imported OMV module as a standalone installer and execute it
 1. Install reviewed HTTPS/signing and SSH/sudo prerequisites **inside `/target`**. Ensure target DNS can resolve the OMV package server; the installer's own network is not proof.
 2. Download the official OMV signing key, check that GnuPG can parse it and place it into the target keyring; create signed `synchrony` sources for OMV **8**. **Current limitation:** the code verifies a fingerprint is present but does **not** pin a known expected fingerprint.
 3. Simulate the whole `openmediavault` package installation, reject essential-package removals and require native **default-No** approval. Install only after consent, then require an **8.x** installed version.
-4. Read the administrator username from the installer instead of hardcoding it. Add `sudo` and OMV's `_ssh` group; deny **root SSH** while preserving local emergency recovery.
+4. Read the administrator username from the installer instead of hardcoding it. Add `sudo` and OMV's `_ssh` group; deny **root SSH** while preserving local emergency recovery. The OMV profile uses the same shared `verify_target_sshd` helper as Debian tweaks, including the temporary pre-boot `/run/sshd` prerequisite and logged diagnostics.
 5. Before first boot **there is no running OMV web UI**. The installer module therefore uses an **inline Python block within the shell module** to read/modify two OMV confdb records, with structural checks: `unattendedupgrade=false` and the one `apt` notification event disabled. It installs **no external Python helper** to be run by the administrator.
 6. The module deploys only OMV's relevant `apt` and `apticron` Salt states, checks for unwanted scheduled jobs, and disables Debian's independent periodic updates. It verifies target DNS and package health before completion.
 7. The **ordinary post-install OMV guide remains manual**, since the web interface exists then.
@@ -136,7 +128,7 @@ fi
 </details>
 
 <details>
-<summary><strong>installer/profile-omv.sh</strong> — complete file (129 lines; Git blob <code>3887f60260657ad8f34f7e2565b2a91a5b60da8d</code>)</summary>
+<summary><strong>installer/profile-omv.sh</strong> — complete file (127 lines; Git blob <code>04ba376974d72e21046012b529f0f5bc3201a7fa</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -184,9 +176,7 @@ EOT
     run_target usermod -aG sudo,_ssh "$admin"
     mkdir -p /target/etc/ssh/sshd_config.d
     printf 'PermitRootLogin no\n' > /target/etc/ssh/sshd_config.d/01-my-cdd-root-login.conf
-    capture in-target sshd -T || fatal 'OMV SSH config invalid'
-    grep -Fx 'permitrootlogin no' "$WORK/output" >/dev/null ||
-        fatal 'OMV root SSH still enabled'
+    verify_target_sshd
 
     # OMV 8 source controls scheduled updates through conf.system.apt.updates
     # and the "apt" notification record, deploying apt + apticron (not the

@@ -1,4 +1,4 @@
-# 04 — Add extra firmware and CPU microcode (optional)
+# 05 — Add extra firmware and CPU microcode (optional)
 
 **What this does:** installs additional firmware for network, storage, graphics and other devices, along with the approved **Intel and AMD microcode** packages. This is intentionally broader than simply supporting hardware that is currently attached.
 
@@ -112,7 +112,7 @@ This **inspects one package** and its available versions without installing it. 
 apt policy firmware-realtek
 ~~~
 
-Substitute the **actual problematic package name**. Decide whether to retry just that package, use a compatible Backports version (if [Backports](../02_backports/README.md) was explicitly enabled), or **deliberately omit** that one package. Record every omission and its reason; do not silently skip requested firmware.
+Substitute the **actual problematic package name**. Decide whether to retry just that package, use a compatible Backports version (if [Backports](../03_backports/README.md) was explicitly enabled), or **deliberately omit** that one package. Record every omission and its reason; do not silently skip requested firmware.
 
 With Backports enabled, APT still normally prefers Stable. To choose a compatible Backports package deliberately, the command looks like:
 

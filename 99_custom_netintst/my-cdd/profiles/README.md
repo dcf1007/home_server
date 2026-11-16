@@ -22,4 +22,4 @@ Each optional `*.description` is a real menu item. There are **no optional `.pac
 
 **Upstream behavior:** [the Simple-CDD 0.6.9 finish-install runner](https://sources.debian.org/src/simple-cdd/0.6.9/debian/14simple-cdd) executes only executable `*.postinst` files **inside the target**, in the order returned by the selected multiselect. The existing source dispatcher enforces Backports → Ensure 7.x → Extended support → ZRAM → tweaks → OMV → Docker rather than trusting UI selection order, but must still be validated in a running installer. [`../build.sh`](../build.sh) checks that every optional postinst is executable in the Git checkout; its tracked mode is already 100755.
 
-**Never embed:** passwords, fixed installation-disk paths, automatically selected profiles, forced filesystem writes or unreviewed APT transactions. See [the preparation guide](../../01_custom_cdd_preparation.md).
+**Never embed:** passwords, fixed installation-disk paths, automatically selected profiles, forced filesystem writes or unreviewed APT transactions. See [the preparation guide](../../build_project.md).

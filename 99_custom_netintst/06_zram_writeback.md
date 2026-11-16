@@ -1,17 +1,17 @@
-# 03 — Recreate the complete ZRAM installer profile, step by step
+# 06 — Recreate the ZRAM writeback installer profile
 
-**Goal:** reconstruct the exact source of this **destructive, optional Debian Installer feature**, including selection, confirmation, native GPT conversion and ZSTD ZRAM writeback configuration. Do not copy the following installer commands into a normal Debian terminal. For that use [05 — Standalone ZRAM](../05_zram_writeback/README.md) with ordinary full-system tools.
+**Goal:** reconstruct the exact source of this **destructive, optional Debian Installer feature**, including selection, confirmation, native GPT conversion and ZSTD ZRAM writeback configuration. Do not copy the following installer commands into a normal Debian terminal. For that use [05 — Standalone ZRAM](../06_zram_writeback/README.md) with ordinary full-system tools.
 
 **Safety:** this handler can zero the first **1 MiB of a GPT partition**. Only test on a disposable virtual disk. No live VM or physical partition test has been completed for the current native-udeb refactor.
 
 ## Step 1 — Complete the prerequisites
 
-1. Build the Simple-CDD project in [01](01_custom_cdd_preparation.md).
-2. Create the shared code and profile rules in [00](00_profile_construction.md).
-3. Create the native early/late selection UI and dispatcher in [05](05_base_installation.md).
-4. Also create the **independently selectable Linux 7.x profile** from [09](09_ensure_7x_kernel.md). ZRAM may not run unless that profile was separately selected and successfully completed.
+1. Build the Simple-CDD project in [Build project](build_project.md).
+2. Create the shared code and profile rules in [Shared profile helpers](profile_construction.md).
+3. Create the native early/late selection UI and dispatcher in [Installer framework](installer_framework.md).
+4. Also create the **independently selectable Linux 7.x profile** from [04 — Linux 7.x](04_ensure_7x_kernel.md). ZRAM may not run unless that profile was separately selected and successfully completed.
 
-The build-only `profiles/installer-media.udebs` already includes `parted-udeb` and `util-linux-udeb` from [01](01_custom_cdd_preparation.md); they provide native commands in the installer, not the installed target. The default Debconf template in [05](05_base_installation.md) supplies the separate default-No ZRAM destructive and swapoff questions.
+The build-only `profiles/installer-media.udebs` already includes `parted-udeb` and `util-linux-udeb` from [Build project](build_project.md); they provide native commands in the installer, not the installed target. The default Debconf template in [Installer framework](installer_framework.md) supplies the separate default-No ZRAM destructive and swapoff questions.
 
 Work inside `99_custom_netintst/my-cdd/`, on a test branch or scratch copy.
 
@@ -44,83 +44,63 @@ This creates project directories only, not partitions.
 
 **1. Create `profiles/zram-writeback.description`.** Text of the opt-in ZRAM checkbox.
 
-~~~sh
-nano profiles/zram-writeback.description
-~~~
+Open `profiles/zram-writeback.description` in a text editor, paste the indicated contents and save it at that path.
 
-This opens a source file without executing it. Expand the **complete listing for that same path below**, copy every line, save with Ctrl+O, Enter, and exit with Ctrl+X. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
+This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
 **2. Create `profiles/zram-writeback.extra`.** All required sources and generator/monitor assets to stage on the installer ISO.
 
-~~~sh
-nano profiles/zram-writeback.extra
-~~~
+Open `profiles/zram-writeback.extra` in a text editor, paste the indicated contents and save it at that path.
 
-This opens a source file without executing it. Expand the **complete listing for that same path below**, copy every line, save with Ctrl+O, Enter, and exit with Ctrl+X. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
+This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
 **3. Create `profiles/zram-writeback.postinst`.** Executable completion-marker verifier (not a second partition conversion).
 
-~~~sh
-nano profiles/zram-writeback.postinst
-~~~
+Open `profiles/zram-writeback.postinst` in a text editor, paste the indicated contents and save it at that path.
 
-This opens a source file without executing it. Expand the **complete listing for that same path below**, copy every line, save with Ctrl+O, Enter, and exit with Ctrl+X. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
+This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
 **4. Create `installer/profile-zram.sh`.** The complete selected-only handler: confirmation, RAM/swapoff checks, bounded erase, native Parted, fstab and target provisioning.
 
-~~~sh
-nano installer/profile-zram.sh
-~~~
+Open `installer/profile-zram.sh` in a text editor, paste the indicated contents and save it at that path.
 
-This opens a source file without executing it. Expand the **complete listing for that same path below**, copy every line, save with Ctrl+O, Enter, and exit with Ctrl+X. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
+This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
 **5. Create `installer/zram-selection.sh`.** The complete installer-native GPT/sysfs/blkid candidate discovery, identity validation, mount/holder checks and fstab preparation.
 
-~~~sh
-nano installer/zram-selection.sh
-~~~
+Open `installer/zram-selection.sh` in a text editor, paste the indicated contents and save it at that path.
 
-This opens a source file without executing it. Expand the **complete listing for that same path below**, copy every line, save with Ctrl+O, Enter, and exit with Ctrl+X. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
+This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
 **6. Create `scripts/zram-generator.conf.template`.** ZSTD/ZRAM sizing and writeback config; dynamically replaced PARTUUID placeholders.
 
-~~~sh
-nano scripts/zram-generator.conf.template
-~~~
+Open `scripts/zram-generator.conf.template` in a text editor, paste the indicated contents and save it at that path.
 
-This opens a source file without executing it. Expand the **complete listing for that same path below**, copy every line, save with Ctrl+O, Enter, and exit with Ctrl+X. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
+This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
 **7. Create `scripts/10-compressed-writeback.conf`.** Systemd drop-in controlling compressed writeback setup.
 
-~~~sh
-nano scripts/10-compressed-writeback.conf
-~~~
+Open `scripts/10-compressed-writeback.conf` in a text editor, paste the indicated contents and save it at that path.
 
-This opens a source file without executing it. Expand the **complete listing for that same path below**, copy every line, save with Ctrl+O, Enter, and exit with Ctrl+X. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
+This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
 **8. Create `scripts/zram-pressure.sh`.** Complete script monitoring memory pressure and issuing writeback operations.
 
-~~~sh
-nano scripts/zram-pressure.sh
-~~~
+Open `scripts/zram-pressure.sh` in a text editor, paste the indicated contents and save it at that path.
 
-This opens a source file without executing it. Expand the **complete listing for that same path below**, copy every line, save with Ctrl+O, Enter, and exit with Ctrl+X. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
+This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
 **9. Create `scripts/zram-pressure.service`.** Systemd service to supervise and restart the pressure monitor.
 
-~~~sh
-nano scripts/zram-pressure.service
-~~~
+Open `scripts/zram-pressure.service` in a text editor, paste the indicated contents and save it at that path.
 
-This opens a source file without executing it. Expand the **complete listing for that same path below**, copy every line, save with Ctrl+O, Enter, and exit with Ctrl+X. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
+This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
 **10. Create `scripts/90-zram-swappiness.conf`.** Swappiness setting applicable only to the explicitly selected ZRAM feature.
 
-~~~sh
-nano scripts/90-zram-swappiness.conf
-~~~
+Open `scripts/90-zram-swappiness.conf` in a text editor, paste the indicated contents and save it at that path.
 
-This opens a source file without executing it. Expand the **complete listing for that same path below**, copy every line, save with Ctrl+O, Enter, and exit with Ctrl+X. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
+This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
 
 Make the completion verifier executable:

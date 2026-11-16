@@ -203,6 +203,20 @@ mark_complete() {
 # Use the existing Debian Installer password-type Debconf questions; never
 # log or write a password to a preseed, the ISO, or a command argument.
 ensure_root_recovery() {
+    # Debian's initial root password should be left blank to give the
+    # first ordinary account sudo. Verify it rather than granting sudo
+    # to an unexpected account silently.
+    db_get passwd/username || fatal 'Cannot read the native installer username'
+    recovery_user=$RET
+    [ -n "$recovery_user" ] || fatal 'Missing installer-created admin account'
+    capture in-target id -nG "$recovery_user" ||
+        fatal 'Installer-created admin account is unavailable'
+    case " $(cat "$WORK/output") " in
+        *' sudo '*) log 'Verified native sudo administrator account' ;;
+        *) fatal 'Installer-created user is not in sudo group; leave initial root-password fields empty during Debian setup' ;;
+    esac
+    capture in-target sh -c 'command -v sudo >/dev/null 2>&1' ||
+        fatal 'sudo is not available in the installed target'
     capture in-target passwd -S root ||
         fatal 'Cannot inspect installed root account for emergency recovery'
     root_state="$(awk '$1 == "root" { print $2 }' "$WORK/output")"
@@ -215,12 +229,6 @@ ensure_root_recovery() {
         *)
             fatal 'Unrecognized root account password state; refusing optional operations' ;;
     esac
-
-    db_get passwd/username || fatal 'Cannot read the native installer username'
-    recovery_user=$RET
-    [ -n "$recovery_user" ] || fatal 'No installer-created user; cannot confirm recovery account'
-    capture in-target id "$recovery_user" ||
-        fatal 'Installer-created user unavailable for root-recovery preflight'
 
     # These are native user-setup-udeb templates, not project custom files.
     # Native user-setup clears them after initial account creation; clear them
@@ -342,11 +350,11 @@ fi
 for profile in $ordered; do
     log "PROFILE BEGIN: $profile"
     case "$profile" in
+        debian-tweaks) module=tweaks; handler=profile_tweaks ;;
         backports) module=backports; handler=profile_backports ;;
         ensure-7x-kernel) module=kernel; handler=profile_kernel ;;
         extended-device-support) module=firmware; handler=profile_firmware ;;
         zram-writeback) module=zram; handler=profile_zram ;;
-        debian-tweaks) module=tweaks; handler=profile_tweaks ;;
         openmediavault) module=omv; handler=profile_omv ;;
         docker) module=docker; handler=profile_docker ;;
         *) fatal "Unknown selected profile: $profile" ;;

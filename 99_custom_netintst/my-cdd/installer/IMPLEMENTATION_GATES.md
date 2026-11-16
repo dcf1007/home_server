@@ -1,5 +1,9 @@
 # Implementation requirements still outstanding
 
+**Latest user-provided VM evidence (2026-11-16):** installer generated and booted; it showed a default-No destructive ZRAM confirmation, performed user-approved 1 MiB partition erase and GPT conversion, and installed the approved ZRAM generator package. It **then stopped in Debian tweaks** at the OpenSSH `sshd -T` validation with the generic message “OpenSSH configuration invalid”. The screenshots do not include the underlying OpenSSH stderr, and no first-boot ZRAM writeback was demonstrated. New source provisions **transient** `/target/run/sshd` before `sshd -t`/`-T`, records diagnostics, and runs tweaks **before** any destructive ZRAM stage. **Neither the cause nor the fix has been confirmed by a fresh installer test.**
+
+**Synchronization rule:** when standalone Debian instructions change, update the matching CDD developer tutorial and its actual selected-profile source (if applicable), regenerate complete source listings/hashes, and re-run syntax + disposable-VM checks. The first user must be sudo-capable after blank initial root-password fields; the late preflight then creates a separate local root recovery password before selected changes. Conditional `unattended-upgrades` handling depends on the package being installed and actually enabled. See [SOURCE_MANIFEST](../SOURCE_MANIFEST.md) and [GUIDE_PROVENANCE](../../../GUIDE_PROVENANCE.md).
+
 **Native installer service handling (2026-11-15):** Debian Installer 1.155 automatically sets a temporary `policy-rc.d` returning 101 when the `in-target` wrapper runs and diverts `start-stop-daemon`. The selected-profile runner verifies this upstream protection; it does not duplicate it or disable first-boot services. OMV 8's source uses `apt` and `apticron`, not the old `cronapt` deployment; its scheduled update/notification policy is now disabled via the OMV configuration database and Salt. OMV DNS and third-party Salt operations require live testing.
 
 
@@ -34,7 +38,7 @@ Keep ordinary keyboard, locale/time, account/password, network/mirror, partman, 
 ## 3. Profile transaction execution
 
 Simple-CDD 0.6.9 runs each executable `*.postinst` **in-target**, in the order returned by the Debconf selection, not necessarily the design order. The newly written native Debian Installer `preseed/late_command` calls the **single ordered dispatcher** ([`run-selected.sh`](run-selected.sh)):
-Backports → Ensure 7.x → Extended device support → ZRAM → Debian tweaks → OMV 8 → Docker.
+Debian tweaks → Backports → Ensure 7.x → Extended device support → ZRAM → OMV 8 → Docker.
 
 Optional `.packages` files have been removed to leave **no automatic package queue**: automatic queueing would bypass required simulation/approval and, for Docker or ZRAM, violate service and conversion timing.
 
@@ -44,7 +48,7 @@ The selected-only `profile-*.sh` modules and shared [`profile-common.sh`](profil
 
 Confirm generated USB boots UEFI **and** legacy BIOS, with **Graphical install** highlighted and an indefinite manual Enter wait; text and rescue remain available. The BOOT_TIMEOUT config alone is not proof of this. Confirm target UEFI/GPT and normal Debian manual partman.
 
-Test profile combinations, conditional Backports-first kernel/firmware, first boot, 7.x headers, generator sysfs features, ZRAM writeback/emergency path, OMV 8 and Docker normal startup state. Test diagnostic display, full-log copies/permissions and export. Follow [the validation checklist](../../08_validation_and_pending.md).
+Test profile combinations, conditional Backports-first kernel/firmware, first boot, 7.x headers, generator sysfs features, ZRAM writeback/emergency path, OMV 8 and Docker normal startup state. Test diagnostic display, full-log copies/permissions and export. Follow [the validation checklist](../../validation_and_pending.md).
 
 **Explicitly excluded by user choice:** source ISO/file hashes, output ISO hashes, USB read-back comparison and media-integrity-only tests. Functional tests and signed APT metadata verification are still required.
 

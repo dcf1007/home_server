@@ -1,6 +1,6 @@
-# 01 — Recreate the Simple-CDD build project
+# Build project — Recreate Simple-CDD and the ISO build wrapper
 
-**Outcome:** a working *build project* for Debian 13 amd64 containing the complete source of `simple-cdd.conf`, editable installer defaults and the guarded two-stage `build.sh`. This does **not** yet include the per-feature implementation; those are constructed in [00](00_profile_construction.md), [05](05_base_installation.md) and the feature chapters.
+**Outcome:** a working *build project* for Debian 13 amd64 containing the complete source of `simple-cdd.conf`, editable installer defaults and the guarded two-stage `build.sh`. This does **not** yet include the per-feature implementation; those are constructed in [Shared profile helpers](profile_construction.md), [Installer framework](installer_framework.md) and the feature chapters.
 
 ## Step 1 — Prepare a Debian build computer
 
@@ -13,10 +13,10 @@ sudo apt update
 This downloads the latest Debian package indexes; it installs nothing.
 
 ~~~sh
-sudo apt install git simple-cdd reprepro nano
+sudo apt install git simple-cdd reprepro
 ~~~
 
-This installs the Git client, the Simple-CDD ISO builder, the reprepro repository tool and the `nano` text editor used below. Read APT's proposed changes before accepting.
+This installs the Git client, the Simple-CDD ISO builder, the reprepro repository tool and the build prerequisites. Read APT's proposed changes before accepting.
 
 Choose **one** way to obtain a `home_server` working directory:
 
@@ -73,7 +73,7 @@ Run this from the root of the `home_server` checkout, not from inside another `m
 | `profiles/installer-media.udebs` | Include native `parted-udeb` and `util-linux-udeb` for installer-side GPT work. |
 | `.gitignore` | Avoid checking in generated build logs, images and temporary files. |
 
-For **each file**, open it in an editor (`nano simple-cdd.conf`, then `nano profile_defaults.conf`, and so on), paste the **entire matching file listing** below, save, and close. Do not use abbreviated snippets from earlier versions of this guide: some were missing build guards.
+For **each file**, open it in an editor (a text editor for `simple-cdd.conf`, then a text editor for `profile_defaults.conf`, and so on), paste the **entire matching file listing** below, save, and close. Do not use abbreviated snippets from earlier versions of this guide: some were missing build guards.
 
 Make the build entry point executable:
 
@@ -99,7 +99,7 @@ bash -n build.sh
 
 This checks Bash syntax without running the builder. **Do not run `./build.sh` yet if you have not created** the common installer files and feature modules: its checks will stop on missing source.
 
-**Next:** [00 — Shared profile code](00_profile_construction.md), then [05 — Installer hooks and dispatcher](05_base_installation.md), then one or more feature guides. When all media manifests and modules exist, run `./build.sh` from `my-cdd` and test the ISO in a disposable VM.
+**Next:** [Shared profile helpers](profile_construction.md), then [Installer framework](installer_framework.md), then one or more feature guides. When all media manifests and modules exist, run `./build.sh` from `my-cdd` and test the ISO in a disposable VM.
 
 ## Complete, copyable source files
 
@@ -107,15 +107,15 @@ Expand the file you want to create. **These are full files, not fragments.** Cop
 
 
 <details>
-<summary><strong>Complete file: simple-cdd.conf</strong> (46 lines, original Git blob <code>64898be0b980c4d401af0c7607092cddc3f179d9</code>)</summary>
+<summary><strong>Complete file: simple-cdd.conf</strong> (46 lines, current Git blob <code>3a546782f1e1e5e8b02fc878b96f7395ee2cdc7a</code>)</summary>
 
 ````text
 # my-cdd Simple-CDD 0.6.9 build configuration for Debian 13 Trixie, amd64.
-# Source: ../01_custom_cdd_preparation.md and Debian Simple-CDD 0.6.9 variables.py
+# Source: ../build_project.md and Debian Simple-CDD 0.6.9 variables.py
 # Status: source configuration; not evidence of a validated ISO.
 #
 # These are INCLUDED / OFFERED profiles, NOT AUTO-SELECTED profiles.
-profiles="backports ensure-7x-kernel extended-device-support zram-writeback debian-tweaks openmediavault docker"
+profiles="debian-tweaks backports ensure-7x-kernel extended-device-support zram-writeback openmediavault docker"
 auto_profiles=""
 default_profiles=""
 # Build-only media packages; never offered or auto-selected in the installer.
@@ -162,7 +162,7 @@ BOOT_TIMEOUT="0"
 
 
 <details>
-<summary><strong>Complete file: profile_defaults.conf</strong> (46 lines, original Git blob <code>935cdf9d65372ebf9a683f11a36fe57a8fe117cf</code>)</summary>
+<summary><strong>Complete file: profile_defaults.conf</strong> (49 lines, current Git blob <code>e7ef827d8a53240bdf6ad25a0a2b5a848e7a6bc6</code>)</summary>
 
 ````text
 # profile_defaults.conf — Debian 13 Simple-CDD installation GUI suggested values
@@ -179,6 +179,9 @@ BOOT_TIMEOUT="0"
 # normal Debian Installer questions for the user to confirm or change.
 # Runtime GUI/text behavior remains to be validated in a fresh ISO install.
 #
+# Leave the native root-password fields empty so Debian makes the first
+# regular user a sudo administrator. The late recovery check verifies this
+# account and then requests a separate local root emergency password.
 # Never put user/root passwords, password hashes, hard-coded disk targets,
 # or silent profile-selection flags in this file.
 
@@ -217,7 +220,7 @@ DEFAULT_TASKSEL_TASKS="ssh-server,standard"
 
 
 <details>
-<summary><strong>Complete file: build.sh</strong> (245 lines, original Git blob <code>65372c3ab5629006493032bf913ed0d814c8a903</code>)</summary>
+<summary><strong>Complete file: build.sh</strong> (245 lines, current Git blob <code>65372c3ab5629006493032bf913ed0d814c8a903</code>)</summary>
 
 ````sh
 #!/bin/bash
@@ -471,7 +474,7 @@ fi
 
 
 <details>
-<summary><strong>Complete file: profiles/installer-media.downloads</strong> (4 lines, original Git blob <code>f3f73480cd2d78ea0e10e1940c4bcf808fd37168</code>)</summary>
+<summary><strong>Complete file: profiles/installer-media.downloads</strong> (4 lines, current Git blob <code>f3f73480cd2d78ea0e10e1940c4bcf808fd37168</code>)</summary>
 
 ````text
 # Build-only additional media packages, not installed by Simple-CDD.
@@ -484,7 +487,7 @@ zstd
 
 
 <details>
-<summary><strong>Complete file: profiles/installer-media.udebs</strong> (6 lines, original Git blob <code>80147f01a637a38b4fbd29a0355fb9776f0a870a</code>)</summary>
+<summary><strong>Complete file: profiles/installer-media.udebs</strong> (6 lines, current Git blob <code>80147f01a637a38b4fbd29a0355fb9776f0a870a</code>)</summary>
 
 ````text
 # Build-only Debian Installer package. Never installed into /target.
@@ -499,7 +502,7 @@ util-linux-udeb
 
 
 <details>
-<summary><strong>Complete file: .gitignore</strong> (7 lines, original Git blob <code>bcd348176f87c516f9b6a0c98d6020a949aae341</code>)</summary>
+<summary><strong>Complete file: .gitignore</strong> (7 lines, current Git blob <code>bcd348176f87c516f9b6a0c98d6020a949aae341</code>)</summary>
 
 ````text
 # Local Simple-CDD build artifacts
