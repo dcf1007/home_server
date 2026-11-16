@@ -7,7 +7,7 @@ The recommended order is:
 | Chapter | Why it belongs here |
 | --- | --- |
 | [01 — Base Debian](01_base_debian/README.md) | Install headless Debian, create a sudo administrator and enable local root recovery |
-| [02 — Debian tweaks](02_debian_tweaks/README.md) | Configure boot messages, root ext4, SSH and the conditional update policy first |
+| [02 — Debian tweaks](02_debian_tweaks/README.md) | Configure boot messages, filesystem-aware root mounts, native SSH and one-time update policy first |
 | [03 — Backports](03_backports/README.md) | Add signed optional newer Debian packages |
 | [04 — Linux 7.x](04_kernel_7x/README.md) | Install an eligible Linux 7.x image and matching headers |
 | [05 — Extended device support](05_extended_device_support/README.md) | Install broad firmware and Intel/AMD microcode |
@@ -48,4 +48,4 @@ The [99_custom_netintst](99_custom_netintst/README.md) documentation teaches you
 
 **Synchronization rule:** whenever a feature changes in an ordinary Debian chapter, review the corresponding custom-netinst construction chapter **and installer implementation** in the same change. If the installer must behave differently because Debian Installer lacks ordinary system tools or services, document the reason explicitly. Also update the embedded complete source listings, expected Git blob hashes, links and [provenance](GUIDE_PROVENANCE.md).
 
-The custom ISO's full Debian Installer, ZRAM first-boot and service integration checks are **not yet complete**. The latest VM test reached ZRAM conversion and package installation but stopped at an OpenSSH test during Debian tweaks. See [validation](99_custom_netintst/validation_and_pending.md) for that observed result and the required retest.
+The custom ISO's full Debian Installer, ZRAM first-boot and service integration checks are **not yet complete**. Earlier testing reached ZRAM partition conversion; the latest VM run stopped earlier in Debian tweaks at a pre-boot OpenSSH runtime-directory check. The check was removed in the current review branch but has not been retested. See [validation](99_custom_netintst/validation_and_pending.md) for that observed result and the required retest.
