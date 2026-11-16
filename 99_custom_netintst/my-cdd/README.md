@@ -33,7 +33,7 @@ The [build.sh](build.sh) script keeps upstream Simple-CDD `default.*` inputs, ru
 
 ### Why the installer differs from the standalone guides
 
-`udevs` are not ordinary Debian packages: Debian Installer is a stripped-down environment. Partition discovery/conversion uses native `blkid` from `util-linux-udeb`, `parted-udeb`, BusyBox, `/sys` and `/proc`. The ordinary [ZRAM guide](../../05_zram_writeback/README.md) can use full `wipefs` and `sgdisk` instead. Other installer-only mechanisms include `in-target`, cdebconf and preseed/late_command.
+`udebs` are not ordinary Debian packages: Debian Installer is a stripped-down environment. Partition discovery/conversion uses native `blkid` from `util-linux-udeb`, `parted-udeb`, BusyBox, `/sys` and `/proc`. The ordinary [ZRAM guide](../../05_zram_writeback/README.md) can use full `wipefs` and `sgdisk` instead. Other installer-only mechanisms include `in-target`, cdebconf and preseed/late_command.
 
 **Validation:** The build and installer still need real testing after these source changes; no ISO build or first-boot validation is claimed by the documentation refactor. See [active release gates](../08_validation_and_pending.md).
 
