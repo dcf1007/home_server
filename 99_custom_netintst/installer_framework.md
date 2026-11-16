@@ -21,7 +21,7 @@ This creates the folders in which the installer code and media lists belong; it 
 | `profiles/default.extra` | Copies the shared hooks, templates, selector, dispatcher and generated defaults onto the ISO. |
 | `profiles/default.preseed` | Connects the original Debian Installer's `preseed/early_command` and `preseed/late_command` hooks to our own scripts without patching an installer udeb. |
 
-Open each file with `nano` and paste its **complete listing** from below. The important distinction is timing: early command makes choices and records consent; late command works on the now-installed Debian system under `/target`.
+Open each named file in a text editor, paste its **complete listing** from below, review the contents and save it at the specified path. The important distinction is timing: early command makes choices and records consent; late command works on the now-installed Debian system under `/target`.
 
 ## Step 3 — Create early selection and native consent
 
@@ -74,9 +74,9 @@ The complete files depend on [Shared profile helpers](profile_construction.md) a
 ## Step 6 — Understand the required integration
 
 1. `profiles/default.preseed` loads generated editable defaults, then **early** selection and consent.
-2. The accepted profile list is stored only in private installer work data.
+2. The accepted profile list is stored only in private installer work data. During native Debian account setup, leave the root-password fields empty so the first user is granted sudo. Before optional profile operations, the late dispatcher verifies that the new account really belongs to the sudo group and that sudo exists; it then asks for a separate local root recovery password through Debian's own password questions.
 3. Debian continues with **native** partitioning, mirror, accounts and tasksel screens.
-4. The **late** dispatcher verifies the original selection and usable local root recovery, prepares target APT, and sources the chosen handlers in fixed order.
+4. The **late** dispatcher verifies the original selection and usable local root recovery, prepares target APT, and sources the chosen handlers in fixed order. **Debian tweaks now runs first**, ahead of Backports, kernel, firmware and the destructive ZRAM stage.
 5. Each handler completes **before** its marker is created; the corresponding `.postinst` checks that marker only.
 6. Finish-install's status guard refuses a normal-success screen if the overall status or any selected marker is missing.
 

@@ -29,25 +29,25 @@ This only creates folders.
 
 Open `profiles/openmediavault.description` in a text editor, paste the indicated contents and save it at that path.
 
-Open the file in `nano`, expand its **entire source listing below**, paste all its lines, Save the document after reviewing the pasted contents. The source is **not executed** while you edit it.
+Open the named file in any text editor, expand the complete source listing below, paste all its lines, review the result and save the file at that path. The source is **not executed** while you edit it.
 
 **2. Create `profiles/openmediavault.extra`.** Stages the OMV installer-side module onto the ISO.
 
 Open `profiles/openmediavault.extra` in a text editor, paste the indicated contents and save it at that path.
 
-Open the file in `nano`, expand its **entire source listing below**, paste all its lines, Save the document after reviewing the pasted contents. The source is **not executed** while you edit it.
+Open the named file in any text editor, expand the complete source listing below, paste all its lines, review the result and save the file at that path. The source is **not executed** while you edit it.
 
 **3. Create `profiles/openmediavault.postinst`.** Verifies completion; it must be executable and must not reinstall OMV.
 
 Open `profiles/openmediavault.postinst` in a text editor, paste the indicated contents and save it at that path.
 
-Open the file in `nano`, expand its **entire source listing below**, paste all its lines, Save the document after reviewing the pasted contents. The source is **not executed** while you edit it.
+Open the named file in any text editor, expand the complete source listing below, paste all its lines, review the result and save the file at that path. The source is **not executed** while you edit it.
 
 **4. Create `installer/profile-omv.sh`.** Full code for prerequisites, official OMV key/source, APT approval, admin SSH, OMV update database and Salt deployment.
 
 Open `installer/profile-omv.sh` in a text editor, paste the indicated contents and save it at that path.
 
-Open the file in `nano`, expand its **entire source listing below**, paste all its lines, Save the document after reviewing the pasted contents. The source is **not executed** while you edit it.
+Open the named file in any text editor, expand the complete source listing below, paste all its lines, review the result and save the file at that path. The source is **not executed** while you edit it.
 
 
 The postinst is a marker verifier and needs execute permission:
@@ -63,7 +63,7 @@ Do **not** mark the imported OMV module as a standalone installer and execute it
 1. Install reviewed HTTPS/signing and SSH/sudo prerequisites **inside `/target`**. Ensure target DNS can resolve the OMV package server; the installer's own network is not proof.
 2. Download the official OMV signing key, check that GnuPG can parse it and place it into the target keyring; create signed `synchrony` sources for OMV **8**. **Current limitation:** the code verifies a fingerprint is present but does **not** pin a known expected fingerprint.
 3. Simulate the whole `openmediavault` package installation, reject essential-package removals and require native **default-No** approval. Install only after consent, then require an **8.x** installed version.
-4. Read the administrator username from the installer instead of hardcoding it. Add `sudo` and OMV's `_ssh` group; deny **root SSH** while preserving local emergency recovery.
+4. Read the administrator username from the installer instead of hardcoding it. Add `sudo` and OMV's `_ssh` group; deny **root SSH** while preserving local emergency recovery. The OMV profile uses the same shared `verify_target_sshd` helper as Debian tweaks, including the temporary pre-boot `/run/sshd` prerequisite and logged diagnostics.
 5. Before first boot **there is no running OMV web UI**. The installer module therefore uses an **inline Python block within the shell module** to read/modify two OMV confdb records, with structural checks: `unattendedupgrade=false` and the one `apt` notification event disabled. It installs **no external Python helper** to be run by the administrator.
 6. The module deploys only OMV's relevant `apt` and `apticron` Salt states, checks for unwanted scheduled jobs, and disables Debian's independent periodic updates. It verifies target DNS and package health before completion.
 7. The **ordinary post-install OMV guide remains manual**, since the web interface exists then.
