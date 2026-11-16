@@ -17,13 +17,14 @@ for name in default.downloads default.udebs default.packages; do
         exit 1
     }
 done
-# Keep ordinary zstd in the ISO package pool and installer-native parted
-# in the udeb pool. Both belong to the existing build-only profile; never
+# Keep zstd in the ISO package pool and installer-native parted/blkid
+# in the udeb pool. All belong to the existing build-only profile; never
 # shadow upstream default.* lists or add a selectable installer profile.
 [ "$(grep -xc 'zstd' ./profiles/installer-media.downloads)" -eq 1 ] &&
 [ "$(grep -xc 'parted-udeb' ./profiles/installer-media.udebs)" -eq 1 ] &&
+[ "$(grep -xc 'util-linux-udeb' ./profiles/installer-media.udebs)" -eq 1 ] &&
 [ "$(grep -Fxc 'build_profiles="installer-media"' ./simple-cdd.conf)" -eq 1 ] || {
-    printf >&2 'my-cdd: build-only installer-media zstd/parted-udeb inputs are misconfigured.\n'
+    printf >&2 'my-cdd: build-only installer-media zstd/parted/blkid inputs are misconfigured.\n'
     exit 1
 }
 
@@ -188,22 +189,23 @@ fi
         exit 1
     fi
 
-    # The ZRAM path uses anna-install to load the official parted-udeb in
-    # Debian Installer (not a normal parted .deb in /target). Assert that the
-    # ISO actually carries its installer package index entry and archive.
+    # ZRAM loads parted-udeb and util-linux-udeb in the installer, not /target.
+    # Verify the staged index and archive for both native utilities.
     udeb_index="$cd1_dir/dists/trixie/main/debian-installer/binary-amd64/Packages.gz"
     [ -s "$udeb_index" ] || {
         printf >&2 'my-cdd: main Debian Installer udeb index missing from ISO.\n'
         exit 1
     }
-    parted_udeb_path="$(gzip -cd "$udeb_index" | awk '
-        /^Package: / { selected = ($2 == "parted-udeb") }
-        selected && /^Filename: / { print $2; selected = 0 }
-    ')"
-    if [ -z "$parted_udeb_path" ] || [ ! -s "$cd1_dir/$parted_udeb_path" ]; then
-        printf >&2 'my-cdd: parted-udeb absent from ISO installer index or pool.\n'
-        exit 1
-    fi
+    for native_udeb in parted-udeb util-linux-udeb; do
+        native_udeb_path="$(gzip -cd "$udeb_index" | awk -v package="$native_udeb" '
+            /^Package: / { selected = ($2 == package) }
+            selected && /^Filename: / { print $2; selected = 0 }
+        ')"
+        if [ -z "$native_udeb_path" ] || [ ! -s "$cd1_dir/$native_udeb_path" ]; then
+            printf >&2 'my-cdd: %s absent from ISO installer index or pool.\n' "$native_udeb"
+            exit 1
+        fi
+    done
 
     # An ISO must not be reported as ready if an early/late installer
     # script was silently omitted from its staged /simple-cdd directory.
