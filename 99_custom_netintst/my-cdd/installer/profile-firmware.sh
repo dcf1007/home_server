@@ -1,6 +1,24 @@
 #!/bin/sh
 # Sourced by the approved installer dispatcher; no automatic execution.
 
+# Used repeatedly for each firmware candidate; keep its suite-selection
+# policy inside the only profile that needs it.
+normal_suite() {
+    best_suite=''
+    best_version=''
+    for suite in trixie-security trixie-updates trixie; do
+        v="$(suite_version "$1" "$suite")"
+        [ -n "$v" ] || continue
+        if [ -z "$best_version" ] ||
+            in-target dpkg --compare-versions "$v" gt "$best_version"; then
+            best_suite=$suite
+            best_version=$v
+        fi
+    done
+    [ -n "$best_suite" ] || return 1
+    printf '%s\n' "$best_suite"
+}
+
 # Read the original Debconf license question from the exact APT-selected
 # .deb, never from a copied or shortened license. Uses Simple-CDD's existing
 # .extra mechanism and Debian Installer's native cdebconf graphical frontend.
