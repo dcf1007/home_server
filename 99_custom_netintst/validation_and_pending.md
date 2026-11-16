@@ -1,5 +1,18 @@
 # Validation — Test the scripts and generated Debian installer
 
+## Confirmed OMV APT keyring permission failure — 2026-11-16
+
+**Newest user-provided VM evidence:** The custom GTK failure dialog now displays the actual command, exit code 100, APT `Err:4` and `E:` diagnostics. The signed OpenMediaVault repository metadata is reachable, but `/usr/bin/sqv` reports `Failed to parse keyring "/usr/share/keyrings/openmediavault-archive-keyring.gpg": Permission denied (os error 13)`; APT consequently reports the repository as unsigned. The attempted repository signature check **did not succeed**, but the error is attributable to inability to read the public keyring rather than demonstrated bad signature content.
+
+**Source-based explanation:** `run-selected.sh` sets `umask 077`; `profile-omv.sh` runs `gpg --dearmor -o /usr/share/keyrings/openmediavault-archive-keyring.gpg` but did not set readable permissions. The new source adds exactly one `run_target chmod 0644` immediately after dearmoring, so `_apt` can read this public signing key. No mirror changes, signature bypass, SSH/update-policy changes or other profile operations are introduced. The standalone OMV guide has the same command.
+
+**New test gates:**
+
+- [ ] Build a fresh ISO with the keyring-permission change; test in a disposable VM.
+- [ ] Confirm OMV public keyring has mode `0644`, that `apt-get update` completes with the original official signed source, and that the package-origin check and reviewed OMV transaction can proceed.
+- [ ] Confirm package signature verification remains enabled; do not add `trusted=yes`, insecure APT flags or redundant mirror configurations.
+- [ ] Validate the full installer, OMV post-install database and hosts initialization, Docker and first-boot ZRAM behavior separately. **None is yet established by this VM run.**
+
 ## Latest VM installer evidence and diagnostic UI fix — 2026-11-16
 
 **Observed in the most recent graphical VM screenshots:**
