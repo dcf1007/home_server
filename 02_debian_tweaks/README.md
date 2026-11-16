@@ -127,7 +127,7 @@ Recheck the effective configuration using `apt-config dump`. Confirm automatic i
 
 **Important:** choosing manual-only updates means **security updates will not install themselves**. Maintain a routine to run `sudo apt update` and review `sudo apt upgrade`. These operations remain available.
 
-The custom netinst implementation makes this same check **inside the installed target** and creates an override **only if the package exists and automatic installations are enabled**. OMV later also has its **own independent update/notification policy**.
+The custom netinst implementation makes this same check **inside the installed target** and creates an override **only if the package exists and automatic installations are enabled**. OMV's own update and notification settings remain user-controlled; the OMV CDD profile does not change them.
 
 ## Step 5 — Reboot and confirm the changes
 
