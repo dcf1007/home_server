@@ -6,9 +6,7 @@
 
 ## Step 1 — Add the Backports source
 
-Open a new repository configuration file:
-
-Opening the new APT source file in a text editor Its purpose is to tell Debian where Backports packages come from and which Debian signing key to trust; editing the file alone installs nothing.
+This file tells Debian where Backports packages come from and which Debian signing key to trust. Editing it alone installs nothing.
 
 Open `/etc/apt/sources.list.d/debian-backports.sources` in a text editor with administrator privileges; review the existing content, make the described change and save the file.
 
