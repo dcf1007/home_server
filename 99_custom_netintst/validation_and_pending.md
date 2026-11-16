@@ -4,7 +4,7 @@
 
 Before making an ISO, reproduce the **file contents from the chapters**, on a scratch checkout. Use the complete file listings, not shortened code samples.
 
-1. Follow [01 — Build](01_custom_cdd_preparation.md), [00 — Helpers](00_profile_construction.md), [05 — Dispatcher](05_base_installation.md) and each selected feature page. Keep the entire current seven-profile set when reconstructing the shipped configuration.
+1. Follow [01 — Build](build_project.md), [00 — Helpers](profile_construction.md), [05 — Dispatcher](installer_framework.md) and each selected feature page. Keep the entire current seven-profile set when reconstructing the shipped configuration.
 2. For each created file, run `git hash-object <path>` from `my-cdd`. It **reads the file only** and prints a Git blob identifier. Compare that output with the expected blob SHA printed above the file's full listing. A mismatch means the copy differs.
 3. Confirm `build.sh`, `installer/profile-confirm.sh`, `installer/run-selected.sh`, `installer/15my-cdd-status` and every `profiles/*.postinst` have executable permissions. The imported feature modules should remain **sourced** files.
 4. Confirm every path in each `profiles/*.extra` exists before running the build. A module is not executed merely because it was staged.
@@ -12,7 +12,7 @@ Before making an ISO, reproduce the **file contents from the chapters**, on a sc
 
 This checks reproducibility of **source bytes**. It does not validate installer logic, which is what the following steps cover.
 
-This is a **developer's testing procedure** for the source you built in [01](01_custom_cdd_preparation.md), [05](05_base_installation.md), [00](00_profile_construction.md) and the individual profile-construction chapters.
+This is a **developer's testing procedure** for the source you built in [01](build_project.md), [05](installer_framework.md), [00](profile_construction.md) and the individual profile-construction chapters.
 
 A shell syntax check and a successful ISO build are **not** equivalent to testing the installer runtime.
 
@@ -99,4 +99,4 @@ Use only a **disposable GPT virtual disk**. Test all of the following before usi
 
 **Open as of 2026-11-16:** the current native-udeb ZRAM conversion, complete GUI/target APT flow and first-boot writeback have **not** been validated end to end. Do not use the new ISO on important physical disks until these tests pass.
 
-Historical design and earlier failure logs remain in [history/08_validation_and_pending.md](history/08_validation_and_pending.md).
+Historical design and earlier failure logs remain in [history/validation_and_pending.md](history/validation_and_pending.md).

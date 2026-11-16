@@ -2,7 +2,7 @@
 
 **Outcome:** implement the part of the custom ISO that loads the real Simple-CDD checkboxes, asks for explicit approval, runs **only selected** profile functions and blocks misleading “Installation complete” messages when a feature fails.
 
-**Before this chapter:** create the Simple-CDD project from [01](01_custom_cdd_preparation.md) and shared helpers from [00](00_profile_construction.md). This framework still needs the actual feature modules and their `.extra` manifests before it can build a complete image.
+**Before this chapter:** create the Simple-CDD project from [01](build_project.md) and shared helpers from [00](profile_construction.md). This framework still needs the actual feature modules and their `.extra` manifests before it can build a complete image.
 
 ## Step 1 — Make the source directories
 
@@ -69,7 +69,7 @@ sh -n installer/15my-cdd-status
 
 This checks the finish-install guard's syntax.
 
-The complete files depend on [00](00_profile_construction.md) and the seven feature functions. **Don't test a partial copy by executing it on your build host.** To test behavior, assemble the feature files, build the ISO and use a disposable VM.
+The complete files depend on [00](profile_construction.md) and the seven feature functions. **Don't test a partial copy by executing it on your build host.** To test behavior, assemble the feature files, build the ISO and use a disposable VM.
 
 ## Step 6 — Understand the required integration
 
@@ -80,7 +80,7 @@ The complete files depend on [00](00_profile_construction.md) and the seven feat
 5. Each handler completes **before** its marker is created; the corresponding `.postinst` checks that marker only.
 6. Finish-install's status guard refuses a normal-success screen if the overall status or any selected marker is missing.
 
-**Next:** implement each feature from its chapter, run [08 — Build/VM verification](08_validation_and_pending.md), and **test approvals and failure paths before production use**.
+**Next:** implement each feature from its chapter, run [08 — Build/VM verification](validation_and_pending.md), and **test approvals and failure paths before production use**.
 
 ## Complete, copyable source files
 

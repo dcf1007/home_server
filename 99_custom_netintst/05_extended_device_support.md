@@ -1,10 +1,10 @@
 # 10 — Recreate the firmware and CPU microcode installer profile
 
-**Outcome:** assemble the complete **selected-only firmware source** that handles a broad inventory, both CPU vendors' microcode packages, reviewed Backports fallbacks, individual omissions and **the package vendors' original license questions**. The normal Debian version is simpler: [04 — Firmware](../04_extended_device_support/README.md).
+**Outcome:** assemble the complete **selected-only firmware source** that handles a broad inventory, both CPU vendors' microcode packages, reviewed Backports fallbacks, individual omissions and **the package vendors' original license questions**. The normal Debian version is simpler: [04 — Firmware](../05_extended_device_support/README.md).
 
 ## Step 1 — Prepare the shared installer framework
 
-Complete [01 — ISO build](01_custom_cdd_preparation.md), [00 — Common helpers](00_profile_construction.md) and [05 — Early/late dispatcher](05_base_installation.md) first. The profile cannot run independently because it requires `/target`, target APT, `capture`, native Debconf and the installed target's separate Debconf database.
+Complete [01 — ISO build](build_project.md), [00 — Common helpers](profile_construction.md) and [05 — Early/late dispatcher](installer_framework.md) first. The profile cannot run independently because it requires `/target`, target APT, `capture`, native Debconf and the installed target's separate Debconf database.
 
 Work inside `99_custom_netintst/my-cdd/` in a **test branch or scratch copy**. Do not run its source module as a shell script on a normal NAS.
 
@@ -361,7 +361,7 @@ profile_firmware() {
 <summary><strong>Complete scripts/firmware-candidates.txt</strong> (41 lines; original blob <code>bf28f4a9b91413c1d1f585c2fc368dc5b797d38c</code>)</summary>
 
 ````text
-# Provisional Debian 13 binary firmware candidates from 10_extended_device_support.md.
+# Provisional Debian 13 binary firmware candidates from 05_extended_device_support.md.
 # These are NOT auto-installed; resolve the full set at install time.
 # With Backports explicitly selected, prefer viable targeted Backports versions.
 # Each unavailable/conflicting package requires its own omission consent.

@@ -4,7 +4,7 @@
 
 ## Step 1 — Prepare the shared installer code
 
-Complete [01 — Simple-CDD build](01_custom_cdd_preparation.md), [00 — Common helpers](00_profile_construction.md) and [05 — Selection and dispatcher](05_base_installation.md), then work inside `99_custom_netintst/my-cdd/` on a test branch or scratch copy.
+Complete [01 — Simple-CDD build](build_project.md), [00 — Common helpers](profile_construction.md) and [05 — Selection and dispatcher](installer_framework.md), then work inside `99_custom_netintst/my-cdd/` on a test branch or scratch copy.
 
 The optional profile ID is `openmediavault`. Its source file is `installer/profile-omv.sh`, which defines `profile_omv()`. The existing dispatcher maps the ID to that function **only when selected**.
 

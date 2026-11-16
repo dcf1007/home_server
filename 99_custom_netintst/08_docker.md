@@ -4,7 +4,7 @@
 
 ## Step 1 — Start with the common installer framework
 
-Complete [01 — Build project](01_custom_cdd_preparation.md), [00 — Shared profile helpers](00_profile_construction.md) and [05 — Installer hooks](05_base_installation.md), then work inside `99_custom_netintst/my-cdd/` on a **test branch or scratch copy**. This profile uses `in-target` and native Debconf; it is not a general Debian installation script.
+Complete [01 — Build project](build_project.md), [00 — Shared profile helpers](profile_construction.md) and [05 — Installer hooks](installer_framework.md), then work inside `99_custom_netintst/my-cdd/` on a **test branch or scratch copy**. This profile uses `in-target` and native Debconf; it is not a general Debian installation script.
 
 The profile ID is `docker`, its file is `installer/profile-docker.sh`, and its dispatcher function is `profile_docker()`. The first is the checkbox name; the last is the code that actually runs.
 
@@ -93,7 +93,7 @@ When the shared framework and other required profile manifests are complete, run
 
 ## Complete source listings
 
-Each expandable section below is the exact complete source file to paste into its matching path. No missing helper functions are hidden inside a short excerpt; **shared** helpers are in [00](00_profile_construction.md) and [05](05_base_installation.md).
+Each expandable section below is the exact complete source file to paste into its matching path. No missing helper functions are hidden inside a short excerpt; **shared** helpers are in [00](profile_construction.md) and [05](installer_framework.md).
 <details>
 <summary><strong>profiles/docker.description</strong> — complete file; 1 lines; Git blob <code>925cd79edbfa31c2475ff40380291cd394226372</code></summary>
 

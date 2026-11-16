@@ -1,10 +1,10 @@
 # 09 — Recreate the Linux 7.x kernel installer profile
 
-**Outcome:** reconstruct the **entire** installer-side Linux 7.x profile and understand which part is responsible for package-source selection, real APT changes and verification. The normal Debian how-to is [03 — Linux 7.x](../03_kernel_7x/README.md).
+**Outcome:** reconstruct the **entire** installer-side Linux 7.x profile and understand which part is responsible for package-source selection, real APT changes and verification. The normal Debian how-to is [03 — Linux 7.x](../04_kernel_7x/README.md).
 
 ## Before you start
 
-Build the common Simple-CDD project in [01](01_custom_cdd_preparation.md), shared code in [00](00_profile_construction.md) and dispatcher/selection UI in [05](05_base_installation.md). This feature cannot run without that framework. Work from the directory `99_custom_netintst/my-cdd/` on a test branch or scratch copy.
+Build the common Simple-CDD project in [01](build_project.md), shared code in [00](profile_construction.md) and dispatcher/selection UI in [05](installer_framework.md). This feature cannot run without that framework. Work from the directory `99_custom_netintst/my-cdd/` on a test branch or scratch copy.
 
 ## Step 1 — Identify your four files
 
