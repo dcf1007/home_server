@@ -1,66 +1,153 @@
-# 06 — Optional Debian system tweaks
+# 06 — Apply optional Debian tweaks
 
-This chapter contains **only changes beyond Debian's normal settings**. It is independent of Backports, Linux 7.x, firmware, ZRAM, OMV and Docker. Review each change on the installed system; don't apply it automatically to every Debian installation.
+These are **deliberate changes to Debian's defaults**, not necessary steps for every server. You can apply them independently of Backports, ZRAM, OMV and Docker.
 
-## Boot messages and manual filesystem repairs
+**Before starting:** you have a working administrator account and console or SSH access. Keep a recovery route available when changing boot or SSH settings.
 
-Edit `/etc/default/grub` with `sudoedit /etc/default/grub`: in the existing `GRUB_CMDLINE_LINUX_DEFAULT` value, **remove `quiet`**, preserve other boot arguments, and add **`fsck.repair=no`** if absent. Avoid enabling extra debug output.
+## Step 1 — Show boot messages and disable automatic filesystem repairs
+
+Open GRUB's configuration:
+
+~~~sh
+sudo nano /etc/default/grub
+~~~
+
+Find the line beginning with `GRUB_CMDLINE_LINUX_DEFAULT=`.
+
+1. Remove the word `quiet`, if present.
+2. Add `fsck.repair=no` inside the existing quotation marks.
+3. Leave all other kernel parameters intact (including `zswap.enabled=0` if you configured [ZRAM](../05_zram_writeback/README.md)).
+
+Save the file, then update GRUB:
 
 ~~~sh
 sudo update-grub
+~~~
+
+The new settings take effect after the next reboot. **Manual-only filesystem repair means the system may refuse to boot normally when the filesystem is damaged; plan for local recovery access.**
+
+## Step 2 — Set the root filesystem mount options
+
+First look at the root filesystem:
+
+~~~sh
+findmnt /
+~~~
+
+Proceed only if the root filesystem is **ext4**. If it is another filesystem, skip this step.
+
+Back up the mount table:
+
+~~~sh
+sudo cp -a /etc/fstab /etc/fstab.before-tweaks
+~~~
+
+Open it:
+
+~~~sh
+sudo nano /etc/fstab
+~~~
+
+Find the line whose mount point is `/` and filesystem type is `ext4`. In its comma-separated options field:
+
+1. Add `noatime` (reduces access-time writes).
+2. Add `errors=panic` (causes a kernel panic on detected ext4 errors).
+3. Remove conflicting `atime` or `errors=...` options **from that root entry only**.
+4. Preserve other options and every other mount.
+
+Save the file. Do not change the root filesystem's device or UUID.
+
+## Step 3 — Deny root login over SSH
+
+Skip this step if you did **not** install OpenSSH. Make sure you can already log in remotely using a normal administrator account.
+
+Create the SSH configuration directory if necessary:
+
+~~~sh
+sudo mkdir -p /etc/ssh/sshd_config.d
+~~~
+
+Open a separate configuration file:
+
+~~~sh
+sudo nano /etc/ssh/sshd_config.d/01-home-server-root.conf
+~~~
+
+Put **one line** in it:
+
+~~~text
+PermitRootLogin no
+~~~
+
+Save and check for configuration errors:
+
+~~~sh
+sudo /usr/sbin/sshd -t
+~~~
+
+If the command reports an error, fix it **before** reloading SSH.
+
+Show the effective SSH settings:
+
+~~~sh
+sudo /usr/sbin/sshd -T
+~~~
+
+Find `permitrootlogin no`. If another rule overrides it, investigate before moving on.
+
+Finally, reload SSH:
+
+~~~sh
+sudo systemctl reload ssh
+~~~
+
+Open a **second** SSH login as your normal administrator to verify you will not be locked out.
+
+## Step 4 — Keep package updates manual
+
+Look at the current APT settings:
+
+~~~sh
+apt-config dump
+~~~
+
+If automatic upgrades and periodic package-list refreshes are already disabled, no new file is needed.
+
+Otherwise, edit a dedicated APT configuration file:
+
+~~~sh
+sudo nano /etc/apt/apt.conf.d/99-home-server-manual-updates
+~~~
+
+Paste these **file contents**:
+
+~~~text
+APT::Periodic::Update-Package-Lists "0";
+APT::Periodic::Unattended-Upgrade "0";
+~~~
+
+Save, then check `apt-config dump` again. This deliberately disables automatic updates, **including security upgrades**. Remember to run `sudo apt update` and `sudo apt upgrade` yourself regularly.
+
+## Step 5 — Reboot and check
+
+~~~sh
+sudo reboot
+~~~
+
+Then verify the boot parameters:
+
+~~~sh
 cat /proc/cmdline
 ~~~
 
-The `cat /proc/cmdline` result reflects the **currently booted** command line and must be checked after a reboot.
+You should see `fsck.repair=no` and no `quiet` parameter.
 
-## Ext4 root mount options
-
-Inspect the actual root filesystem and options:
+Check the actual root mount options:
 
 ~~~sh
-findmnt -no SOURCE,FSTYPE,OPTIONS /
-grep -v '^#' /etc/fstab
+findmnt /
 ~~~
 
-**Only if root is ext4**, edit its existing `/` entry in `/etc/fstab` with `sudoedit /etc/fstab`. Add `noatime,errors=panic` to the *existing* comma-separated mount options without removing unrelated options, and remove conflicting `atime`/`relatime` or previous `errors=...` values. Do not alter other mounts. Keep a backup before editing (`sudo cp -a /etc/fstab /etc/fstab.before-tweaks`). Reboot and verify `findmnt -no OPTIONS /`.
+When the root filesystem is ext4, look for `noatime` and `errors=panic`.
 
-The intent is **manual-only repairs**: `fsck.repair=no` prevents automatic filesystem repair. This is operational policy, not a universally recommended default.
-
-## Deny root SSH, if SSH is installed
-
-Keep an existing non-root SSH/sudo recovery account working before tightening the policy.
-
-~~~sh
-if command -v sshd >/dev/null 2>&1 || test -x /usr/sbin/sshd; then
-    sudo install -d /etc/ssh/sshd_config.d
-    printf 'PermitRootLogin no\n' |
-        sudo tee /etc/ssh/sshd_config.d/01-home-server-root.conf >/dev/null
-    sudo /usr/sbin/sshd -t
-    sudo /usr/sbin/sshd -T | grep -i '^permitrootlogin '
-    sudo systemctl reload ssh
-fi
-~~~
-
-Require the effective value `permitrootlogin no`; if a later `Match` or other config changes it, investigate before claiming enforcement.
-
-## Manual-only APT updates
-
-Check the effective schedule first; do not create redundant settings when automatic upgrades are already off:
-
-~~~sh
-apt-config dump | grep -E 'APT::Periodic|Unattended' || true
-systemctl list-timers --all | grep -E 'apt-daily|unattended' || true
-~~~
-
-If unattended upgrades or periodic package-list updates are active, turn them off through a dedicated override:
-
-~~~sh
-sudo tee /etc/apt/apt.conf.d/99-home-server-manual-updates >/dev/null <<'EOF'
-APT::Periodic::Update-Package-Lists "0";
-APT::Periodic::Unattended-Upgrade "0";
-EOF
-~~~
-
-This does not block deliberately executed `apt-get update` or package upgrades. Verify `apt-config dump` again. Do not impose an unattended reboot policy.
-
-**Validation:** after reboot, check the effective GRUB arguments, ext4 root mount, `sshd -T`, APT settings and that the system still offers a working recovery login.
+**Done when:** only the changes you deliberately selected are active, SSH administration still works and you have a working recovery route.

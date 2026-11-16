@@ -1,129 +1,282 @@
-# 05 — ZSTD ZRAM swap with raw-partition writeback
+# 05 — Set up ZSTD ZRAM with SSD writeback
 
-**Prerequisites:** a working Debian 13 server with a boot-tested **Linux 7.x kernel** (see [03](../03_kernel_7x/README.md)), a usable local root recovery password and one **explicitly selected GPT partition** to dedicate to backing. This is **destructive to that partition**. Do not run it against your root disk, a mounted filesystem, an in-use swap device, LVM, RAID or another system's data.
+**What this does:** creates compressed swap in RAM (`/dev/zram0`) and gives it a dedicated disk partition for writing older pages out when needed. The physical partition is **not** mounted or used as ordinary swap.
 
-Unlike [custom Debian Installer](../99_custom_netintst/03_zram_writeback.md), an installed Debian system already has the full `lsblk`, `swapon`, `wipefs`, `sgdisk` and systemd tools. No udebs, `in-target` or low-level `dd` workaround is needed.
+**Important:** This is the project's experimental ZRAM writeback design. Its actual Linux 7.x compatibility, monitor behavior and emergency recovery still need a **disposable VM test**. Do not use the first attempt on a disk containing important data.
 
-## 1. Inspect and select exactly one partition
+Before starting, complete [03 — Linux 7.x](../03_kernel_7x/README.md) and make sure you have a working **local root recovery password**. You need a **separate GPT partition** that you are willing to dedicate completely to ZRAM. The example size is 16 GiB, but it is not fixed.
+
+## Step 1 — Install the ordinary Debian tools
 
 ~~~sh
-sudo apt-get update
-sudo apt-get install gdisk systemd-zram-generator
-uname -r
-sudo passwd -S root
+sudo apt update
+~~~
+
+~~~sh
+sudo apt install gdisk systemd-zram-generator
+~~~
+
+Unlike the custom installer, a normal Debian system already has `lsblk`, `wipefs` and `swapon`. There is no need for udebs, `in-target` or a custom `dd` command.
+
+## Step 2 — Identify the backing partition
+
+~~~sh
 lsblk -o NAME,PATH,TYPE,SIZE,FSTYPE,PARTTYPE,PARTLABEL,PARTUUID,MOUNTPOINTS
-sudo swapon --show
-findmnt -no SOURCE,FSTYPE,OPTIONS /
 ~~~
 
-The example design suggested **16 GiB** of backing, but this is not a hard requirement. If the chosen backing is currently active swap, inspect `free -h` and `swapon --show`; run `sudo swapoff <exact-partition>` **only when sufficient RAM is available and you have approved deactivation**. Recheck that this *exact* device is absent from `swapon --show`. Do not use `swapoff -a`.
+Read the output carefully. Identify **one partition**, not a whole disk.
 
-From a regular Bash shell, enter the repository's `05_zram_writeback` directory first. Keep that same shell for the later `PART`/`UUID` variables. Replace the prompt value with the **partition path** you inspected—**never the whole disk**:
+For example, if a partition is named `/dev/nvme0n1p3`:
 
-~~~bash
-cd /path/to/home_server/05_zram_writeback  # change to your actual clone path
-read -r -p 'Confirmed backing PARTITION path (e.g. /dev/nvme0n1p3): ' PART
-PART=$(readlink -f -- "$PART")
-test -b "$PART" && test "$(lsblk -dnro TYPE "$PART")" = part || exit 1
-DISK="/dev/$(lsblk -dnro PKNAME "$PART")"
-NUM=$(lsblk -dnro PARTN "$PART")
-test -b "$DISK" && test "$(lsblk -dnro PTTYPE "$DISK")" = gpt || exit 1
-lsblk -o NAME,PATH,TYPE,SIZE,FSTYPE,PARTTYPE,PARTUUID,MOUNTPOINTS "$DISK"
-sudo wipefs "$PART"
+- Its **partition device** is `/dev/nvme0n1p3`.
+- Its **parent disk** is `/dev/nvme0n1`.
+- Its **partition number** is `3`.
+
+**Those names are examples only. Your system will be different.** Never copy the example disk name without checking the actual output. The target must be a GPT partition, not your root filesystem, an EFI partition, a mounted filesystem, an LVM/RAID member or another system's data.
+
+Check which swap devices are active:
+
+~~~sh
 sudo swapon --show
-findmnt -S "$PART" || true
 ~~~
 
-Verify manually that `PART` really is the correct GPT swap or previously dedicated raw backing, has **no mounts or block-device holders**, and is inactive as conventional swap. Do not proceed merely because the shell tests succeeded. **Check `lsblk -no PKNAME,PARTN "$PART"` again before a write.**
+If your chosen partition appears here, check current RAM and swap use:
 
-## 2. Convert only the approved partition
+~~~sh
+free -h
+~~~
 
-First remove the chosen partition's conventional-swap entry (by UUID, PARTUUID or exact device) from `/etc/fstab` using a text editor, leaving all unrelated entries intact. Keep a copy of the original file for recovery:
+Only if there is sufficient available RAM **and you approve deactivating this exact swap partition**, turn it off. Replace the example with your selected partition:
+
+~~~sh
+sudo swapoff /dev/YOUR_PARTITION
+~~~
+
+Run `sudo swapon --show` again. **Do not continue if the partition is still active.** Never use `swapoff -a` for this task.
+
+Also confirm the partition has **no mount point or device-mapper/RAID holders** in the `lsblk` device tree. If its purpose is uncertain, stop here.
+
+## Step 3 — Remove only its old swap entry
+
+Back up the existing mount configuration:
 
 ~~~sh
 sudo cp -a /etc/fstab /etc/fstab.before-zram
-sudoedit /etc/fstab
 ~~~
 
-Make a final explicit decision to destroy the old contents/signatures on **only `$PART`**. On the same root shell:
-
-~~~bash
-# Review detected signatures and precise scope before confirming:
-sudo wipefs --no-act "$PART"
-# After explicit approval:
-sudo wipefs --all "$PART"
-sudo sgdisk --typecode="$NUM":8300 --change-name="$NUM":zram-writeback "$DISK"
-sudo partprobe "$DISK"
-sudo udevadm settle
-lsblk -no PARTTYPE,PARTLABEL,PARTUUID,FSTYPE "$PART"
-sudo blkid -p "$PART" || true
-swapon --show
-~~~
-
-Here `8300` is the standard Linux filesystem **GPT type code**, **not an instruction to format a filesystem**. `sgdisk` modifies only the chosen partition's GPT entry; `wipefs` operates only on `$PART`, removing detected signatures. Do **not** run `sgdisk --zap-all`, `mklabel`, `mkfs` or `mkswap` on backing. If `partprobe` fails, **stop** and resolve the device reread before proceeding.
-
-Confirm PARTLABEL `zram-writeback`, type GUID `0FC63DAF-8483-4772-8E79-3D69D8477DE4`, no filesystem/swap signature, and no conventional swap activity. The **actual PARTUUID** is read dynamically:
-
-~~~bash
-UUID=$(lsblk -dnro PARTUUID "$PART")
-test -n "$UUID" || exit 1
-printf 'Confirmed ZRAM backing PARTUUID: %s\n' "$UUID"
-~~~
-
-## 3. Install the existing ZRAM configuration and monitor
-
-From the same repository directory and shell, copy the source assets. **They are the same planned generator/pressure-monitor assets as the custom installer; first-boot behavior is not yet established.**
+Open it:
 
 ~~~sh
-sudo install -d -m 755 /etc/systemd/system/systemd-zram-setup@zram0.service.d /etc/sysctl.d /usr/local/sbin
-sudo install -m 644 files/10-compressed-writeback.conf /etc/systemd/system/systemd-zram-setup@zram0.service.d/
-sudo install -m 644 files/zram-pressure.service /etc/systemd/system/
-sudo install -m 755 files/zram-pressure.sh /usr/local/sbin/zram-pressure.sh
-sudo install -m 644 files/90-zram-swappiness.conf /etc/sysctl.d/
+sudo nano /etc/fstab
 ~~~
 
-Set `UUID` in that shell to the **verified current** PARTUUID from step 2 (do not copy a sample UUID). Generate the config:
+Find the **one entry for your selected swap partition**. Its source may be shown as a filesystem UUID rather than a device name. Compare that UUID with the selected partition in `lsblk` before removing the entry.
 
-~~~bash
-test -n "$UUID" || { echo 'Set the confirmed PARTUUID first' >&2; exit 1; }
-sed "s/YOUR_PARTUUID/$UUID/g" files/zram-generator.conf.template |
-    sudo tee /etc/systemd/zram-generator.conf >/dev/null
-sudo grep -F "$UUID" /etc/systemd/zram-generator.conf
-~~~
+Remove or comment out **only that swap entry**. Leave root, EFI and all other mounts unchanged. Save the file.
 
-For the project's fail-closed initialization policy (distinct from monitor restarts), add:
+If another tool or service separately activates the same swap partition, disable that activation too. This disk partition must never be activated as ordinary swap again.
+
+## Step 4 — Prepare the chosen partition
+
+**This step permanently makes the selected partition unsuitable for its old purpose.** Confirm the partition name, parent disk and number one final time.
+
+You can see the current signatures without changing anything:
 
 ~~~sh
-sudo tee /etc/systemd/system/systemd-zram-setup@zram0.service.d/20-failure-emergency.conf >/dev/null <<'EOF'
+sudo wipefs /dev/YOUR_PARTITION
+~~~
+
+Replace `YOUR_PARTITION` with the real name. If you see a filesystem you did **not** intend to destroy, stop.
+
+When you have explicitly approved destroying the selected partition's previous contents, erase its signatures:
+
+~~~sh
+sudo wipefs --all /dev/YOUR_PARTITION
+~~~
+
+Now set its GPT partition type to **Linux data (8300)** and give it the name **zram-writeback**:
+
+~~~sh
+sudo sgdisk --typecode=YOUR_NUMBER:8300 --change-name=YOUR_NUMBER:zram-writeback /dev/YOUR_DISK
+~~~
+
+Replace **both** `YOUR_NUMBER` entries with the selected partition number and `YOUR_DISK` with its parent disk, as identified in Step 2.
+
+This changes only that partition's GPT type and name. It does **not** format a filesystem. Do not use `sgdisk --zap-all`, `mklabel`, `mkfs` or `mkswap` here. If the partition table cannot be refreshed because the disk is in use, reboot and recheck the partition before proceeding.
+
+## Step 5 — Record the real PARTUUID
+
+~~~sh
+lsblk -o NAME,PATH,SIZE,FSTYPE,PARTTYPE,PARTLABEL,PARTUUID,MOUNTPOINTS
+~~~
+
+Check that the chosen partition now:
+
+- Has GPT type `0FC63DAF-8483-4772-8E79-3D69D8477DE4` (type code **8300**).
+- Has partition name `zram-writeback`.
+- Has **no filesystem/swap type** and is **not mounted**.
+- Is absent from `sudo swapon --show`.
+
+Copy its **PARTUUID** somewhere safe temporarily. That is the real identifier to use below. **Do not copy the example PARTUUID of another machine.**
+
+## Step 6 — Copy the ZRAM configuration files
+
+If you cloned this repository into your home directory, open the ZRAM chapter folder:
+
+~~~sh
+cd ~/home_server/05_zram_writeback
+~~~
+
+If you cloned it elsewhere, use your actual directory.
+
+Copy the project's generator configuration:
+
+~~~sh
+sudo cp files/zram-generator.conf.template /etc/systemd/zram-generator.conf
+~~~
+
+Edit the copy:
+
+~~~sh
+sudo nano /etc/systemd/zram-generator.conf
+~~~
+
+Replace **both occurrences** of `YOUR_PARTUUID` with the PARTUUID you recorded in Step 5. Leave the rest of the file unchanged. This template describes the project's intended ZSTD compression, RAM limits and backing device.
+
+Install the pressure-monitor and swappiness files:
+
+~~~sh
+sudo cp files/90-zram-swappiness.conf /etc/sysctl.d/
+~~~
+
+~~~sh
+sudo cp files/zram-pressure.service /etc/systemd/system/
+~~~
+
+~~~sh
+sudo cp files/zram-pressure.sh /usr/local/sbin/
+~~~
+
+~~~sh
+sudo chmod 755 /usr/local/sbin/zram-pressure.sh
+~~~
+
+Create the service override directory:
+
+~~~sh
+sudo mkdir -p /etc/systemd/system/systemd-zram-setup@zram0.service.d
+~~~
+
+Copy the writeback setting:
+
+~~~sh
+sudo cp files/10-compressed-writeback.conf /etc/systemd/system/systemd-zram-setup@zram0.service.d/
+~~~
+
+## Step 7 — Configure the project's failure behavior
+
+The project's policy is to attempt **emergency mode if ZRAM initialization fails**, but to **restart** the pressure monitor if only the monitor fails.
+
+Open a service override file:
+
+~~~sh
+sudo nano /etc/systemd/system/systemd-zram-setup@zram0.service.d/20-failure-emergency.conf
+~~~
+
+Paste the following **file contents** and save:
+
+~~~ini
 [Unit]
 OnFailure=emergency.target
 OnFailureJobMode=replace-irreversibly
-EOF
 ~~~
 
-Ensure `zswap.enabled=0` is present in the existing `GRUB_CMDLINE_LINUX_DEFAULT` in `/etc/default/grub` (preserve its other parameters), then `sudo update-grub`. Enable the monitor with `sudo systemctl daemon-reload` and `sudo systemctl enable zram-pressure.service`.
+This is an intended policy, **not a verified emergency-mode guarantee**. Test the actual behavior in a VM before relying on it.
 
-## 4. Reboot and validate, before production use
+Open GRUB's existing configuration:
+
+~~~sh
+sudo nano /etc/default/grub
+~~~
+
+Find `GRUB_CMDLINE_LINUX_DEFAULT` and add `zswap.enabled=0` **inside the existing quotation marks**, preserving other options. That disables the separate kernel zswap feature so it does not compete with this ZRAM design.
+
+~~~sh
+sudo update-grub
+~~~
+
+## Step 8 — Enable the monitor and reboot
+
+~~~sh
+sudo systemctl daemon-reload
+~~~
+
+~~~sh
+sudo systemctl enable zram-pressure.service
+~~~
 
 ~~~sh
 sudo reboot
 ~~~
 
-After the system boots on the chosen kernel:
+## Step 9 — Verify the running system
+
+After reboot:
 
 ~~~sh
 uname -r
-swapon --show
-lsblk -o NAME,TYPE,FSTYPE,PARTTYPE,PARTLABEL,PARTUUID,MOUNTPOINTS
-systemctl status 'systemd-zram-setup@zram0.service' zram-pressure.service
-cat /sys/block/zram0/comp_algorithm
-cat /sys/block/zram0/compressed_writeback
-cat /sys/block/zram0/writeback_limit_enable
-cat /sys/block/zram0/bd_stat
-sysctl vm.swappiness
-journalctl -b -u 'systemd-zram-setup@zram0.service' -u zram-pressure.service
 ~~~
 
-Expected: `/dev/zram0` is active swap, the physical backing is **not** independently active as swap or mounted, the generator uses the correct PARTUUID, compression/writeback sysfs features are present, and `vm.swappiness=100`. The ZRAM setup's emergency behavior and monitor's restart-on-failure behavior must be tested on a disposable system before relying on them.
+The running kernel must still be 7.x.
 
-**References:** [Linux kernel ZRAM documentation](https://www.kernel.org/doc/html/latest/admin-guide/blockdev/zram.html) · [zram-generator config](https://github.com/systemd/zram-generator/blob/main/man/zram-generator.conf.md) · [wipefs](https://manpages.debian.org/trixie/util-linux/wipefs.8.en.html) · [sgdisk](https://manpages.debian.org/trixie/gdisk/sgdisk.8.en.html).
+~~~sh
+swapon --show
+~~~
+
+You should see `/dev/zram0`, **not** the original disk partition as ordinary swap.
+
+~~~sh
+zramctl
+~~~
+
+Check that ZRAM is using ZSTD compression.
+
+~~~sh
+sudo systemctl status systemd-zram-setup@zram0.service
+~~~
+
+~~~sh
+sudo systemctl status zram-pressure.service
+~~~
+
+~~~sh
+cat /sys/block/zram0/compressed_writeback
+~~~
+
+For the intended compressed writeback design, the setting should show **1**.
+
+~~~sh
+cat /sys/block/zram0/bd_stat
+~~~
+
+This shows backing-device activity counters. It is normal for them to be zero immediately after startup.
+
+~~~sh
+sysctl vm.swappiness
+~~~
+
+The expected value for this optional ZRAM profile is **100**.
+
+If anything fails, inspect the readable service logs:
+
+~~~sh
+sudo journalctl -b -u systemd-zram-setup@zram0.service
+~~~
+
+~~~sh
+sudo journalctl -b -u zram-pressure.service
+~~~
+
+**Do not declare this production-ready solely because the units started.** Confirm actual writeback under controlled pressure and test the emergency/restart behavior on a disposable system.
+
+**References:** [Kernel ZRAM documentation](https://www.kernel.org/doc/html/latest/admin-guide/blockdev/zram.html) · [zram-generator settings](https://github.com/systemd/zram-generator/blob/main/man/zram-generator.conf.md).

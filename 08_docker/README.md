@@ -1,45 +1,131 @@
-# 08 — Official Docker Engine and Compose plugin (optional)
+# 08 — Install Docker Engine and Compose (optional)
 
-Applies independently to Debian 13. **Docker is not an OpenMediaVault component here.** Installing OMV does not require Docker and vice versa. Do not install OMV-Extras or the `openmediavault-compose` plugin as part of this chapter.
+**What this does:** installs Docker Engine, Docker Compose and the supporting packages from Docker's **official Debian repository**.
 
-## Use Docker's official Debian repository
+Docker is independent of OpenMediaVault. This guide does not install OMV-Extras, `openmediavault-compose`, containers or additional server services.
+
+## Step 1 — Check for conflicting software
+
+Before installing, check whether Debian's `docker.io`, `docker-compose`, `podman-docker`, `containerd` or `runc` packages are already installed:
 
 ~~~sh
-sudo apt-get update
-sudo apt-get install ca-certificates curl
-sudo install -m 0755 -d /etc/apt/keyrings
+apt list --installed
+~~~
+
+Read the installed package list, or look for those names in your terminal's search function. If you find a conflicting package, follow the [official Docker removal guidance](https://docs.docker.com/engine/install/debian/) **after reviewing any existing containers and data**. Do not remove production data blindly.
+
+## Step 2 — Install the tools needed to add Docker's repository
+
+~~~sh
+sudo apt update
+~~~
+
+~~~sh
+sudo apt install ca-certificates curl
+~~~
+
+Create a place for the official signing key:
+
+~~~sh
+sudo mkdir -p /etc/apt/keyrings
+~~~
+
+Download Docker's signing key:
+
+~~~sh
 sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+~~~
+
+Allow APT to read it:
+
+~~~sh
 sudo chmod a+r /etc/apt/keyrings/docker.asc
-sudo tee /etc/apt/sources.list.d/docker.sources >/dev/null <<EOF
+~~~
+
+## Step 3 — Add Docker's package source
+
+Open a new file:
+
+~~~sh
+sudo nano /etc/apt/sources.list.d/docker.sources
+~~~
+
+Paste these **file contents**:
+
+~~~text
 Types: deb
 URIs: https://download.docker.com/linux/debian
-Suites: $(. /etc/os-release && echo "$VERSION_CODENAME")
+Suites: trixie
 Components: stable
-Architectures: $(dpkg --print-architecture)
+Architectures: amd64
 Signed-By: /etc/apt/keyrings/docker.asc
-EOF
-sudo apt-get update
 ~~~
 
-For this guide, verify that the generated suite is **trixie**. If `docker.io`, `podman-docker`, `docker-compose`, system `containerd` or other conflicting packages are already installed, **review Docker's official conflict-removal instructions first**. Do not remove working containers or data blindly.
+Save with **Ctrl+O**, Enter, then **Ctrl+X**.
+
+This example is specifically for **Debian 13 amd64**, the system used by this project. If you use another Debian release or architecture, consult Docker's documentation instead of copying these values.
+
+## Step 4 — Refresh and install Docker
 
 ~~~sh
-apt-cache policy docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-sudo apt-get -s install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo apt update
 ~~~
 
-After checking that the proposed dependencies, replacements and removals are acceptable:
+If APT reports a signing-key or repository error, stop and correct it.
+
+Check that Docker's official packages are available:
 
 ~~~sh
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-sudo dpkg --audit
+apt policy docker-ce
+~~~
+
+The package origin should be Docker's repository at `download.docker.com`.
+
+Install the complete official package set:
+
+~~~sh
+sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+~~~
+
+APT will show the packages and dependencies it intends to install or remove. Read the summary before accepting.
+
+## Step 5 — Confirm Docker works
+
+~~~sh
 docker --version
-docker compose version
-sudo systemctl status docker containerd
 ~~~
 
-Preserve the official packages' **normal startup behavior**. Do not mask/disable Docker or containerd, create containers, configure storage/Compose stacks, or grant a user the root-equivalent `docker` group automatically.
+~~~sh
+docker compose version
+~~~
 
-**Note:** Docker can change firewall behavior and exposed container ports may bypass some host firewall configurations. Check your network exposure before publishing services.
+Check the service:
 
-References: [Official Docker Engine on Debian](https://docs.docker.com/engine/install/debian/) · [Docker post-installation](https://docs.docker.com/engine/install/linux-postinstall/).
+~~~sh
+sudo systemctl status docker
+~~~
+
+And its container runtime:
+
+~~~sh
+sudo systemctl status containerd
+~~~
+
+The official packages normally manage their own startup. **Do not mask or disable these services** for this project.
+
+You can also run `sudo docker version` to inspect both client and server versions, without creating a container.
+
+## Step 6 — Leave optional Docker configuration for later
+
+This guide deliberately does **not**:
+
+- Add users to the root-equivalent `docker` group.
+- Create containers or Compose projects.
+- Change Docker's daemon, storage or network settings.
+- Install any OMV Docker or Compose integration.
+
+If you later publish container ports, review Docker's [firewall considerations](https://docs.docker.com/engine/install/debian/). Published ports may behave differently from the host firewall rules you expect.
+
+**Done when:** the official Docker packages are installed, the service is running and `docker compose version` works.
+
+**Reference:** [Docker's Debian installation instructions](https://docs.docker.com/engine/install/debian/).
