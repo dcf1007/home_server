@@ -129,7 +129,7 @@ cd ~/home_server/05_zram_writeback
 
 If you cloned it elsewhere, use your actual directory.
 
-Copy the project's generator configuration:
+Copy the project's generator configuration. **If `/etc/systemd/zram-generator.conf` already exists, inspect and back it up first** rather than overwriting another ZRAM setup without review:
 
 ~~~sh
 sudo cp files/zram-generator.conf.template /etc/systemd/zram-generator.conf
