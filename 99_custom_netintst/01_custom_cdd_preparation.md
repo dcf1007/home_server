@@ -13,22 +13,40 @@ sudo apt update
 This downloads the latest Debian package indexes; it installs nothing.
 
 ~~~sh
-sudo apt install git simple-cdd reprepro
+sudo apt install git simple-cdd reprepro nano
 ~~~
 
-This installs the Git client, the Simple-CDD ISO builder and the reprepro repository tool. Read APT's proposed changes before accepting.
+This installs the Git client, the Simple-CDD ISO builder, the reprepro repository tool and the `nano` text editor used below. Read APT's proposed changes before accepting.
 
-If you are learning how the existing project works, clone it first:
+Choose **one** way to obtain a `home_server` working directory:
+
+**Option A — Start from the existing reference project.** Clone it so you can work on one profile while the shared framework and other profiles remain available:
 
 ~~~sh
 git clone https://github.com/dcf1007/home_server.git
 ~~~
 
-This downloads the *existing reference implementation*; it makes no changes to the server installation. You may use a separate scratch copy to recreate the files below.
+This downloads the existing source. It does not install or run any NAS software. Use a separate test branch or working copy for your reconstruction.
+
+**Option B — Rebuild everything from an empty directory.** Make a new source directory (do this **instead of**, not after, cloning it):
+
+~~~sh
+mkdir home_server
+~~~
+
+This creates an empty local folder. If you choose Option B, you must follow **all** base/framework and feature chapters; the shipped `simple-cdd.conf` expects seven optional profiles.
 
 ## Step 2 — Make the source tree
 
-The starting directory for every code listing is `99_custom_netintst/my-cdd/`. Create it inside a clean working checkout if necessary:
+Enter the `home_server` directory created by **whichever option** you selected:
+
+~~~sh
+cd home_server
+~~~
+
+This changes only your terminal's working directory.
+
+Create the source folder inside it:
 
 ~~~sh
 mkdir -p 99_custom_netintst/my-cdd/profiles
@@ -36,11 +54,13 @@ mkdir -p 99_custom_netintst/my-cdd/profiles
 
 This creates the source directories only; it does not start Simple-CDD.
 
+Enter the project's build root:
+
 ~~~sh
 cd 99_custom_netintst/my-cdd
 ~~~
 
-Run this **from the root of your working copy**, not from inside an already nested `my-cdd` directory.
+Run this from the root of the `home_server` checkout, not from inside another `my-cdd` directory.
 
 ## Step 3 — Create these exact source files
 
