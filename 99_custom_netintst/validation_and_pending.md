@@ -92,7 +92,8 @@ Then test:
 - [ ] Kernel chooses an eligible **7.x** image/header pair, keeps a boot fallback and does not auto-enable Backports.
 - [ ] Firmware attempts both microcodes, handles conflicts, shows the **full actual vendor licenses**, and reruns the plan after a declined license.
 - [ ] Debian tweaks affect only selected target GRUB/root ext4/SSH/APT settings.
-- [ ] OMV installs the signed **8.x** package and applies only the intended update/notification states; no OMV-Extras, Compose plugin or Docker integration.
+- [ ] OMV uses only the first official manual-install signed APT repository (`packages.openmediavault.org/public`), checks its package origin, applies the same full-transaction/default-No review pattern as Docker, installs **8.x**, and runs `omv-confdbadm populate` and `omv-salt deploy run hosts`; it makes no custom SSH, group, update, notification, plugin or Docker changes.
+- [ ] Verify OMV's documented `systemd-resolved`/DNS prerequisite before and throughout installation, and verify first-boot network reachability without making unapproved CDD network changes.
 - [ ] Docker installs the five official signed packages without changing vendor service defaults or granting the administrator the Docker group.
 
 ## Step 5 — Test the destructive ZRAM module separately
@@ -116,8 +117,8 @@ Use only a **disposable GPT virtual disk**. Test all of the following before usi
 - [ ] Log files under `/target/var/log/installer` are complete and contain no password secrets.
 - [ ] The installed system boots; `uname -r` is **7.x** when selected, with matching headers and a working Stable fallback.
 - [ ] ZRAM uses `/dev/zram0` instead of the physical partition as normal swap; compression, writeback counters and monitor services are tested under controlled conditions.
-- [ ] A deliberately broken ZRAM setup triggers the intended **emergency mode** and a monitor-only failure restarts without forcing emergency mode.
-- [ ] OMV web/SSH and Docker/containerd startup states reflect normal package behavior if those modules were selected.
+- [ ] The consolidated `override.conf` enables compressed writeback before initialization; a deliberately broken ZRAM setup triggers the intended **emergency mode** and a monitor-only failure restarts without forcing emergency mode.
+- [ ] OMV web/network reachability and Docker/containerd startup (if selected) reflect normal package behavior; SSH policy is separately validated under Debian tweaks.
 
 ## Current release status
 

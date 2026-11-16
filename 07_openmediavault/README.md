@@ -1,175 +1,109 @@
-# 07 — Install and configure OpenMediaVault 8 on Debian 13
+# 07 — Install OpenMediaVault 8 on Debian 13
 
-**Goal:** add the OpenMediaVault (OMV) 8 NAS interface and manually apply the project's update/notification policy. **You make the settings yourself** in OMV's web interface and Debian's own configuration files; there is **no project Python helper to run**.
+**Goal:** install OMV 8 from its official signed APT repository and perform the two initialization steps in the [official OMV installer](https://github.com/openmediavault/openmediavault/blob/master/install.sh). The OMV web interface handles later NAS configuration. This guide does **not** configure SSH, account groups, automatic updates, notifications, plugins or Docker.
 
-**Before starting:** use a minimal Debian 13 (Trixie) installation without a desktop environment or existing web server. Confirm that DNS and networking work and keep physical-console or other recovery access: installing OMV may modify network services. OMV does not automatically add Docker, OMV-Extras, Compose, or NAS shares in this guide.
+**Before starting:** use Debian 13 (Trixie) without a desktop environment, on amd64 or arm64. Follow the numbered [base Debian guide](../01_base_debian/README.md) first. OMV's [manual installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html) explicitly requires working DNS and a configured `systemd-resolved` **before** installing OMV; otherwise the package installation can interrupt name resolution. Verify this prerequisite and keep local console access. OMV's packages may change network services.
 
-## Step 1 — Prepare for the official OMV installer
+## Step 1 — Install repository tools
 
-Refresh the available Debian package information. This retrieves package indexes; it does not upgrade anything:
+Refresh Debian package lists and install the tools used by OMV's official installer. Review the APT transaction before approving it:
+
+~~~sh
+sudo apt update
+sudo apt install gnupg wget
+~~~
+
+## Step 2 — Install the official signing key
+
+Download the key to a local file rather than executing a remote script. The download URL is the one used by the official installer:
+
+~~~sh
+wget -O openmediavault-archive.key https://packages.openmediavault.io/archive.key
+~~~
+
+Inspect the key before installing it. This prints its identity/fingerprint; it is **not** independent verification against a trusted published fingerprint:
+
+~~~sh
+gpg --show-keys --with-fingerprint openmediavault-archive.key
+~~~
+
+Install it as a dedicated APT keyring (review an existing destination before replacing it):
+
+~~~sh
+sudo gpg --dearmor -o /usr/share/keyrings/openmediavault-archive-keyring.gpg openmediavault-archive.key
+~~~
+
+## Step 3 — Add OMV's official signed APT repository
+
+Create the standard APT source directory if necessary:
+
+~~~sh
+sudo mkdir -p /etc/apt/sources.list.d
+~~~
+
+Open `/etc/apt/sources.list.d/openmediavault.list` with administrator privileges in a text editor. Save **only this entry**, the first repository listed in [OMV's manual Debian 13 installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html):
+
+~~~text
+deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] http://packages.openmediavault.org/public/ synchrony main
+~~~
+
+The keyring authenticates the repository's signed APT metadata. No fallback-mirror file, proposed/partner repository, or global APT pin is needed.
+
+## Step 4 — Review and install OMV
+
+Refresh the signed package lists; stop if repository signatures or downloads fail:
 
 ~~~sh
 sudo apt update
 ~~~
 
-Install `wget`, a tool for downloading the vendor's installer. Review APT's package list before approving:
+Simulate the complete OMV transaction **without installing anything**:
 
 ~~~sh
-sudo apt install wget
+sudo apt-get -s install --no-install-recommends openmediavault
 ~~~
 
-## Step 2 — Download and inspect the OMV installer
-
-Download the installation script **without executing it**:
+Review the package changes, especially removals, downgrades or held packages. If they are unexpected, stop rather than accepting them blindly. Then install the actual package with APT's normal confirmation:
 
 ~~~sh
-wget https://get.openmediavault.io -O openmediavault-install.sh
+sudo apt install --no-install-recommends openmediavault
 ~~~
 
-This saves the vendor script as `openmediavault-install.sh` in the current directory. Review the actual file before running code as root:
+The official quick installer passes additional flags permitting removals and downgrades without review; this manual guide deliberately does not. It installs the same OMV package from the same official repository, but retains explicit transaction control.
 
-Open `openmediavault-install.sh` in a text editor; review the existing content, make the described change and save the file.
+## Step 5 — Complete the two upstream initialization steps
 
-Read the instructions it will execute. If you cannot evaluate or accept them, stop and use OMV's [manual Debian installation guide](https://docs.openmediavault.org/en/stable/installation/on_debian.html). When satisfied, run the downloaded script, **with full administrative privileges**:
+Populate OMV's initial configuration database:
 
 ~~~sh
-sudo sh openmediavault-install.sh
+sudo omv-confdbadm populate
 ~~~
 
-Follow its progress and stop if errors appear. Keep console access available in case its network setup changes connectivity. This installs OMV and dependencies; it is not just a configuration check.
-
-## Step 3 — Verify OMV and regain access
-
-Inspect the installed package version:
+Deploy OMV's managed `/etc/hosts` configuration so its own hostname resolves:
 
 ~~~sh
-apt policy openmediavault
+sudo omv-salt deploy run hosts
 ~~~
 
-Under **Installed**, look for **8.x**. If it says `(none)`, the installation did not complete.
+These are the two explicit post-package commands in the official installer. Do not run `omv-salt stage run all` or change other services as part of this installation.
 
-Check that no Debian packages were left partially configured:
+## Step 6 — Verify and use OMV
+
+Check the installed package version and package state:
 
 ~~~sh
+dpkg-query -W -f='${Version}\n' openmediavault
 sudo dpkg --audit
 ~~~
 
-A healthy result is normally **no output**. Resolve any reported packages before proceeding.
-
-Find the server's current IP address:
+The version must begin with **8.**; `dpkg --audit` should report no partially configured packages. Find the server's current address:
 
 ~~~sh
 ip -brief address
 ~~~
 
-Use the address on the active network connection to open the OMV web interface. Follow OMV's [initial web-login instructions](https://docs.openmediavault.org/en/stable/installation/) and change any default credentials.
+Open the OMV web interface using that address. Follow [OMV's login instructions](https://docs.openmediavault.org/en/stable/installation/) and change the initial web credentials.
 
-## Step 4 — Keep normal-user SSH administration
+**Scope ends here.** SSH access policy, account groups, update schedules, APT notifications, storage, shares and additional applications are separate decisions. Neither the standalone guide nor the OMV CDD profile imposes them. Docker remains independent in [08 — Docker](../08_docker/README.md).
 
-OMV may require SSH users to belong to its `_ssh` group. Inspect your existing administrator's group memberships:
-
-~~~sh
-id YOUR_USERNAME
-~~~
-
-Replace `YOUR_USERNAME` with the Debian administrator you created. If the required memberships are absent, **and you trust this account to administer the server**, add it to both `sudo` and `_ssh` without dropping its other groups:
-
-~~~sh
-sudo usermod -aG sudo,_ssh YOUR_USERNAME
-~~~
-
-Sign out and back in so the new groups apply, then test a **new SSH login**. Only once this succeeds, use **Services → SSH** in OMV to disable **root login**, then **Save** and **Apply**. This blocks remote root login without locking the local recovery account.
-
-## Step 5 — Turn off OMV's automatic updates yourself
-
-The project's explicit preference is **manual package updates**, including security updates. This means you must commit to checking and installing security fixes yourself.
-
-1. Open OMV's **System → Update Management → Updates** area. Find the **Software** or **Settings** options controlling automatic security updates (the exact placement can vary across OMV 8 builds).
-2. Find the option named **Install security updates unattended**. Disable it. **Save** and **Apply** the pending change.
-3. Open **System → Notification → Events**. Locate the **APT / package updates / cron-apt** notification event, and disable **only that event**. Preserve useful filesystem, SMART and RAID warnings. **Save** and **Apply**.
-4. If a control is absent or named differently, **do not assume the corresponding policy has changed**. Review the current version's OMV UI and documentation before continuing.
-
-These steps change the settings OMV itself manages, rather than directly editing its generated cron files. OMV's [update-management documentation](https://docs.openmediavault.org/en/8.x/various/apt.html) describes its update manager; its [notification documentation](https://docs.openmediavault.org/en/latest/administration/general/notifications.html) describes the independently selectable events.
-
-To verify OMV's effective unattended-upgrade setting, **read its configuration database** (read-only):
-
-~~~sh
-sudo omv-confdbadm read --prettify conf.system.apt.updates
-~~~
-
-Find `"unattendedupgrade": false`. If the field is missing or still `true`, stop: the UI change has not produced the intended result.
-
-To review OMV's notification settings, also **read** the event records:
-
-~~~sh
-sudo omv-confdbadm read --prettify conf.system.notification.notification
-~~~
-
-Find the record with `"id": "apt"` and check that its `"enable"` field is `false`. Do not change other notification events just to silence APT.
-
-**Apply the OMV-managed update/notification configuration** using its normal Apply button. Normally, no further command is needed to apply an accepted UI change. Check the cron schedules in Step 6 first.
-
-**Only if** the database values are correct but an OMV-generated apticron schedule remains active, investigate the OMV Apply result and use its own Salt mechanism as a targeted repair. Do not delete OMV-generated cron files manually.
-
-For that corrective action, first refresh OMV's Salt configuration:
-
-~~~sh
-sudo omv-salt stage run prepare
-~~~
-
-If the first command succeeded, redeploy only the APT and apticron states, not unrelated services:
-
-~~~sh
-sudo omv-salt deploy run apt apticron
-~~~
-
-These optional repair commands reapply OMV's own configuration choices; they are not package upgrades. Check their output for errors, then recheck the schedules.
-
-## Step 6 — Disable Debian's automatic APT tasks
-
-OMV's own settings do not necessarily disable Debian's separate periodic package tasks. Inspect the current effective APT settings:
-
-~~~sh
-apt-config dump
-~~~
-
-Look for `APT::Periodic::Update-Package-Lists` and `APT::Periodic::Unattended-Upgrade`. If they are already zero, no additional file is needed.
-
-Otherwise, **manually** open an APT override file:
-
-Open `/etc/apt/apt.conf.d/99-home-server-manual-updates` in a text editor with administrator privileges; review the existing content, make the described change and save the file.
-
-Enter these two lines **into the file**:
-
-~~~text
-APT::Periodic::Update-Package-Lists "0";
-APT::Periodic::Unattended-Upgrade "0";
-~~~
-
-Save the file. Run `apt-config dump` again and check that the effective values are zero.
-
-Review the generated OMV cron directories **without modifying them**:
-
-~~~sh
-ls /etc/cron.daily
-~~~
-
-~~~sh
-ls /etc/cron.weekly
-~~~
-
-Look for `openmediavault-apticron`. If it remains active, the policy is **not fully verified**; resolve the OMV event configuration and its Salt deployment rather than deleting an OMV-generated cron file.
-
-On systems upgraded from older OMV versions, there may also be a legacy `cron-apt` schedule. **If** `/etc/cron.d/cron-apt` exists, open it for inspection:
-
-Open `/etc/cron.d/cron-apt` in a text editor with administrator privileges; review the existing content, make the described change and save the file.
-
-This shows whether an actual, uncommented scheduled command remains. **Do not edit the file merely because it exists**; identify whether another package or OMV still manages the schedule and disable it through that configuration. A legacy active update schedule means the manual-only policy is not yet complete.
-
-## Step 7 — Use the OMV web interface for your NAS
-
-Configure actual data disks, filesystems, users, shared folders and protocols in OMV's web interface after confirming the correct devices. This chapter does not create any shares or install OMV-Extras or Docker.
-
-For Docker as an **independent** service, follow [08 — Docker](../08_docker/README.md).
-
-**Done when:** OMV 8 works, normal-user SSH works, the unattended-upgrade and APT notification values have been verified off, and no generated notification schedule remains. **This exact OMV 8 UI sequence and Salt outcome still need verification on the installed version**; do not claim success based only on clicking Save.
+**Runtime status:** the signed-repository installation and subsequent networking/first-boot behavior must still be verified on a fresh Debian 13 VM. Do not claim functional success from the presence of the package alone.

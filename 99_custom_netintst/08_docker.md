@@ -6,7 +6,7 @@
 
 Complete [Build project](build_project.md), [Shared profile helpers](profile_construction.md) and [Installer framework](installer_framework.md), then work inside `99_custom_netintst/my-cdd/` on a **test branch or scratch copy**. This profile uses `in-target` and native Debconf; it is not a general Debian installation script.
 
-The profile ID is `docker`, its file is `installer/profile-docker.sh`, and its dispatcher function is `profile_docker()`. The first is the checkbox name; the last is the code that actually runs.
+The profile ID is `docker`, its file is `installer/profile-docker.sh`, and its dispatcher function is `profile_docker()`. The first is the checkbox name; the last is the code that actually runs. Docker and [OMV](07_openmediavault.md) both use official signed APT sources and the same shared simulation/default-No approval helpers; their package sets and vendor-specific completion steps remain independent.
 
 ## Step 2 — Create each file
 

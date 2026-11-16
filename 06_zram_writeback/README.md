@@ -148,7 +148,7 @@ If you cloned this repository into your home directory, open the ZRAM chapter fo
 This changes your shell’s working folder to the repository’s ZRAM guide so subsequent `files/...` paths refer to the correct source assets. If you cloned the repo elsewhere, adjust the path; nothing on the system is configured by changing directories.
 
 ~~~sh
-cd ~/home_server/05_zram_writeback
+cd ~/home_server/06_zram_writeback
 ~~~
 
 If you cloned it elsewhere, use your actual directory.
@@ -174,7 +174,7 @@ Install the pressure-monitor and swappiness files:
 This copies the project’s `vm.swappiness=100` setting into `/etc/sysctl.d`, where system settings can be applied at startup. It is a deliberate swap-policy change, not a prerequisite for unrelated Debian installations.
 
 ~~~sh
-sudo cp files/90-zram-swappiness.conf /etc/sysctl.d/
+sudo cp files/90-zram.conf /etc/sysctl.d/
 ~~~
 
 This copies the systemd service definition for the pressure-triggered ZRAM writeback monitor. The service file describes how the monitor starts and restarts; copying it alone does **not** start the monitor.
@@ -205,31 +205,15 @@ sudo mkdir -p /etc/systemd/system/systemd-zram-setup@zram0.service.d
 
 Copy the writeback setting:
 
-This copies a short systemd override that enables the kernel’s **compressed writeback** interface before ZRAM setup. It depends on the running kernel exposing that interface; if it does not, setup may fail.
+This installs the **single** setup override: it enables compressed writeback before ZRAM initialization and requests emergency mode if ZRAM setup itself fails. The monitor has its own restart policy and must not force emergency mode. Both failure paths still require testing in a disposable VM.
 
 ~~~sh
-sudo cp files/10-compressed-writeback.conf /etc/systemd/system/systemd-zram-setup@zram0.service.d/
+sudo cp files/override.conf /etc/systemd/system/systemd-zram-setup@zram0.service.d/
 ~~~
 
-## Step 7 — Configure the project's failure behavior
+If you previously installed this project's older `10-compressed-writeback.conf` and `20-failure-emergency.conf` drop-ins, review and remove those superseded files so the setting is applied only once. Preserve any unrelated local overrides.
 
-The project's policy is to attempt **emergency mode if ZRAM initialization fails**, but to **restart** the pressure monitor if only the monitor fails.
-
-Open a service override file:
-
-This opens a new systemd override file for your chosen failure policy. The following `[Unit]` text belongs **inside that file**; it asks systemd to enter emergency mode if ZRAM setup fails. The actual emergency behavior is not yet verified.
-
-Open `/etc/systemd/system/systemd-zram-setup@zram0.service.d/20-failure-emergency.conf` in a text editor with administrator privileges; review the existing content, make the described change and save the file.
-
-Paste the following **file contents** and save:
-
-~~~ini
-[Unit]
-OnFailure=emergency.target
-OnFailureJobMode=replace-irreversibly
-~~~
-
-This is an intended policy, **not a verified emergency-mode guarantee**. Test the actual behavior in a VM before relying on it.
+## Step 7 — Disable zswap and understand the failure policy
 
 Open GRUB's existing configuration:
 

@@ -155,15 +155,13 @@ profile_zram() {
     [ "$(grep -o "$uuid" /target/etc/systemd/zram-generator.conf | wc -l)" -eq 2 ] &&
         ! grep -q YOUR_PARTUUID /target/etc/systemd/zram-generator.conf ||
         fatal 'ZRAM generator configuration contains unresolved or mismatched backing identity'
-    cp "$MEDIA/10-compressed-writeback.conf" \
-        /target/etc/systemd/system/systemd-zram-setup@zram0.service.d/10-compressed-writeback.conf
-    # Setup failure enters emergency, unlike a monitor failure.
-    printf '[Unit]\nOnFailure=emergency.target\nOnFailureJobMode=replace-irreversibly\n' > \
-        /target/etc/systemd/system/systemd-zram-setup@zram0.service.d/20-failure-emergency.conf
+    # One drop-in covers pre-initialization compressed writeback and setup failure.
+    cp "$MEDIA/override.conf" \
+        /target/etc/systemd/system/systemd-zram-setup@zram0.service.d/override.conf
     cp "$MEDIA/zram-pressure.sh" /target/usr/local/sbin/zram-pressure.sh
     chmod 755 /target/usr/local/sbin/zram-pressure.sh
     cp "$MEDIA/zram-pressure.service" /target/etc/systemd/system/zram-pressure.service
-    cp "$MEDIA/90-zram-swappiness.conf" /target/etc/sysctl.d/90-zram-swappiness.conf
+    cp "$MEDIA/90-zram.conf" /target/etc/sysctl.d/90-zram.conf
     # zswap must not intercept memory intended for zram.
     if ! grep -q 'zswap.enabled=0' /target/etc/default/grub; then
         sed -i '/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/"$/ zswap.enabled=0"/' /target/etc/default/grub

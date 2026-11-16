@@ -1,5 +1,15 @@
 # my-cdd source manifest and provenance
 
+## Current approved OMV/ZRAM simplification — 2026-11-16
+
+**Nearest user instruction:** “omv cdd should do nothing about ssh ... only things ... allowed ... are the ones done in the [official] install script ... nothing more”; “2. agreed” to the single ZRAM systemd override and preserved monitor; “go ahead”.
+
+**Source boundary:** `installer/profile-omv.sh` now follows the current upstream official OpenMediaVault 8 installer (`openmediavault/openmediavault` `install.sh`): Debian/architecture/desktop checks, official signing key, the first official manual-install signed APT source (`http://packages.openmediavault.org/public/ synchrony main`), **not** a custom mirror list, reviewed `openmediavault` APT transaction, `omv-confdbadm populate` and `omv-salt deploy run hosts`. No OMV-specific SSH changes, usermod, update/notification policy, apticron, plugin or Docker actions remain. Previous OMV-specific SSH/update behavior described below is **historical and superseded**, not an active implementation requirement. OMV and Docker both use the shared signed-APT update, origin verification, transaction simulation and default-No approval workflow; vendor-specific initialization remains separate.
+
+**ZRAM source boundary:** `installer/profile-zram.sh` copies one selected-only `scripts/override.conf` combining the previous compressed-writeback and setup-failure directives, plus `scripts/90-zram.conf`; the standalone `06_zram_writeback/files` assets use exactly the same bytes. `profiles/zram-writeback.extra` stages only the new filenames. Existing monitor, generator, backing identity and destructive safeguards remain unchanged.
+
+**Tests and release gate:** The documentation's full embedded files and hashes must match their current source. Source-level review does not replace `sh -n`, an ISO build, a fresh text/GTK disposable-VM install, or first-boot compressed-writeback/OMV checks. The most recent observed VM failure was in Debian tweaks' SSH validation and has not been retested.
+
 ## Current synchronized change — 2026-11-16
 
 **Nearest approved user prompt:** leave the initial Debian root password blank for a sudo administrator, then set a separate root recovery password; move Debian tweaks immediately after Base Debian; reorder chapters logically everywhere; clarify conditional `unattended-upgrades` handling; use editor-neutral instructions; and require ordinary and CDD feature changes to be synchronized. User also provided five Debian Installer VM screenshots showing the latest test stopped at `sshd -T` after ZRAM setup.
@@ -10,7 +20,7 @@
 
 **Account and SSH update:** Native Debian root password remains initially empty; the dispatcher verifies the first user is in `sudo` and that sudo is installed, then prompts for a distinct local root recovery password before selected work. Shared `verify_target_sshd` prepares a transient `/target/run/sshd` for config validation, runs `sshd -t` and `-T`, and preserves stderr in the target installer log. This is a **possible correction** for the latest failure, not a verified root cause.
 
-**APT check:** `ensure_manual_updates` verifies that `unattended-upgrades` is installed before checking its enabled state. It writes no override if absent or already disabled; if enabled, it disables automatic package installation and verifies the APT configuration. Selected OMV retains its separate policy.
+**APT check:** `ensure_manual_updates` verifies that `unattended-upgrades` is installed before checking its enabled state. It writes no override if absent or already disabled; if enabled, it disables automatic package installation and verifies the APT configuration. The older selected-OMV update/notification policy is superseded by the current limited official-install profile.
 
 **Latest VM evidence, status:** User's screenshots show native ZRAM choice and GPT conversion plus reviewed generator installation, then the selected tweaks stage failed with an “OpenSSH configuration invalid” message. No screenshot shows the actual OpenSSH stderr or first-boot writeback. Re-test all new steps before declaring the ISO functional.
 
@@ -285,14 +295,15 @@ OMV/Docker package service behavior, boot-menu changes and first-boot
 behavior remain unverified. That earlier source-writing turn did not perform an ISO build. Later on 2026-11-15, the user successfully built the ISO and tried the graphical installer, which failed at preseed loading. No installed-target package transaction or disk modification has been demonstrated. No mock/offline
 test harness was added.
 
-## Current tracked files (54)
+## Current tracked CDD files (56; updated 2026-11-16)
 
-Source inventory at commit `c03c95c75429` before the documentation-only follow-up:
+Current source filenames on the review branch; historical SHA-specific inventories above describe their own dated revisions.
 
 - `.gitignore`
 - `README.md`
 - `SOURCE_MANIFEST.md`
 - `build.sh`
+- `installer/15my-cdd-status`
 - `installer/IMPLEMENTATION_GATES.md`
 - `installer/README.md`
 - `installer/ordered-selection.sh`
@@ -328,17 +339,18 @@ Source inventory at commit `c03c95c75429` before the documentation-only follow-u
 - `profiles/extended-device-support.extra`
 - `profiles/extended-device-support.postinst`
 - `profiles/installer-media.downloads`
+- `profiles/installer-media.udebs`
 - `profiles/openmediavault.description`
 - `profiles/openmediavault.extra`
 - `profiles/openmediavault.postinst`
 - `profiles/zram-writeback.description`
 - `profiles/zram-writeback.extra`
 - `profiles/zram-writeback.postinst`
-- `scripts/10-compressed-writeback.conf`
-- `scripts/90-zram-swappiness.conf`
+- `scripts/90-zram.conf`
 - `scripts/README.md`
 - `scripts/debian-backports.sources`
 - `scripts/firmware-candidates.txt`
+- `scripts/override.conf`
 - `scripts/zram-generator.conf.template`
 - `scripts/zram-pressure.service`
 - `scripts/zram-pressure.sh`
