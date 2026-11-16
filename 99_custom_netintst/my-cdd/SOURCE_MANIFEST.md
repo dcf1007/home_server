@@ -14,6 +14,8 @@
 
 **Latest VM evidence, status:** User's screenshots show native ZRAM choice and GPT conversion plus reviewed generator installation, then the selected tweaks stage failed with an “OpenSSH configuration invalid” message. No screenshot shows the actual OpenSSH stderr or first-boot writeback. Re-test all new steps before declaring the ISO functional.
 
+**Static verification:** Every one of the **50 full CDD source listings** embedded in the construction guides was independently hashed as a Git blob and matched its actual branch file. The six relocated standalone firmware/ZRAM assets retain original blob identities and modes. The two installer shell entry points retain executable mode `100755`; no tracked installer source-file modes differ from the previous `main`. Local chapter and historical links were checked and repaired. The screenshots demonstrate a partial real VM run but **not** a successful entire installation or first boot. No new ISO build or actual `sh -n` execution was performed by the assistant.
+
 **History below:** older “latest revision” and “installer source unchanged” statements describe their **own dates**, not this current change. Do not use those as current release status.
 
 > **Current location (2026-11-16):** `99_custom_netintst/my-cdd/` (relocated from `01_custom_netinst/my-cdd/`). The historical entries below are preserved as dated provenance, not all current operational instructions. For ordinary Debian setup see [numbered chapters](../../README.md); the active installer path is in [99's README](../README.md). No installer executables changed in the relocation.
