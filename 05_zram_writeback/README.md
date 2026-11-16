@@ -21,7 +21,7 @@ Unlike the custom installer, a normal Debian system already has `lsblk`, `wipefs
 ## Step 2 — Identify the backing partition
 
 ~~~sh
-lsblk -o NAME,PATH,TYPE,SIZE,FSTYPE,PARTTYPE,PARTLABEL,PARTUUID,MOUNTPOINTS
+lsblk -o NAME,PATH,TYPE,SIZE,FSTYPE,UUID,PARTUUID,MOUNTPOINTS
 ~~~
 
 Read the output carefully. Identify **one partition**, not a whole disk.
@@ -78,7 +78,7 @@ If another tool or service separately activates the same swap partition, disable
 
 ## Step 4 — Prepare the chosen partition
 
-**This step permanently makes the selected partition unsuitable for its old purpose.** Confirm the partition name, parent disk and number one final time.
+**This step permanently makes the selected partition unsuitable for its old purpose.** Confirm the partition name, parent disk and number one final time. `wipefs` removes recognizable signatures; it does **not securely erase all previous data**.
 
 You can see the current signatures without changing anything:
 
