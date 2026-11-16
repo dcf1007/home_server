@@ -1,36 +1,44 @@
-# 99 — Custom Debian 13 netinst with Simple-CDD
+# 99 — Build and use the custom Debian 13 netinst image
 
-**Advanced, optional route:** build a custom **Debian 13 (Trixie) amd64** netinst ISO that offers the same independently selectable features as the ordinary installed-system guides.
+This is the **optional final chapter** of the home-server guide. The first eight chapters describe how to configure an **already installed Debian system** using normal package managers, editors and service controls. This chapter describes how the same changes are performed **during installation**, inside Debian Installer's more limited environment.
 
-For a freshly installed server, **do not start here**. Follow [01 — Base Debian](../01_base_debian/README.md) and the optional [02–08 guides](../README.md). Those use full Debian utilities and ordinary interactive package installation. This section exists specifically to address **Debian Installer limitations**: udebs, Simple-CDD profile selection, cdebconf, preseed/late_command, target chroots and ISO package staging.
+## Step 1 — Decide which approach you need
 
-The directory name `99_custom_netintst` follows the exact requested rename from `01_custom_netinst`.
+- **Ordinary Debian:** use [01–08](../README.md). No custom image is needed; each feature can be applied individually.
+- **Custom installer:** build this ISO if you want to choose the same seven optional operations in the Debian Installer interface and have them applied before first boot.
 
-## Build the custom ISO
+The installer is intentionally **not** just a post-install shell script: early Debconf screens, ISO-staged packages, udebs, partition safety, target-system execution and failure handling must work while the machine is still being installed.
 
-~~~sh
-git clone https://github.com/dcf1007/home_server.git
-cd home_server/99_custom_netintst/my-cdd
-./build.sh
-~~~
+## Step 2 — Prepare and build the ISO
 
-To update an existing checkout, run `git pull --ff-only` from the repository before building. Use a compatible Debian build host with `git`, `simple-cdd` and `reprepro` installed; see [build preparation](01_custom_cdd_preparation.md) and [my-cdd README](my-cdd/README.md). The intended output is `my-cdd/images/debian-13-amd64-CD-1.iso`.
+Follow the actual build-host instructions in [01 — Build preparation](01_custom_cdd_preparation.md). There you will find the dependencies, editable installer defaults, build commands, expected ISO location and checks.
 
-**Source state:** the seven optional profiles and their execution order are unchanged. None is selected automatically. The latest ZRAM implementation uses native `parted-udeb`, `util-linux-udeb`, BusyBox and installer `/proc`/`/sys` data, not full installed-system block tools. **Build and end-to-end installer validation remain necessary; a successful ISO build does not prove functionality.**
+## Step 3 — Boot the image and make normal Debian decisions
 
-## How each ordinary Debian step is adapted
+The expected installation flow is described in [05 — Base installation](05_base_installation.md). It includes the custom **seven-checkbox selection** and summary, normal partitioning and account screens, editable defaults, tasksel, late-stage approvals and success/failure indication.
 
-| Post-install chapter | Debian Installer integration |
-| --- | --- |
-| [01 — Base Debian](../01_base_debian/README.md) | [Native installer screens, editable defaults](05_base_installation.md) |
-| [02 — Backports](../02_backports/README.md) | [Selected-only signed source, APT review](02_backports_apt.md) |
-| [03 — Linux 7.x](../03_kernel_7x/README.md) | [Suite selection and installed-target kernel verification](09_ensure_7x_kernel.md) |
-| [04 — Extended support](../04_extended_device_support/README.md) | [Package omission and firmware-license Debconf bridge](10_extended_device_support.md) |
-| [05 — ZRAM writeback](../05_zram_writeback/README.md) | [Native udeb partition discovery and approval](03_zram_writeback.md) |
-| [06 — Debian tweaks](../06_debian_tweaks/README.md) | [Selected-only edits of /target](04_debian_tweaks.md) |
-| [07 — OpenMediaVault](../07_openmediavault/README.md) | [Signed OMV install and Salt from installer](06_openmediavault.md) |
-| [08 — Docker](../08_docker/README.md) | [Signed Docker installation via in-target](07_docker.md) |
+All seven optional profiles are **unchecked by default**. Choosing ZRAM writeback requires separately selecting **Ensure Linux 7.x**. No disk, password or optional package set is silently selected.
 
-The source modules live under [my-cdd/installer/](my-cdd/installer/), package selections under [my-cdd/profiles/](my-cdd/profiles/) and source assets under [my-cdd/scripts/](my-cdd/scripts/). Keep the ordinary installed-system workflow and the minimal installer implementation distinct.
+## Step 4 — Understand exactly what each selected profile does
 
-For build/integration checks, see [validation gates](08_validation_and_pending.md). Complete historical planning documents (including the original full ZRAM design) are preserved in [history/](history/).
+The linked pages describe the **actual ordered steps, user decisions, installer actions and verification checks**. You do not need to open the shell module to understand the procedure:
+
+| Order | During the installer | Compare with ordinary Debian |
+| --- | --- | --- |
+| 1 | [Backports: sources, upgrades and removals](02_backports_apt.md) | [02](../02_backports/README.md) |
+| 2 | [Linux 7.x: candidate selection, image and headers](09_ensure_7x_kernel.md) | [03](../03_kernel_7x/README.md) |
+| 3 | [Extended device support: microcode, firmware and licenses](10_extended_device_support.md) | [04](../04_extended_device_support/README.md) |
+| 4 | [ZRAM: select, confirm and convert one partition](03_zram_writeback.md) | [05](../05_zram_writeback/README.md) |
+| 5 | [Debian tweaks: boot, mount, SSH and updates](04_debian_tweaks.md) | [06](../06_debian_tweaks/README.md) |
+| 6 | [OMV 8: signed installation and update policy](06_openmediavault.md) | [07](../07_openmediavault/README.md) |
+| 7 | [Docker: official signed packages and normal services](07_docker.md) | [08](../08_docker/README.md) |
+
+The installer runs **only the selected profiles** in this fixed order. It displays the complete APT simulations and requires default-No approvals where appropriate.
+
+## Step 5 — Test before using important disks
+
+Use [08 — Validation](08_validation_and_pending.md) to test the ISO in a disposable VM. In particular, native ZRAM probing/conversion, first-boot writeback and installer completion behavior have **not** been validated end to end.
+
+Source code is retained under [my-cdd/](my-cdd/) for reproducibility, with build input in [profiles](my-cdd/profiles/), [installer modules](my-cdd/installer/) and [staged files](my-cdd/scripts/). Those files implement the **steps documented in the guides**, rather than being a substitute for the guide.
+
+Previous detailed plans, superseded fixes and observed failures are preserved in [history](history/).
