@@ -185,7 +185,10 @@ simulate_target() {
     cp "$WORK/output" "$WORK/plan"
 }
 check_critical_removals() {
-    if grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/plan" > "$WORK/critical"; then
+    # APT may replace the separate systemd-timesyncd NTP client (e.g. with
+    # OMV's chrony). Keep every other existing protected-package rule.
+    if grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/plan" |
+        grep -Ev '^Remv systemd-timesyncd([[:space:]:]|$)' > "$WORK/critical"; then
         cat "$WORK/critical" >> "$LOG"
         fatal 'Proposed removal of boot/essential administration packages; explicit manual resolution required'
     fi
