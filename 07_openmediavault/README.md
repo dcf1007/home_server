@@ -43,6 +43,7 @@ Replace `YOUR_ADMIN_ACCOUNT` with your actual Debian user. Verify a **second, wo
 The existing installer profile disables OMV 8 unattended upgrades and its APT notification schedule through OMV's configuration database, then deploys only the `apt` and `apticron` Salt states. The same post-install procedure is provided as [disable-automatic-updates.py](disable-automatic-updates.py):
 
 ~~~sh
+cd /path/to/home_server/07_openmediavault  # use your actual clone path
 sudo python3 disable-automatic-updates.py
 sudo omv-salt stage run prepare
 sudo omv-salt deploy run apt apticron
