@@ -42,7 +42,7 @@ After all required files exist, use the guarded `./build.sh` wrapper to create t
 
 ## Recent installer test and open blocker
 
-Earlier Debian 13 VM screenshots (16 November 2026) show approved ZRAM conversion and generator installation. The latest run stopped during Debian tweaks, before ZRAM, at a pre-boot sshd runtime-directory check; the review branch removes that check. The actual `sshd` stderr was not visible in the screenshot.
+Earlier Debian 13 VM screenshots (16 November 2026) show approved ZRAM conversion and generator installation. The latest run stopped during Debian tweaks, before ZRAM, at a pre-boot sshd runtime-directory check; the revised source removes that check. The actual `sshd` stderr was not visible in the screenshot.
 
 The current source addresses a **possible** unbooted-target issue by preparing the temporary `/run/sshd` directory before validation and preserving the true diagnostic in the installer log. It also moves Debian tweaks **before** ZRAM, so a failure there stops before the partition conversion. The fix is **not yet runtime-verified**.
 
