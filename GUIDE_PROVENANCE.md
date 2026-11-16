@@ -1,5 +1,15 @@
 # Guide provenance and scope
 
+## Exact-package essential-removal guard correction — 2026-11-16
+
+**Nearest user prompt:** Two Debian Installer screenshots showing “Proposed removal of boot/essential administration packages” after OMV's APT simulation listed `Remv systemd-timesyncd`.
+
+**Observation and source:** The protected-package expression matched `systemd-timesyncd` because of the broad `systemd` prefix. The core `systemd` package and the separate NTP client `systemd-timesyncd` are not interchangeable. OMV uses Chrony for time synchronization; an ordinary package transaction may remove `systemd-timesyncd` to install it. The screenshots establish a **simulated** removal and guard failure, not an installed OMV package.
+
+**Approved design maintained:** Preserve the existing list of protected boot and administration packages, with an exact exception only for `systemd-timesyncd` (including Debian multiarch suffixes). Apply the same guard behavior in the shared APT review and firmware candidate review. The full user-reviewed/default-No APT approval remains untouched. No OMV/Docker code or additional helper was added.
+
+**Verification:** Synthetic POSIX `grep -E` fixtures confirmed the exception and protection of actual systemd, systemd-sysv, kernel, bootloader and core administration package removals. Full source listings/hashes and CDD build guides synchronized. No fresh ISO build, complete OMV install or first-boot check is claimed.
+
 ## Official OMV signing keyring read permission — 2026-11-16
 
 **Nearest user prompt:** Two screenshots of the Debian Installer GTK failure dialog showing `apt-get update` exit status 100 and `Permission denied (os error 13)` when `sqv` reads `/usr/share/keyrings/openmediavault-archive-keyring.gpg`.
