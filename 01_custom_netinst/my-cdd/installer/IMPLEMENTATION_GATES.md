@@ -86,3 +86,18 @@ to the earlier partitioner or deselect the profile. The current code fails
 closed instead of presenting a nonfunctional navigation option. Also verify
 systemd swap units or other indirect activation paths before production.
 An ISO build alone cannot close these gates.
+
+## 6. Native installer ZRAM block tools (2026-11-16)
+
+ZRAM probing uses installer-native `blkid`, `/sys/class/block`,
+`/proc/swaps` and `/proc/self/mountinfo`; targeted swapoff and an
+explicitly approved 1 MiB signature erase use installer BusyBox. The
+selected partition is kept, changed to GPT type 8300 and renamed
+`zram-writeback`. Target-side block-device commands are no longer used.
+Build-only `installer-media.udebs` includes `util-linux-udeb` for `blkid`
+and `parted-udeb` for GPT updates.
+
+**Runtime validation remains open:** confirm low-level `blkid -p -o export`
+`PART_ENTRY_*` data on raw partitions, actual BusyBox `dd` flags, device
+links, /proc/swaps KiB readings, GPT updates and first-boot generator behavior
+on a disposable VM disk. A successful ISO build is not runtime validation.
