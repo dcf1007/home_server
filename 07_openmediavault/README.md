@@ -33,35 +33,21 @@ Install it as a dedicated APT keyring (review an existing destination before rep
 sudo gpg --dearmor -o /usr/share/keyrings/openmediavault-archive-keyring.gpg openmediavault-archive.key
 ~~~
 
-## Step 3 — Add OMV's signed repository
+## Step 3 — Add OMV's official signed APT repository
 
-Create the official mirror-list directory and APT source directory:
+Create the standard APT source directory if necessary:
 
 ~~~sh
-sudo mkdir -p /etc/apt/mirrors /etc/apt/sources.list.d
+sudo mkdir -p /etc/apt/sources.list.d
 ~~~
 
-Open `/etc/apt/mirrors/openmediavault.txt` with administrator privileges in a text editor and enter the official priority-ordered mirrors:
+Open `/etc/apt/sources.list.d/openmediavault.list` with administrator privileges in a text editor. Save **only this entry**, the first repository listed in [OMV's manual Debian 13 installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html):
 
 ~~~text
-https://packages.openmediavault.org/public/ priority:1
-https://packages.openmediavault.io/ priority:2
-https://openmediavault.github.io/packages/ priority:3
-https://downloads.sourceforge.net/project/openmediavault/packages/ priority:4
+deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] http://packages.openmediavault.org/public/ synchrony main
 ~~~
 
-Open `/etc/apt/sources.list.d/openmediavault.list` with administrator privileges and enter:
-
-~~~text
-deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] mirror+file:/etc/apt/mirrors/openmediavault.txt synchrony main
-## Uncomment the following line to add software from the proposed repository.
-# deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] mirror+file:/etc/apt/mirrors/openmediavault.txt synchrony-proposed main
-## This software is not part of OpenMediaVault, but is offered by third-party
-## developers as a service to OpenMediaVault users.
-# deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] mirror+file:/etc/apt/mirrors/openmediavault.txt synchrony partner
-~~~
-
-The proposed and partner repositories remain disabled. No global APT pin is changed.
+The keyring authenticates the repository's signed APT metadata. No fallback-mirror file, proposed/partner repository, or global APT pin is needed.
 
 ## Step 4 — Review and install OMV
 
