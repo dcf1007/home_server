@@ -1,139 +1,273 @@
-# 06 — Build the OpenMediaVault 8 installer profile
+# 06 — Recreate the OpenMediaVault 8 installer profile
 
-**Build goal:** implement an **optional Simple-CDD profile** that installs signed OMV 8 packages in `/target`, preserves the newly created administrator's SSH/sudo access, and sets the approved **manual-only updates** policy before first boot.
+**Outcome:** build the full **optional OMV 8 profile source** for the custom Debian netinst image, not a script someone must run manually after installation. On a running Debian server, follow [07 — Manual OMV setup](../07_openmediavault/README.md); that guide uses the OMV GUI and requires **no external project Python helper**.
 
-This is a **guide to writing installer automation**. For an already installed server, follow [07 — OMV 8](../07_openmediavault/README.md) and set the options manually in the OMV web UI. **Do not write an external Python script that a human must run after boot.**
+## Step 1 — Prepare the shared installer code
 
-## Step 1 — Register and stage the OMV module
+Complete [01 — Simple-CDD build](01_custom_cdd_preparation.md), [00 — Common helpers](00_profile_construction.md) and [05 — Selection and dispatcher](05_base_installation.md), then work inside `99_custom_netintst/my-cdd/` on a test branch or scratch copy.
 
-Create `profiles/openmediavault.description` and `profiles/openmediavault.extra`:
+The optional profile ID is `openmediavault`. Its source file is `installer/profile-omv.sh`, which defines `profile_omv()`. The existing dispatcher maps the ID to that function **only when selected**.
 
-~~~text
-installer/profile-omv.sh
-~~~
+## Step 2 — Create these complete files
 
-Keep the profile name `openmediavault` in the offered list, with no automatic selection. The shared dispatcher maps it to:
+| Source path | Responsibility |
+| --- | --- |
+| `profiles/openmediavault.description` | The OMV 8 checkbox label. |
+| `profiles/openmediavault.extra` | Stages the OMV installer-side module onto the ISO. |
+| `profiles/openmediavault.postinst` | Verifies completion; it must be executable and must not reinstall OMV. |
+| `installer/profile-omv.sh` | Full code for prerequisites, official OMV key/source, APT approval, admin SSH, OMV update database and Salt deployment. |
 
-~~~sh
-openmediavault) module=omv; handler=profile_omv ;;
-~~~
-
-Create `profile_omv()` in `installer/profile-omv.sh`. Keep `profiles/openmediavault.postinst` as **verification-only**.
-
-## Step 2 — Install and verify prerequisites in /target
-
-The profile starts with an APT review for networking, HTTPS/signing, SSH and sudo prerequisites:
+Create source directories if absent:
 
 ~~~sh
-review_install 'OMV prerequisites: resolver, SSH/sudo access and signing tools' systemd-resolved psmisc gnupg ca-certificates curl openssh-server sudo
+mkdir -p profiles installer
 ~~~
 
-The common helper simulates dependencies and removals and asks default-No approval. Then test DNS from **the installed target**:
+This only creates folders.
+
+**1. Create `profiles/openmediavault.description`.** The OMV 8 checkbox label.
 
 ~~~sh
-capture in-target getent ahostsv4 packages.openmediavault.io ||
-    fatal 'Target DNS unavailable; stop rather than invent network configuration'
+nano profiles/openmediavault.description
 ~~~
 
-**Why:** the installer environment may have network access while `/target` lacks correct DNS. Do not silently invent a new DNS setting after such a failure.
+Open the file in `nano`, expand its **entire source listing below**, paste all its lines, save with Ctrl+O, Enter, and exit with Ctrl+X. The source is **not executed** while you edit it.
 
-## Step 3 — Build the signed OMV source setup
-
-Inside `profile_omv()`, download OMV's official archive key using target `curl` over HTTPS, inspect it with target `gpg --show-keys --with-colons` and verify it contains a fingerprint record. Convert it to a binary keyring under the target's `/usr/share/keyrings`, then remove the temporary downloaded key.
-
-**Security distinction:** the tracked code checks that a fingerprint exists; it does **not** compare it with an independently pinned fingerprint. Do not claim it does.
-
-Create the installed target's `/etc/apt/sources.list.d/openmediavault.list` from these actual lines:
-
-~~~text
-deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] http://packages.openmediavault.org/public/ synchrony main
-deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] http://packages.openmediavault.io/ synchrony main
-~~~
-
-**Purpose:** OMV 8's `synchrony` packages must be signed by the specified key and available to target APT. Refresh target indexes and inspect `apt-cache policy openmediavault`, requiring the expected official `synchrony/main` origin before installation.
-
-## Step 4 — Review and install OMV 8
-
-Use the shared package review helper:
+**2. Create `profiles/openmediavault.extra`.** Stages the OMV installer-side module onto the ISO.
 
 ~~~sh
-review_install 'OMV 8 package and dependencies' openmediavault
+nano profiles/openmediavault.extra
 ~~~
 
-This is not a blind install: it simulates the target transaction, checks critical removals, presents the complete plan and requests default-No approval. Once accepted, native Debian Installer package progress installs it into `/target`.
+Open the file in `nano`, expand its **entire source listing below**, paste all its lines, save with Ctrl+O, Enter, and exit with Ctrl+X. The source is **not executed** while you edit it.
 
-Verify the installed `openmediavault` package version begins with `8.`; otherwise fail without writing a completion marker.
-
-## Step 5 — Preserve the actual Debian admin account
-
-Get the username from **Debian Installer's existing user-setup database** (`passwd/username`), not a hardcoded name. Validate that the target account and OMV's `_ssh` group exist.
-
-The source performs:
+**3. Create `profiles/openmediavault.postinst`.** Verifies completion; it must be executable and must not reinstall OMV.
 
 ~~~sh
-run_target usermod -aG sudo,_ssh "$admin"
+nano profiles/openmediavault.postinst
 ~~~
 
-Here `admin` is the validated installer-created username. This adds both groups **without removing existing memberships**.
+Open the file in `nano`, expand its **entire source listing below**, paste all its lines, save with Ctrl+O, Enter, and exit with Ctrl+X. The source is **not executed** while you edit it.
 
-Create a target `sshd_config.d` drop-in containing:
-
-~~~text
-PermitRootLogin no
-~~~
-
-Then check target `sshd -T` and require the effective value `permitrootlogin no`. This keeps local emergency-root access but disallows remote root SSH.
-
-## Step 6 — Implement the OMV policy in the installer code
-
-This is the part that differs from the manual OMV GUI instructions: **there is no usable OMV web UI during Debian Installer's late command**. The selected installer profile must set the target's OMV configuration before first boot.
-
-The current implementation contains an **inline Python block inside `profile-omv.sh`**, using `omv-confdbadm` through subprocess calls. It does **not** install or require a separate Python helper file.
-
-Build this block to:
-
-1. Read OMV's `conf.system.apt.updates` JSON record; ensure the expected `unattendedupgrade` boolean exists.
-2. Set `unattendedupgrade` to `false` and update the same OMV model.
-3. Read `conf.system.notification.notification`, require exactly **one** record with `id == "apt"`, set its `enable` to `false` and write it back.
-4. Re-read **both** models to verify values; error out on an unknown schema or unexpected notification count.
-5. Never disable other notifications or modify generated cron jobs directly.
-
-These are **code design steps**, not commands a human should run in an OMV terminal. The exact current block is in [profile-omv.sh](my-cdd/installer/profile-omv.sh); copying only two database values without the schema checks would not preserve its fail-closed behavior.
-
-## Step 7 — Deploy only the relevant OMV states
-
-After the verified configuration-database update, the selected module runs:
+**4. Create `installer/profile-omv.sh`.** Full code for prerequisites, official OMV key/source, APT approval, admin SSH, OMV update database and Salt deployment.
 
 ~~~sh
-run_target omv-salt stage run prepare
-run_target omv-salt deploy run apt apticron
+nano installer/profile-omv.sh
 ~~~
 
-**Reason:** OMV's generated APT and apticron files are controlled by Salt. Do not edit generated cron scripts or deploy unrelated OMV services.
+Open the file in `nano`, expand its **entire source listing below**, paste all its lines, save with Ctrl+O, Enter, and exit with Ctrl+X. The source is **not executed** while you edit it.
 
-The code requires no `/target/etc/cron.daily/openmediavault-apticron` or weekly counterpart remains, and refuses an active legacy `cron-apt` schedule.
 
-## Step 8 — Disable Debian's separate scheduled APT tasks
+The postinst is a marker verifier and needs execute permission:
 
-OMV's configuration database is separate from Debian's APT periodic options. In `/target/etc/apt/apt.conf.d/99-my-cdd-manual-updates`, write:
-
-~~~text
-APT::Periodic::Update-Package-Lists "0";
-APT::Periodic::Unattended-Upgrade "0";
+~~~sh
+chmod +x profiles/openmediavault.postinst
 ~~~
 
-Verify both **effective** values via target `apt-config dump`. Then check that target DNS still works and `dpkg --audit` finds no unfinished package configuration.
+Do **not** mark the imported OMV module as a standalone installer and execute it on the build machine.
 
-**Why two layers:** OMV's unattended-upgrade and APT notification policy does not prove Debian's independent periodic jobs are disabled.
+## Step 3 — Understand what the complete function implements
 
-## Step 9 — Test selection, state and first boot
+1. Install reviewed HTTPS/signing and SSH/sudo prerequisites **inside `/target`**. Ensure target DNS can resolve the OMV package server; the installer's own network is not proof.
+2. Download the official OMV signing key, check that GnuPG can parse it and place it into the target keyring; create signed `synchrony` sources for OMV **8**. **Current limitation:** the code verifies a fingerprint is present but does **not** pin a known expected fingerprint.
+3. Simulate the whole `openmediavault` package installation, reject essential-package removals and require native **default-No** approval. Install only after consent, then require an **8.x** installed version.
+4. Read the administrator username from the installer instead of hardcoding it. Add `sudo` and OMV's `_ssh` group; deny **root SSH** while preserving local emergency recovery.
+5. Before first boot **there is no running OMV web UI**. The installer module therefore uses an **inline Python block within the shell module** to read/modify two OMV confdb records, with structural checks: `unattendedupgrade=false` and the one `apt` notification event disabled. It installs **no external Python helper** to be run by the administrator.
+6. The module deploys only OMV's relevant `apt` and `apticron` Salt states, checks for unwanted scheduled jobs, and disables Debian's independent periodic updates. It verifies target DNS and package health before completion.
+7. The **ordinary post-install OMV guide remains manual**, since the web interface exists then.
 
-Parse the installer module without executing it:
+**Do not simplify this to a blanket `curl | sh` inside Debian Installer.** The controlled repository and target APT review exist for a reason.
+
+## Step 4 — Verify source and build
 
 ~~~sh
 sh -n installer/profile-omv.sh
 ~~~
 
-Build via `./build.sh` and boot a disposable VM. Test **OMV unselected**, selected/approved, the package-repository failure path, invalid OMV confdb schema, declined package approval, GUI availability, normal-user SSH, scheduled-update configuration and DNS after first boot. OMV's exact Salt behavior remains a runtime validation requirement.
+This parses the handler's POSIX shell syntax without installing anything.
 
-**Source:** [profile-omv.sh](my-cdd/installer/profile-omv.sh). The ordinary [standalone guide](../07_openmediavault/README.md) has manual GUI steps and **no extra Python helper**.
+~~~sh
+sh -n profiles/openmediavault.postinst
+~~~
+
+This checks the post-install verifier's syntax. For byte-for-byte checking, `git hash-object <path>` prints a Git blob SHA; compare it with the SHA printed in the complete file heading below.
+
+Once the entire shared framework is assembled, run `./build.sh`. Boot a **disposable VM** and test selected/unselected, official package origin, declined approval, target DNS failure, OMV 8 version, admin SSH, confdb validation, Salt deployment and first boot. **None of these runtime tests are claimed as passed.**
+
+## Exact source files
+
+Expand each file to obtain the full contents you must save; earlier descriptive snippets were incomplete.
+<details>
+<summary><strong>profiles/openmediavault.description</strong> — complete file (1 lines; Git blob <code>61fef6231366beb1447da3ea81d0648548d02ddf</code>)</summary>
+
+````text
+OpenMediaVault 8 NAS installation; management services available after first boot
+````
+
+</details>
+
+<details>
+<summary><strong>profiles/openmediavault.extra</strong> — complete file (2 lines; Git blob <code>181ac69fc9ceaa5a7dfbe368b6f4a502ff22f7cf</code>)</summary>
+
+````text
+# openmediavault: source assets copied by Simple-CDD (not automatically installed).
+installer/profile-omv.sh
+````
+
+</details>
+
+<details>
+<summary><strong>profiles/openmediavault.postinst</strong> — complete file (11 lines; Git blob <code>4db0e01874e0b99b8b910a8919a52d8acb3d6f72</code>)</summary>
+
+````sh
+#!/bin/sh
+# Simple-CDD finish-install verification only.
+# The selected profile was performed beforehand by the native Debian
+# Installer late command, where its Debconf approvals were visible.
+# Never execute the profile twice or claim success from mere selection.
+set -eu
+marker="/var/log/installer/my-cdd-completed/openmediavault"
+if [ ! -f "$marker" ]; then
+    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'openmediavault'
+    exit 1
+fi
+````
+
+</details>
+
+<details>
+<summary><strong>installer/profile-omv.sh</strong> — complete file (129 lines; Git blob <code>3887f60260657ad8f34f7e2565b2a91a5b60da8d</code>)</summary>
+
+````sh
+#!/bin/sh
+# Sourced by the approved installer dispatcher; no automatic execution.
+# OMV is independent of Docker. Do not install OMV-Extras/Compose or suppress
+# OMV service startup; the user can add optional plugins through the OMV GUI.
+
+profile_omv() {
+    # OMV warns that the resolver must work BEFORE package installation.
+    review_install 'OMV prerequisites: resolver, SSH/sudo access and signing tools' systemd-resolved psmisc gnupg ca-certificates curl openssh-server sudo
+    capture in-target getent ahostsv4 packages.openmediavault.io ||
+        fatal 'Target DNS unavailable; stop rather than invent network configuration'
+    capture in-target curl -fsSL --proto '=https' \
+        -o /tmp/my-cdd-omv-key https://packages.openmediavault.io/archive.key ||
+        fatal 'Official OMV signing key download failed'
+    capture in-target gpg --show-keys --with-colons /tmp/my-cdd-omv-key ||
+        fatal 'Vendor OMV signing key malformed'
+    grep '^fpr:' "$WORK/output" >/dev/null ||
+        fatal 'Vendor OMV key contained no fingerprint'
+    run_target gpg --batch --yes --dearmor -o \
+        /usr/share/keyrings/openmediavault-archive-keyring.gpg /tmp/my-cdd-omv-key
+    rm -f /target/tmp/my-cdd-omv-key
+    mkdir -p /target/etc/apt/sources.list.d
+    cat > /target/etc/apt/sources.list.d/openmediavault.list <<'EOT'
+deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] http://packages.openmediavault.org/public/ synchrony main
+deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] http://packages.openmediavault.io/ synchrony main
+EOT
+    update_signed_apt
+    capture in-target apt-cache policy openmediavault ||
+        fatal 'Cannot inspect official OMV package origin'
+    grep -F 'synchrony/main' "$WORK/output" >/dev/null ||
+        fatal 'Signed official OMV 8 package repository unavailable'
+    review_install 'OMV 8 package and dependencies' openmediavault
+    capture in-target dpkg-query -W -f='${Version}\n' openmediavault ||
+        fatal 'Cannot check installed OMV version'
+    grep -E '^8\.' "$WORK/output" >/dev/null ||
+        fatal 'Installed OMV is not version 8'
+
+    # Native Debian Installer account: never hardcode a username.
+    db_get passwd/username || fatal 'Missing Debian Installer username'
+    admin=$RET
+    case "$admin" in ''|*[!a-zA-Z0-9_.-]*) fatal 'Unexpected admin account name';; esac
+    capture in-target id "$admin" || fatal 'Admin account unavailable'
+    capture in-target getent group _ssh || fatal 'OMV _ssh access group unavailable'
+    run_target usermod -aG sudo,_ssh "$admin"
+    mkdir -p /target/etc/ssh/sshd_config.d
+    printf 'PermitRootLogin no\n' > /target/etc/ssh/sshd_config.d/01-my-cdd-root-login.conf
+    capture in-target sshd -T || fatal 'OMV SSH config invalid'
+    grep -Fx 'permitrootlogin no' "$WORK/output" >/dev/null ||
+        fatal 'OMV root SSH still enabled'
+
+    # OMV 8 source controls scheduled updates through conf.system.apt.updates
+    # and the "apt" notification record, deploying apt + apticron (not the
+    # obsolete cronapt Salt state). Do not edit OMV-generated cron files.
+    # No OMV service is stopped, masked or disabled by this setting.
+    capture in-target python3 -c '
+import json
+import subprocess
+
+def read(model):
+    result = subprocess.run(
+        ["omv-confdbadm", "read", model],
+        check=True, capture_output=True, text=True)
+    return json.loads(result.stdout)
+
+def update(model, data):
+    subprocess.run(
+        ["omv-confdbadm", "update", model, json.dumps(data)],
+        check=True, capture_output=True, text=True)
+
+settings = read("conf.system.apt.updates")
+if not isinstance(settings, dict) or not isinstance(settings.get("unattendedupgrade"), bool):
+    raise RuntimeError("Unexpected OMV 8 APT update settings")
+settings["unattendedupgrade"] = False
+update("conf.system.apt.updates", settings)
+
+notifications = read("conf.system.notification.notification")
+if not isinstance(notifications, list):
+    raise RuntimeError("Unexpected OMV 8 notification list")
+apt_notifications = [n for n in notifications if isinstance(n, dict) and n.get("id") == "apt"]
+if len(apt_notifications) != 1:
+    raise RuntimeError("Missing or ambiguous OMV 8 APT notification")
+apt_notification = apt_notifications[0]
+apt_notification["enable"] = False
+update("conf.system.notification.notification", apt_notification)
+
+if read("conf.system.apt.updates").get("unattendedupgrade") is not False:
+    raise RuntimeError("OMV unattended updates remain enabled")
+remaining = read("conf.system.notification.notification")
+if len([n for n in remaining if n.get("id") == "apt" and n.get("enable") is False]) != 1:
+    raise RuntimeError("OMV APT update notifications remain enabled")
+' || fatal 'Could not disable OMV 8 scheduled updates through its configuration database'
+    # Refresh OMV Salt grains, modules and pillar before targeted update-state
+    # deployment. Do NOT run 'stage run all': it redeploys unrelated services.
+    run_target omv-salt stage run prepare
+    run_target omv-salt deploy run apt apticron
+
+    # OMV 8 apticron state removes generated daily/weekly notification jobs
+    # when the APT notification setting is disabled. Check the effective
+    # outcome; never hand-edit Salt-managed cron configuration files.
+    for schedule in daily weekly; do
+        [ ! -e "/target/etc/cron.$schedule/openmediavault-apticron" ] ||
+            fatal "OMV apticron $schedule update notification schedule remains active"
+    done
+
+    # Block Debian periodic list refreshes and unattended upgrades for this
+    # explicitly selected OMV system; manual apt operations are unaffected.
+    mkdir -p /target/etc/apt/apt.conf.d
+    printf 'APT::Periodic::Update-Package-Lists "0";\nAPT::Periodic::Unattended-Upgrade "0";\n' > \
+        /target/etc/apt/apt.conf.d/99-my-cdd-manual-updates
+    capture in-target apt-config dump ||
+        fatal 'Cannot validate OMV and Debian scheduled APT update policy'
+    grep -Fx 'APT::Periodic::Update-Package-Lists "0";' "$WORK/output" >/dev/null ||
+        fatal 'Periodic APT package-list updates were not disabled'
+    grep -Fx 'APT::Periodic::Unattended-Upgrade "0";' "$WORK/output" >/dev/null ||
+        fatal 'Unattended APT upgrades were not disabled'
+
+    # Legacy cron-apt may exist on upgraded systems; do not mistake it for
+    # OMV 8 apticron. Fail closed if an active legacy schedule would remain.
+    if [ -f /target/etc/cron.d/cron-apt ]; then
+        if grep -Ev '^[[:space:]]*(#|$)' /target/etc/cron.d/cron-apt | grep -q .; then
+            fatal 'A legacy cron-apt job remains active; scheduled updates not fully disabled'
+        fi
+    fi
+    capture in-target getent ahostsv4 packages.openmediavault.io ||
+        fatal 'OMV installation disrupted target DNS; manual repair required'
+    ensure_manual_updates
+    run_target dpkg --audit
+    log 'OMV 8 installed with unattended upgrades and scheduled APT notifications off; no NAS shares or plugins configured'
+}
+
+````
+
+</details>
