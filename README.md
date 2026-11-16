@@ -26,11 +26,21 @@ The instructions use the `nano` text editor, which you can install with `sudo ap
 
 ## Usage
 
-On a normally installed server, obtain these guides with:
+To keep a copy of these guides on the server, first install **Git** (the tool used to download and update a repository). APT shows its intended package changes before asking for approval:
 
 ~~~sh
 sudo apt-get install git
+~~~
+
+Next, copy the repository into a new `home_server` directory. This downloads the guides and source files; **it does not install or configure NAS services**:
+
+~~~sh
 git clone https://github.com/dcf1007/home_server.git
+~~~
+
+Finally, enter the downloaded directory so the relative paths in the guides make sense. This changes only your terminal's working directory:
+
+~~~sh
 cd home_server
 ~~~
 

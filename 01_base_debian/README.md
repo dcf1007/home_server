@@ -47,6 +47,8 @@ Sign in with the account you created. Run these commands one at a time.
 
 Check the Debian version:
 
+This reads Debian’s release information without changing anything. Look for `PRETTY_NAME` or `VERSION_ID` identifying **Debian 13 (Trixie)**; if it is another release, these instructions may not apply.
+
 ~~~sh
 cat /etc/os-release
 ~~~
@@ -54,6 +56,8 @@ cat /etc/os-release
 Look for `Debian GNU/Linux 13` and `trixie`.
 
 Check that the machine is 64-bit:
+
+This prints the CPU architecture of the running system. Look for `x86_64`, which confirms the amd64 system expected by these guides.
 
 ~~~sh
 uname -m
@@ -63,6 +67,8 @@ The expected result for this project is `x86_64`.
 
 Review the disks and mount points:
 
+This lists disks and partitions, their sizes, filesystem types and where they are mounted. Identify the root mount `/` and any swap partition; **this is inspection only** and does not modify the disks.
+
 ~~~sh
 lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS
 ~~~
@@ -71,15 +77,21 @@ Confirm that the expected disk contains your root filesystem and, if selected, t
 
 Check network addresses and the clock:
 
+This displays each network interface and its IP address in a compact form. Find the address of your active wired or wireless interface; if it has no usable address, investigate network setup before continuing.
+
 ~~~sh
 ip -brief address
 ~~~
+
+This shows the system clock, time zone and synchronization status. Confirm the time zone matches your choice and that the clock is correct before downloading packages.
 
 ~~~sh
 timedatectl
 ~~~
 
 Finally, refresh package information:
+
+This downloads the latest package **indexes** from your configured repositories. It does **not** install or upgrade packages. Look for successful repository refreshes and stop if APT reports signature or download errors.
 
 ~~~sh
 sudo apt update
@@ -91,11 +103,15 @@ If your administrator account does not have `sudo`, use the root account created
 
 If you selected SSH server in the installer, check its status:
 
+This asks systemd whether the SSH server is running. Look for `active (running)`; if it is inactive, inspect the reported error before relying on remote access.
+
 ~~~sh
 sudo systemctl status ssh
 ~~~
 
 It should be running. If you did not select SSH but now want it, install it explicitly:
+
+This installs OpenSSH Server from Debian only if you have chosen to make the server accessible over SSH. APT will show the packages and ask for approval; afterwards check the SSH service status.
 
 ~~~sh
 sudo apt install openssh-server
@@ -105,11 +121,15 @@ Test logging in as your normal user from another computer before depending on SS
 
 For the optional ZRAM emergency-recovery policy, check local root password status:
 
+This shows the *status* of the local root account password without revealing it. In Debian’s output, `P` means a usable password and `L` means locked; confirm your planned emergency login is actually possible.
+
 ~~~sh
 sudo passwd -S root
 ~~~
 
 If root is locked or has no usable password, and you want local emergency recovery, set one interactively:
+
+This interactively **sets or changes the local root password**. You will be asked to type it twice; use this only if you decided you need emergency recovery, and store the password securely.
 
 ~~~sh
 sudo passwd root
