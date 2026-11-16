@@ -1,5 +1,26 @@
 # Validation — Test the scripts and generated Debian installer
 
+## Latest VM installer evidence and diagnostic UI fix — 2026-11-16
+
+**Observed in the most recent graphical VM screenshots:**
+
+1. The Debian tweaks profile progressed past the former pre-boot OpenSSH failure. The selected Backports/kernel/firmware profiles progressed far enough for ZRAM to run.
+2. The native default-No ZRAM dialog automatically identified `/dev/sda3` by its GPT PARTUUID and showed the exact disk and partition. The user approved conversion and the separately prompted targeted `swapoff` (0 used bytes).
+3. The `systemd-zram-generator` APT simulation was reviewed. The installer progressed to the OMV profile, establishing that ZRAM's installer-stage handler returned successfully. **First-boot ZRAM writeback has not been verified.**
+4. OMV installed its approved `gnupg`/`wget` prerequisites, retrieved and inspected the official signing key, and imported it to the target's dedicated keyring.
+5. After the one official OMV signed APT source was configured, `apt-get update` **failed**. The dialog showed only “Target APT transaction failed: apt-get update” and unrelated trailing log output. The actual HTTP/DNS/signature/APT error is **not present in the screenshots**, so its cause is unknown. Docker was not reached and the installation remains **FAILED**.
+
+**Source-level correction requested by the user:** “make the actual errors pop in the interface if you want to get them”. Debian Installer's `in-target` forwards stdout with `--pass-stdout` but logs stderr to syslog, while `debconf-apt-progress --logstderr` emits package output on stderr. The common `capture()` now redirects stderr to stdout **inside the target command**, preserving the original exit status and native package-progress UI. On any captured-command failure, the existing native GTK/text failure note shows the exact command, exit code, recognizable APT/dpkg error lines and recent actual command output **before** generic log information. Full output still goes to `/target/var/log/installer/my-cdd.log`. The OMV endpoint/source and package operations are **unchanged** until an actual APT diagnostic is available.
+
+**Next disposable-VM checks:**
+
+- [ ] Build the revised ISO from the current code and reproduce the OMV `apt-get update` case with the seven selected profiles on a disposable VM.
+- [ ] Confirm the native failure dialog displays actual `Err:` / `E:` / HTTP / DNS / signature diagnostics from the failed command without requiring an installer shell.
+- [ ] Confirm the failure dialog displays the command and nonzero exit status, the on-disk log contains both output streams, and installation remains FAIL/CANNOT COMPLETE after a selected-profile failure.
+- [ ] Confirm normal native Debconf progress and approvals remain visible for successful package transactions.
+- [ ] If the APT diagnostic confirms a problem in OMV's official repository, fix **only that grounded issue**; do not add unrequested mirror lists or SSH/update policy.
+- [ ] Complete first-boot checks for ZRAM compressed writeback, SSH, networking, OMV and Docker after an entirely successful installer run.
+
 ## Latest real installer VM evidence — 2026-11-16
 
 **Observed in the newer test screenshots and installer syslog:**
