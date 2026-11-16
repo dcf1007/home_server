@@ -1,0 +1,13 @@
+[Unit]
+Description=Pressure-triggered zram writeback
+BindsTo=dev-zram0.swap
+After=dev-zram0.swap
+
+[Service]
+Type=exec
+ExecStart=/usr/local/sbin/zram-pressure.sh
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

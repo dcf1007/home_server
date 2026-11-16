@@ -26,14 +26,14 @@
 
 ## Entry points
 
-- [`simple-cdd.conf`](simple-cdd.conf) — Trixie/amd64 Simple-CDD configuration; seven optional profiles, no auto-selection, `INSTALLER_CD="2"`, official Debian mirror components and `NONFREE_COMPONENTS="non-free-firmware"`. The proven two-stage mirror/index procedure has been restored; the corrected netinst ISO built, but a new `zstd` base-installation defect requires rebuilding.
-- [`build.sh`](build.sh) — **two-stage Simple-CDD builder**: mirror-only, explicitly extend the generated local udeb components and run reprepro, then build-only. On repeat builds, it first reconciles stale local reprepro database targets. It verifies installer indexes, ISO assets and executable entry points, retains mirror/build/terminal logs and propagates the real exit status with Bash `pipefail`. A successful ISO build is **not** proof of installer correctness. Build-time editable defaults are rendered from `profile_defaults.conf`.
-- [`profiles/`](profiles/) — native Simple-CDD profile descriptions, empty optional auto-package queues, and seven postinst **completion verifiers**. The actual selected-profile actions run in Debian Installer's normal late-command stage.
-- [`installer/`](installer/) — approved early Debconf selection/confirmation, plus [`run-selected.sh`](installer/run-selected.sh), shared [`profile-common.sh`](installer/profile-common.sh) and selected-only `installer/profile-*.sh` modules, invoked from the normal `preseed/late_command` with the agreed ordered operations and individual confirmations. **Actual GUI/installer behavior is untested.**
-- [`scripts/`](scripts/) — approved firmware package inventory, selected-only Backports and ZRAM configuration inputs, and untested ZRAM source assets.
-- [`profiles/installer-media.downloads`](profiles/installer-media.downloads) — build-only extra ISO package list (`zstd`). The standard upstream `default.downloads` is not overridden; no extra installer checkbox is added.
-- [`profile_defaults.conf`](profile_defaults.conf) — single editable source used by `build.sh` to generate `tmp/generated/defaults.preseed` and boot-parameter defaults; passwords, disk choices and optional-profile flags are intentionally excluded.
-- [`SOURCE_MANIFEST.md`](SOURCE_MANIFEST.md) — creation provenance, source categories and current blocked implementation status.
+- [`simple-cdd.conf`](../my-cdd/simple-cdd.conf) — Trixie/amd64 Simple-CDD configuration; seven optional profiles, no auto-selection, `INSTALLER_CD="2"`, official Debian mirror components and `NONFREE_COMPONENTS="non-free-firmware"`. The proven two-stage mirror/index procedure has been restored; the corrected netinst ISO built, but a new `zstd` base-installation defect requires rebuilding.
+- [`build.sh`](../my-cdd/build.sh) — **two-stage Simple-CDD builder**: mirror-only, explicitly extend the generated local udeb components and run reprepro, then build-only. On repeat builds, it first reconciles stale local reprepro database targets. It verifies installer indexes, ISO assets and executable entry points, retains mirror/build/terminal logs and propagates the real exit status with Bash `pipefail`. A successful ISO build is **not** proof of installer correctness. Build-time editable defaults are rendered from `profile_defaults.conf`.
+- [`profiles/`](../my-cdd/profiles/) — native Simple-CDD profile descriptions, empty optional auto-package queues, and seven postinst **completion verifiers**. The actual selected-profile actions run in Debian Installer's normal late-command stage.
+- [`installer/`](../my-cdd/installer/) — approved early Debconf selection/confirmation, plus [`run-selected.sh`](../my-cdd/installer/run-selected.sh), shared [`profile-common.sh`](../my-cdd/installer/profile-common.sh) and selected-only `installer/profile-*.sh` modules, invoked from the normal `preseed/late_command` with the agreed ordered operations and individual confirmations. **Actual GUI/installer behavior is untested.**
+- [`scripts/`](../my-cdd/scripts/) — approved firmware package inventory, selected-only Backports and ZRAM configuration inputs, and untested ZRAM source assets.
+- [`profiles/installer-media.downloads`](../my-cdd/profiles/installer-media.downloads) — build-only extra ISO package list (`zstd`). The standard upstream `default.downloads` is not overridden; no extra installer checkbox is added.
+- [`profile_defaults.conf`](../my-cdd/profile_defaults.conf) — single editable source used by `build.sh` to generate `tmp/generated/defaults.preseed` and boot-parameter defaults; passwords, disk choices and optional-profile flags are intentionally excluded.
+- [`SOURCE_MANIFEST.md`](../my-cdd/SOURCE_MANIFEST.md) — creation provenance, source categories and current blocked implementation status.
 
 ## Build from a Git checkout
 
@@ -73,7 +73,7 @@ The minimal default preseed only bootstraps Simple-CDD and deliberately leaves *
 
 In the installed system, **both microcode packages** and broad firmware would be evaluated when Extended device support is selected. With Backports selected, targeted Backports package versions take precedence under global priority **100**; incompatible/missing firmware requires an explicitly approved individual omission, and Stable fallbacks are listed in the final APT transaction.
 
-An ISO image **has** been produced (2026-11-15), but no successful USB boot or end-to-end installation test has been demonstrated. Follow the [preparation guide](../01_custom_cdd_preparation.md), [validation checklist](../08_validation_and_pending.md) and [implementation gates](installer/IMPLEMENTATION_GATES.md). No source-image/output-ISO hash or USB read-back/integrity-only test has been introduced.
+An ISO image **has** been produced (2026-11-15), but no successful USB boot or end-to-end installation test has been demonstrated. Follow the [preparation guide](../01_custom_cdd_preparation.md), [validation checklist](../08_validation_and_pending.md) and [implementation gates](../my-cdd/installer/IMPLEMENTATION_GATES.md). No source-image/output-ISO hash or USB read-back/integrity-only test has been introduced.
 
 ## ZRAM backing selection (source implementation, not installer-validated)
 
