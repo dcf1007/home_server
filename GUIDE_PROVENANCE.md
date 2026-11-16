@@ -1,5 +1,15 @@
 # Guide provenance and scope
 
+## Native installer error reporting — 2026-11-16
+
+**Nearest user prompt:** “make the actual errors pop in the interface if you want to get them”, following screenshots of the Debian Installer's OMV `apt-get update` failure without the underlying APT stderr.
+
+**Observed VM evidence:** The latest installer run progressed through Debian tweaks and the approved selected ZRAM partition conversion, and reached OMV. OMV's signed key was downloaded/inspected/imported. The next `apt-get update` failed and stopped the installation; the native error dialog showed only the generic failure and unrelated prior log output, so no repository/DNS/signature cause has been established. Docker and first boot were not reached.
+
+**Implementation:** In the shared installer `capture()`, Debian Installer's `in-target --pass-stdout` retains its native target setup and Debconf passthrough. The target program's stderr is redirected to stdout **inside the target shell**, avoiding Debian Installer's stderr-to-syslog routing. The command's original exit code and complete stdout/stderr are recorded in `my-cdd.log`; the existing GTK/text `fatal()` note now prioritizes the actual failing command, exit status, recognizable APT/dpkg error lines and last 100 command-output lines. If the command emits no captured output, it shows a short installer-syslog fallback. No additional debug UI or one-time helper is added.
+
+**Scope:** Generic shared diagnostic path only, plus matching full source listing, validation and provenance. No change to the OMV repository, signing key, packages, SSH, automatic-update policies or ZRAM destructive conversion. A new ISO/VM test must confirm the real diagnostic is visible; this remains source-level only.
+
 ## Root-filesystem policy and one-use helper simplification — 2026-11-16
 
 **Nearest user prompt:** “the noatime and errors=panic should be set no matter the filesystem of the root partition ... ensure_manual_updates sounds like a helper used only once. i prefer readable code that does not jump to useless one time helpers. review all code for that kind of useless helpers”, followed by “i agree” to the examined changes.

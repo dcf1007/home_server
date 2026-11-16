@@ -42,8 +42,8 @@ After all required files exist, use the guarded `./build.sh` wrapper to create t
 
 ## Recent installer test and open blocker
 
-Earlier Debian 13 VM screenshots (16 November 2026) show approved ZRAM conversion and generator installation. The latest run stopped during Debian tweaks, before ZRAM, at a pre-boot sshd runtime-directory check; the revised source removes that check. The actual `sshd` stderr was not visible in the screenshot.
+The latest Debian 13 VM (16 November 2026) progressed through the fixed Debian tweaks stage, the selected ZRAM swap conversion and generator installation, and OMV's signing-key import. The OMV profile then stopped at `apt-get update`; the native failure dialog omitted the actual APT error because `in-target` logged its stderr only to the installer syslog. Docker and first boot were not reached.
 
-The current source addresses a **possible** unbooted-target issue by preparing the temporary `/run/sshd` directory before validation and preserving the true diagnostic in the installer log. It also moves Debian tweaks **before** ZRAM, so a failure there stops before the partition conversion. The fix is **not yet runtime-verified**.
+The current shared installer source redirects the target program's stderr to captured stdout **inside** `in-target`, and presents the failing command, exit code, recognized error lines and actual command output in the same GTK/text failure note. OMV's official repository and installation behavior are unchanged pending the actual error. **This logging fix is not yet VM-validated.**
 
 Earlier design notes and test history remain under [history](history/). [Provenance](../GUIDE_PROVENANCE.md) records why the standalone and installer versions must be updated together.

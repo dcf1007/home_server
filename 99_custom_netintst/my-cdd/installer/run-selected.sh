@@ -19,17 +19,28 @@ chmod 600 "$LOG"
 printf "INCOMPLETE\n" > "$STATUS"
 chmod 600 "$STATUS"
 log() { printf '%s\n' "$*" >> "$LOG"; }
+FAILED_CAPTURE_COMMAND=''
+FAILED_CAPTURE_STATUS=''
 capture() {
-    # Debian Installer's in-target consumes stdout into its syslog unless
-    # --pass-stdout is explicitly given. Every APT review and status parser
-    # must receive the real command output, so apply this in one place.
+    # in-target uses log-output: --pass-stdout forwards stdout, but stderr
+    # goes to installer syslog. Redirect stderr *inside* the target so both
+    # streams reach our command log and can be shown in the GTK/text dialog.
+    FAILED_CAPTURE_COMMAND=''
+    FAILED_CAPTURE_STATUS=''
     if [ "$1" = in-target ]; then
         shift
-        set -- in-target --pass-stdout "$@"
+        command_label="in-target --pass-stdout $*"
+        set -- in-target --pass-stdout /bin/sh -c 'exec "$@" 2>&1' my-cdd "$@"
+    else
+        command_label="$*"
     fi
-    log "COMMAND: $*"
+    log "COMMAND: $command_label"
     if "$@" > "$WORK/output" 2>&1; then rc=0; else rc=$?; fi
     cat "$WORK/output" >> "$LOG"
+    if [ "$rc" -ne 0 ]; then
+        FAILED_CAPTURE_COMMAND=$command_label
+        FAILED_CAPTURE_STATUS=$rc
+    fi
     return "$rc"
 }
 export_log() {
@@ -71,12 +82,37 @@ fatal() {
     log "FATAL: $*"
     {
         printf 'Installation stopped: %s\n' "$*"
-        echo "Unredacted diagnostics: $LOG"
+        if [ -n "$FAILED_CAPTURE_COMMAND" ]; then
+            printf '\nFAILED COMMAND: %s\nEXIT STATUS: %s\n' \
+                "$FAILED_CAPTURE_COMMAND" "$FAILED_CAPTURE_STATUS"
+            printf '\nACTUAL COMMAND OUTPUT (including stderr; last 100 lines):\n'
+            if [ -s "$WORK/output" ]; then
+                # Put recognizable APT/dpkg errors at the top of the dialog
+                # before any lengthy contextual output.
+                if grep -E '^(Err:|E:|W:|Error:|ERROR:|dpkg: error:|fatal:)' \
+                    "$WORK/output" > "$WORK/errors"; then
+                    echo 'Reported error/warning lines:'
+                    tail -n 30 "$WORK/errors"
+                    echo
+                fi
+                tail -n 100 "$WORK/output"
+            else
+                echo 'No output was captured from the failed command.'
+                if [ -r /var/log/syslog ]; then
+                    echo 'Recent installer syslog entries:'
+                    tail -n 30 /var/log/syslog
+                fi
+            fi
+        else
+            echo
+            echo 'RECENT INSTALLER LOG:'
+            tail -n 70 "$LOG"
+        fi
+        echo
+        echo "Full unredacted diagnostics: $LOG"
         echo 'The installer USB is not assumed writable.'
         echo 'Manual log export: use an installer shell and a verified,'
         echo 'already-mounted writable removable data location.'
-        echo
-        tail -n 70 "$LOG"
     } > "$WORK/failure"
     show_note 'Custom profile failure and recovery' "$WORK/failure" || true
     cat "$WORK/failure" >&2

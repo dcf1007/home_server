@@ -36,10 +36,10 @@ Paste the complete matching listings below. The early hook must run **before** `
 
 | File | Purpose |
 | --- | --- |
-| `installer/run-selected.sh` | Supplies `capture`, `fatal`, target-APT simulation and review helpers; checks local root recovery access; sources and runs only selected functions; writes completion markers directly in the profile loop and retains failure logs. |
+| `installer/run-selected.sh` | Supplies `capture`, `fatal`, target-APT simulation and review helpers; checks local root recovery access; sources and runs only selected functions; writes completion markers and shows real failed-command output in the native failure dialog. |
 | `installer/15my-cdd-status` | Finish-install hook that blocks success if status is not `COMPLETE` or a selected marker is absent. |
 
-Paste both entire listings below. **Do not trim `run-selected.sh` down to the short dispatcher excerpt.** Its review and error-handling code is necessary for safety. The guard uses Debian Installer's finish-install **exit status 10**, not a generic shell exit 1.
+Paste both entire listings below. **Do not trim `run-selected.sh` down to the short dispatcher excerpt.** Its review and error-handling code is necessary for safety. Target stderr is redirected to stdout **inside the `in-target` chroot**, because Debian Installer otherwise sends it only to syslog. On failure, the native GTK/text note shows the failed command, return status, recognized APT/dpkg error lines and the last 100 lines of actual command output. The complete log is still retained in `/target/var/log/installer/my-cdd.log`. The guard uses Debian Installer's finish-install **exit status 10**, not a generic shell exit 1.
 
 Mark only the actual **entry points** as executable:
 
@@ -379,7 +379,7 @@ Description: Remove the package ${MYCDD_REMOVAL}?
 
 
 <details>
-<summary><strong>Complete file: installer/run-selected.sh</strong> (356 lines, current Git blob <code>5fd68f3bf8b4bb2974f7b5113ad841509b3907af</code>)</summary>
+<summary><strong>Complete file: installer/run-selected.sh</strong> (392 lines, current Git blob <code>c59a0f935a2911357a318fc558d68960bf77b35c</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -403,17 +403,28 @@ chmod 600 "$LOG"
 printf "INCOMPLETE\n" > "$STATUS"
 chmod 600 "$STATUS"
 log() { printf '%s\n' "$*" >> "$LOG"; }
+FAILED_CAPTURE_COMMAND=''
+FAILED_CAPTURE_STATUS=''
 capture() {
-    # Debian Installer's in-target consumes stdout into its syslog unless
-    # --pass-stdout is explicitly given. Every APT review and status parser
-    # must receive the real command output, so apply this in one place.
+    # in-target uses log-output: --pass-stdout forwards stdout, but stderr
+    # goes to installer syslog. Redirect stderr *inside* the target so both
+    # streams reach our command log and can be shown in the GTK/text dialog.
+    FAILED_CAPTURE_COMMAND=''
+    FAILED_CAPTURE_STATUS=''
     if [ "$1" = in-target ]; then
         shift
-        set -- in-target --pass-stdout "$@"
+        command_label="in-target --pass-stdout $*"
+        set -- in-target --pass-stdout /bin/sh -c 'exec "$@" 2>&1' my-cdd "$@"
+    else
+        command_label="$*"
     fi
-    log "COMMAND: $*"
+    log "COMMAND: $command_label"
     if "$@" > "$WORK/output" 2>&1; then rc=0; else rc=$?; fi
     cat "$WORK/output" >> "$LOG"
+    if [ "$rc" -ne 0 ]; then
+        FAILED_CAPTURE_COMMAND=$command_label
+        FAILED_CAPTURE_STATUS=$rc
+    fi
     return "$rc"
 }
 export_log() {
@@ -455,12 +466,37 @@ fatal() {
     log "FATAL: $*"
     {
         printf 'Installation stopped: %s\n' "$*"
-        echo "Unredacted diagnostics: $LOG"
+        if [ -n "$FAILED_CAPTURE_COMMAND" ]; then
+            printf '\nFAILED COMMAND: %s\nEXIT STATUS: %s\n' \
+                "$FAILED_CAPTURE_COMMAND" "$FAILED_CAPTURE_STATUS"
+            printf '\nACTUAL COMMAND OUTPUT (including stderr; last 100 lines):\n'
+            if [ -s "$WORK/output" ]; then
+                # Put recognizable APT/dpkg errors at the top of the dialog
+                # before any lengthy contextual output.
+                if grep -E '^(Err:|E:|W:|Error:|ERROR:|dpkg: error:|fatal:)' \
+                    "$WORK/output" > "$WORK/errors"; then
+                    echo 'Reported error/warning lines:'
+                    tail -n 30 "$WORK/errors"
+                    echo
+                fi
+                tail -n 100 "$WORK/output"
+            else
+                echo 'No output was captured from the failed command.'
+                if [ -r /var/log/syslog ]; then
+                    echo 'Recent installer syslog entries:'
+                    tail -n 30 /var/log/syslog
+                fi
+            fi
+        else
+            echo
+            echo 'RECENT INSTALLER LOG:'
+            tail -n 70 "$LOG"
+        fi
+        echo
+        echo "Full unredacted diagnostics: $LOG"
         echo 'The installer USB is not assumed writable.'
         echo 'Manual log export: use an installer shell and a verified,'
         echo 'already-mounted writable removable data location.'
-        echo
-        tail -n 70 "$LOG"
     } > "$WORK/failure"
     show_note 'Custom profile failure and recovery' "$WORK/failure" || true
     cat "$WORK/failure" >&2
