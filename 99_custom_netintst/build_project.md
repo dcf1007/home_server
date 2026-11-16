@@ -1,6 +1,6 @@
-# 01 — Recreate the Simple-CDD build project
+# Build project — Recreate Simple-CDD and the ISO build wrapper
 
-**Outcome:** a working *build project* for Debian 13 amd64 containing the complete source of `simple-cdd.conf`, editable installer defaults and the guarded two-stage `build.sh`. This does **not** yet include the per-feature implementation; those are constructed in [00](profile_construction.md), [05](installer_framework.md) and the feature chapters.
+**Outcome:** a working *build project* for Debian 13 amd64 containing the complete source of `simple-cdd.conf`, editable installer defaults and the guarded two-stage `build.sh`. This does **not** yet include the per-feature implementation; those are constructed in [Shared profile helpers](profile_construction.md), [Installer framework](installer_framework.md) and the feature chapters.
 
 ## Step 1 — Prepare a Debian build computer
 
@@ -13,10 +13,10 @@ sudo apt update
 This downloads the latest Debian package indexes; it installs nothing.
 
 ~~~sh
-sudo apt install git simple-cdd reprepro nano
+sudo apt install git simple-cdd reprepro
 ~~~
 
-This installs the Git client, the Simple-CDD ISO builder, the reprepro repository tool and the `nano` text editor used below. Read APT's proposed changes before accepting.
+This installs the Git client, the Simple-CDD ISO builder, the reprepro repository tool and the build prerequisites. Read APT's proposed changes before accepting.
 
 Choose **one** way to obtain a `home_server` working directory:
 
@@ -73,7 +73,7 @@ Run this from the root of the `home_server` checkout, not from inside another `m
 | `profiles/installer-media.udebs` | Include native `parted-udeb` and `util-linux-udeb` for installer-side GPT work. |
 | `.gitignore` | Avoid checking in generated build logs, images and temporary files. |
 
-For **each file**, open it in an editor (`nano simple-cdd.conf`, then `nano profile_defaults.conf`, and so on), paste the **entire matching file listing** below, save, and close. Do not use abbreviated snippets from earlier versions of this guide: some were missing build guards.
+For **each file**, open it in an editor (a text editor for `simple-cdd.conf`, then a text editor for `profile_defaults.conf`, and so on), paste the **entire matching file listing** below, save, and close. Do not use abbreviated snippets from earlier versions of this guide: some were missing build guards.
 
 Make the build entry point executable:
 
@@ -99,7 +99,7 @@ bash -n build.sh
 
 This checks Bash syntax without running the builder. **Do not run `./build.sh` yet if you have not created** the common installer files and feature modules: its checks will stop on missing source.
 
-**Next:** [00 — Shared profile code](profile_construction.md), then [05 — Installer hooks and dispatcher](installer_framework.md), then one or more feature guides. When all media manifests and modules exist, run `./build.sh` from `my-cdd` and test the ISO in a disposable VM.
+**Next:** [Shared profile helpers](profile_construction.md), then [Installer framework](installer_framework.md), then one or more feature guides. When all media manifests and modules exist, run `./build.sh` from `my-cdd` and test the ISO in a disposable VM.
 
 ## Complete, copyable source files
 

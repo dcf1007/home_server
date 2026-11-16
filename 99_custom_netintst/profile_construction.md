@@ -1,8 +1,8 @@
-# 00 — Recreate the shared profile rules and APT helpers
+# Shared profile helpers — Recreate selection rules and target APT helpers
 
 This is a **build tutorial**. When you finish it you will have the two source files that every optional installer profile depends on. These run **inside Debian Installer**, not from a running NAS.
 
-**Starting point:** A directory `99_custom_netintst/my-cdd/` with the Simple-CDD configuration from [01](build_project.md). If you are extending the existing repository, work on a separate Git branch. If you are reconstructing the project, start with [01](build_project.md), complete this chapter, then [05](installer_framework.md) and the feature you want.
+**Starting point:** A directory `99_custom_netintst/my-cdd/` with the Simple-CDD configuration from [Build project](build_project.md). If you are extending the existing repository, work on a separate Git branch. If you are reconstructing the project, start with [Build project](build_project.md), complete this chapter, then [Installer framework](installer_framework.md) and the feature you want.
 
 ## Step 1 — Know what each file provides
 
@@ -21,7 +21,7 @@ In the `my-cdd` directory, create the installer directory if absent:
 mkdir -p installer
 ~~~
 
-Open each listed file in a text editor (for example `nano installer/ordered-selection.sh`), copy **the complete listing** with the matching filename from below, save with Ctrl+O, Enter, and exit with Ctrl+X. Repeat for `installer/profile-common.sh`.
+Open each listed file in a text editor (for example a text editor for `installer/ordered-selection.sh`), Save the document after reviewing the pasted contents. Repeat for `installer/profile-common.sh`.
 
 **Copy every line**, including the shell header and comments. The shorter excerpts in older guides were not complete programs. The complete listings below are copied directly from the recorded repository revision.
 
@@ -29,7 +29,7 @@ Open each listed file in a text editor (for example `nano installer/ordered-sele
 
 The selection parser first validates the approved profile names and cross-profile dependency; it never adds choices automatically. The APT helpers always inspect the **target system** in `/target`, not the installer's temporary package database. A complete APT plan is shown through the dispatcher's native Debconf UI before a target package transaction is performed.
 
-The shared functions expect the dispatcher to provide `capture`, `fatal`, `WORK`, `LOG`, `MEDIA` and the cdebconf helper functions. That's why you must complete [05 — Build the dispatcher](installer_framework.md) before using a feature module.
+The shared functions expect the dispatcher to provide `capture`, `fatal`, `WORK`, `LOG`, `MEDIA` and the cdebconf helper functions. That's why you must complete [Installer framework](installer_framework.md) before using a feature module.
 
 ## Step 4 — Check your copies
 
@@ -45,7 +45,7 @@ sh -n installer/profile-common.sh
 
 This likewise checks the shared functions' shell syntax. Syntax validation cannot prove the APT logic works. Confirm the code is identical using the expected Git blob hashes in the file listings below (see the check instructions there).
 
-**Next:** [05 — Recreate the actual preseed/dispatcher framework](installer_framework.md).
+**Next:** [Installer framework](installer_framework.md).
 
 ## Complete, copyable source files
 

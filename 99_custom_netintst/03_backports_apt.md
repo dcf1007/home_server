@@ -1,10 +1,10 @@
-# 02 — Recreate the Backports installer profile, file by file
+# 03 — Recreate the Backports installer profile
 
 **Goal:** build this exact optional feature from its source files, not operate the completed installer. A **normal Debian system** uses [the simpler Backports guide](../03_backports/README.md).
 
 ## Before you start
 
-Complete the shared [build project](build_project.md), [installer helpers](profile_construction.md) and [dispatcher](installer_framework.md) first. Their scripts are **shared prerequisites** for every feature. Work in `99_custom_netintst/my-cdd/`, using a test branch or scratch copy of the repository.
+Complete the shared [Build project](build_project.md), [Shared profile helpers](profile_construction.md) and [Installer framework](installer_framework.md) first. Their scripts are **shared prerequisites** for every feature. Work in `99_custom_netintst/my-cdd/`, using a test branch or scratch copy of the repository.
 
 ## Step 1 — Identify the files you need
 
@@ -28,43 +28,33 @@ This creates source directories only; it does **not** install Backports.
 
 **1. Open `profiles/backports.description`.** The checkbox's plain-language label.
 
-~~~sh
-nano profiles/backports.description
-~~~
+Open `profiles/backports.description` in a text editor, paste the indicated contents and save it at that path.
 
-Expand the **matching complete file listing below**, copy every line between its code fences into the editor, save (Ctrl+O, Enter), then exit (Ctrl+X). This editor command does not execute the file.
+Expand the **matching complete file listing below**, Save the document after reviewing the pasted contents. This editor command does not execute the file.
 
 **2. Open `profiles/backports.extra`.** Which Backports module and source template must be copied to installer media.
 
-~~~sh
-nano profiles/backports.extra
-~~~
+Open `profiles/backports.extra` in a text editor, paste the indicated contents and save it at that path.
 
-Expand the **matching complete file listing below**, copy every line between its code fences into the editor, save (Ctrl+O, Enter), then exit (Ctrl+X). This editor command does not execute the file.
+Expand the **matching complete file listing below**, Save the document after reviewing the pasted contents. This editor command does not execute the file.
 
 **3. Open `profiles/backports.postinst`.** A success-marker verifier only; it must be executable.
 
-~~~sh
-nano profiles/backports.postinst
-~~~
+Open `profiles/backports.postinst` in a text editor, paste the indicated contents and save it at that path.
 
-Expand the **matching complete file listing below**, copy every line between its code fences into the editor, save (Ctrl+O, Enter), then exit (Ctrl+X). This editor command does not execute the file.
+Expand the **matching complete file listing below**, Save the document after reviewing the pasted contents. This editor command does not execute the file.
 
 **4. Open `installer/profile-backports.sh`.** The complete selected-only function: signed source, APT priority, upgrade consent, individual cleanup and audit.
 
-~~~sh
-nano installer/profile-backports.sh
-~~~
+Open `installer/profile-backports.sh` in a text editor, paste the indicated contents and save it at that path.
 
-Expand the **matching complete file listing below**, copy every line between its code fences into the editor, save (Ctrl+O, Enter), then exit (Ctrl+X). This editor command does not execute the file.
+Expand the **matching complete file listing below**, Save the document after reviewing the pasted contents. This editor command does not execute the file.
 
 **5. Open `scripts/debian-backports.sources`.** The signed Trixie Backports configuration installed in the target only when selected.
 
-~~~sh
-nano scripts/debian-backports.sources
-~~~
+Open `scripts/debian-backports.sources` in a text editor, paste the indicated contents and save it at that path.
 
-Expand the **matching complete file listing below**, copy every line between its code fences into the editor, save (Ctrl+O, Enter), then exit (Ctrl+X). This editor command does not execute the file.
+Expand the **matching complete file listing below**, Save the document after reviewing the pasted contents. This editor command does not execute the file.
 
 
 Make the marker verifier executable:

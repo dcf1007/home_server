@@ -1,10 +1,10 @@
-# 04 — Recreate the optional Debian tweaks installer profile
+# 02 — Recreate the optional Debian tweaks profile
 
 **Goal:** build the actual installer source for the opt-in filesystem, boot, SSH and manual-update changes. For a normal installed Debian system follow [06 — Debian tweaks](../02_debian_tweaks/README.md), not this installer code.
 
 ## Before you start
 
-Finish the shared [ISO build project](build_project.md), [common helpers](profile_construction.md) and [installer hooks](installer_framework.md). Work from `99_custom_netintst/my-cdd/` in a test branch or disposable copy. This optional profile shares the common dispatcher; it is **not a standalone shell script**.
+Finish the shared [Build project](build_project.md), [Shared profile helpers](profile_construction.md) and [Installer framework](installer_framework.md). Work from `99_custom_netintst/my-cdd/` in a test branch or disposable copy. This optional profile shares the common dispatcher; it is **not a standalone shell script**.
 
 ## Step 1 — Make the four feature files
 
@@ -29,35 +29,27 @@ This makes directories only.
 
 **1. Create `profiles/debian-tweaks.description`.** The label shown only when the optional tweaks checkbox is offered.
 
-~~~sh
-nano profiles/debian-tweaks.description
-~~~
+Open `profiles/debian-tweaks.description` in a text editor, paste the indicated contents and save it at that path.
 
-This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, copy all lines, save with Ctrl+O and Enter, then exit with Ctrl+X.
+This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, Save the document after reviewing the pasted contents.
 
 **2. Create `profiles/debian-tweaks.extra`.** Stages the selected-only tweaks module on the ISO.
 
-~~~sh
-nano profiles/debian-tweaks.extra
-~~~
+Open `profiles/debian-tweaks.extra` in a text editor, paste the indicated contents and save it at that path.
 
-This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, copy all lines, save with Ctrl+O and Enter, then exit with Ctrl+X.
+This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, Save the document after reviewing the pasted contents.
 
 **3. Create `profiles/debian-tweaks.postinst`.** Checks the marker after successful application; it does not reconfigure Debian.
 
-~~~sh
-nano profiles/debian-tweaks.postinst
-~~~
+Open `profiles/debian-tweaks.postinst` in a text editor, paste the indicated contents and save it at that path.
 
-This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, copy all lines, save with Ctrl+O and Enter, then exit with Ctrl+X.
+This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, Save the document after reviewing the pasted contents.
 
 **4. Create `installer/profile-tweaks.sh`.** Complete code that edits target GRUB, root ext4 fstab, SSH and the manual APT-update policy.
 
-~~~sh
-nano installer/profile-tweaks.sh
-~~~
+Open `installer/profile-tweaks.sh` in a text editor, paste the indicated contents and save it at that path.
 
-This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, copy all lines, save with Ctrl+O and Enter, then exit with Ctrl+X.
+This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, Save the document after reviewing the pasted contents.
 
 
 Set execute permission on the marker-checking postinst only:
