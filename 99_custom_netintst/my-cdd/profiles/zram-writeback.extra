@@ -2,7 +2,7 @@
 installer/profile-zram.sh
 installer/zram-selection.sh
 scripts/zram-generator.conf.template
-scripts/10-compressed-writeback.conf
+scripts/override.conf
 scripts/zram-pressure.sh
 scripts/zram-pressure.service
-scripts/90-zram-swappiness.conf
+scripts/90-zram.conf
