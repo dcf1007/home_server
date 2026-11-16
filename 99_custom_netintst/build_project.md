@@ -107,7 +107,7 @@ Expand the file you want to create. **These are full files, not fragments.** Cop
 
 
 <details>
-<summary><strong>Complete file: simple-cdd.conf</strong> (46 lines, original Git blob <code>64898be0b980c4d401af0c7607092cddc3f179d9</code>)</summary>
+<summary><strong>Complete file: simple-cdd.conf</strong> (46 lines, current Git blob <code>3a546782f1e1e5e8b02fc878b96f7395ee2cdc7a</code>)</summary>
 
 ````text
 # my-cdd Simple-CDD 0.6.9 build configuration for Debian 13 Trixie, amd64.
@@ -115,7 +115,7 @@ Expand the file you want to create. **These are full files, not fragments.** Cop
 # Status: source configuration; not evidence of a validated ISO.
 #
 # These are INCLUDED / OFFERED profiles, NOT AUTO-SELECTED profiles.
-profiles="backports ensure-7x-kernel extended-device-support zram-writeback debian-tweaks openmediavault docker"
+profiles="debian-tweaks backports ensure-7x-kernel extended-device-support zram-writeback openmediavault docker"
 auto_profiles=""
 default_profiles=""
 # Build-only media packages; never offered or auto-selected in the installer.
@@ -162,7 +162,7 @@ BOOT_TIMEOUT="0"
 
 
 <details>
-<summary><strong>Complete file: profile_defaults.conf</strong> (46 lines, original Git blob <code>935cdf9d65372ebf9a683f11a36fe57a8fe117cf</code>)</summary>
+<summary><strong>Complete file: profile_defaults.conf</strong> (49 lines, current Git blob <code>e7ef827d8a53240bdf6ad25a0a2b5a848e7a6bc6</code>)</summary>
 
 ````text
 # profile_defaults.conf — Debian 13 Simple-CDD installation GUI suggested values
@@ -179,6 +179,9 @@ BOOT_TIMEOUT="0"
 # normal Debian Installer questions for the user to confirm or change.
 # Runtime GUI/text behavior remains to be validated in a fresh ISO install.
 #
+# Leave the native root-password fields empty so Debian makes the first
+# regular user a sudo administrator. The late recovery check verifies this
+# account and then requests a separate local root emergency password.
 # Never put user/root passwords, password hashes, hard-coded disk targets,
 # or silent profile-selection flags in this file.
 
@@ -217,7 +220,7 @@ DEFAULT_TASKSEL_TASKS="ssh-server,standard"
 
 
 <details>
-<summary><strong>Complete file: build.sh</strong> (245 lines, original Git blob <code>65372c3ab5629006493032bf913ed0d814c8a903</code>)</summary>
+<summary><strong>Complete file: build.sh</strong> (245 lines, current Git blob <code>65372c3ab5629006493032bf913ed0d814c8a903</code>)</summary>
 
 ````sh
 #!/bin/bash
@@ -471,7 +474,7 @@ fi
 
 
 <details>
-<summary><strong>Complete file: profiles/installer-media.downloads</strong> (4 lines, original Git blob <code>f3f73480cd2d78ea0e10e1940c4bcf808fd37168</code>)</summary>
+<summary><strong>Complete file: profiles/installer-media.downloads</strong> (4 lines, current Git blob <code>f3f73480cd2d78ea0e10e1940c4bcf808fd37168</code>)</summary>
 
 ````text
 # Build-only additional media packages, not installed by Simple-CDD.
@@ -484,7 +487,7 @@ zstd
 
 
 <details>
-<summary><strong>Complete file: profiles/installer-media.udebs</strong> (6 lines, original Git blob <code>80147f01a637a38b4fbd29a0355fb9776f0a870a</code>)</summary>
+<summary><strong>Complete file: profiles/installer-media.udebs</strong> (6 lines, current Git blob <code>80147f01a637a38b4fbd29a0355fb9776f0a870a</code>)</summary>
 
 ````text
 # Build-only Debian Installer package. Never installed into /target.
@@ -499,7 +502,7 @@ util-linux-udeb
 
 
 <details>
-<summary><strong>Complete file: .gitignore</strong> (7 lines, original Git blob <code>bcd348176f87c516f9b6a0c98d6020a949aae341</code>)</summary>
+<summary><strong>Complete file: .gitignore</strong> (7 lines, current Git blob <code>bcd348176f87c516f9b6a0c98d6020a949aae341</code>)</summary>
 
 ````text
 # Local Simple-CDD build artifacts
