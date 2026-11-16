@@ -170,6 +170,6 @@ This shows whether an actual, uncommented scheduled command remains. **Do not ed
 
 Configure actual data disks, filesystems, users, shared folders and protocols in OMV's web interface after confirming the correct devices. This chapter does not create any shares or install OMV-Extras or Docker.
 
-For Docker as an **independent** service, follow [08 — Docker]( ../08_docker/README.md).
+For Docker as an **independent** service, follow [08 — Docker](../08_docker/README.md).
 
 **Done when:** OMV 8 works, normal-user SSH works, the unattended-upgrade and APT notification values have been verified off, and no generated notification schedule remains. **This exact OMV 8 UI sequence and Salt outcome still need verification on the installed version**; do not claim success based only on clicking Save.

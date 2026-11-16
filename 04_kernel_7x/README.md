@@ -1,6 +1,6 @@
 # 04 — Install an eligible Linux 7.x kernel (optional)
 
-**What this does:** installs a Linux **7.x kernel and matching headers** while keeping your working Debian kernel as a boot fallback. This project's [ZRAM writeback setup]( ../06_zram_writeback/README.md) depends on this step.
+**What this does:** installs a Linux **7.x kernel and matching headers** while keeping your working Debian kernel as a boot fallback. This project's [ZRAM writeback setup](../06_zram_writeback/README.md) depends on this step.
 
 Do not assume that a particular 7.x version will remain available. Check the versions offered by your configured Debian repositories at the time of installation.
 
@@ -36,7 +36,7 @@ apt show linux-headers-amd64
 
 If you have Backports enabled, also inspect the package pages for **Trixie Backports** or the additional available versions listed by `apt policy`. The moving image and header packages must resolve to the **same 7.x kernel ABI**. Version numbers will change over time.
 
-If your enabled sources do not offer a compatible 7.x pair, **stop**. You can choose to enable [Backports]( ../03_backports/README.md); do not silently use a different kernel branch.
+If your enabled sources do not offer a compatible 7.x pair, **stop**. You can choose to enable [Backports](../03_backports/README.md); do not silently use a different kernel branch.
 
 ## Step 2 — Install the matching image and headers
 
@@ -108,6 +108,6 @@ sudo dpkg --audit
 
 **Done when:** Linux 7.x is actually running, matching headers are installed, and the original Stable kernel remains a selectable fallback.
 
-**Important:** A 7.x version alone does not prove that ZRAM compressed writeback is supported. Check the actual ZRAM features in [06]( ../06_zram_writeback/README.md).
+**Important:** A 7.x version alone does not prove that ZRAM compressed writeback is supported. Check the actual ZRAM features in [06](../06_zram_writeback/README.md).
 
 **References:** [Debian Backports](https://backports.debian.org/Instructions/) · [Available Trixie Backports kernel](https://packages.debian.org/trixie-backports/linux-image-amd64).

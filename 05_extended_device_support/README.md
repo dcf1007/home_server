@@ -12,7 +12,7 @@ This updates APT’s available package information before evaluating firmware. I
 sudo apt update
 ~~~
 
-Open the [full firmware inventory]( firmware-candidates.txt). It is organized below into small groups so you can review what is being installed.
+Open the [full firmware inventory](firmware-candidates.txt). It is organized below into small groups so you can review what is being installed.
 
 APT itself asks for any package-specific license acceptance, including the complete license prompts for `firmware-ipw2x00` and `firmware-ivtv`. You do **not** need the custom installer's Debconf workarounds.
 
@@ -112,7 +112,7 @@ This **inspects one package** and its available versions without installing it. 
 apt policy firmware-realtek
 ~~~
 
-Substitute the **actual problematic package name**. Decide whether to retry just that package, use a compatible Backports version (if [Backports]( ../03_backports/README.md) was explicitly enabled), or **deliberately omit** that one package. Record every omission and its reason; do not silently skip requested firmware.
+Substitute the **actual problematic package name**. Decide whether to retry just that package, use a compatible Backports version (if [Backports](../03_backports/README.md) was explicitly enabled), or **deliberately omit** that one package. Record every omission and its reason; do not silently skip requested firmware.
 
 With Backports enabled, APT still normally prefers Stable. To choose a compatible Backports package deliberately, the command looks like:
 
