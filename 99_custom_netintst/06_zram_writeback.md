@@ -22,8 +22,8 @@ Work inside `99_custom_netintst/my-cdd/`, on a test branch or scratch copy.
 | `profiles/zram-writeback.description` | Text of the opt-in ZRAM checkbox. |
 | `profiles/zram-writeback.extra` | All required sources and generator/monitor assets to stage on the installer ISO. |
 | `profiles/zram-writeback.postinst` | Executable completion-marker verifier (not a second partition conversion). |
-| `installer/profile-zram.sh` | The complete selected-only handler: confirmation, RAM/swapoff checks, bounded erase, native Parted, fstab and target provisioning. |
-| `installer/zram-selection.sh` | The complete installer-native GPT/sysfs/blkid candidate discovery, identity validation, mount/holder checks and fstab preparation. |
+| `installer/profile-zram.sh` | The complete selected-only handler: inline utility preflight, confirmation, RAM/swapoff checks, bounded erase, native Parted, fstab and target provisioning. |
+| `installer/zram-selection.sh` | The complete native GPT/sysfs/blkid candidate discovery, identity validation, mount/holder checks and fstab preparation; `blkid` is called directly. |
 | `scripts/zram-generator.conf.template` | ZSTD/ZRAM sizing and writeback config; dynamically replaced PARTUUID placeholders. |
 | `scripts/override.conf` | Single systemd drop-in for pre-init compressed writeback and setup-failure emergency policy. |
 | `scripts/zram-pressure.sh` | Complete script monitoring memory pressure and issuing writeback operations. |
@@ -194,7 +194,7 @@ fi
 </details>
 
 <details>
-<summary><strong>installer/profile-zram.sh</strong> — complete file; 178 lines; original blob <code>c3a4051bc36652008db5fe40baa29ad6795293a4</code></summary>
+<summary><strong>installer/profile-zram.sh</strong> — complete file; 188 lines; original blob <code>6205945a4914980ce437593d954aa9e5dfeecede</code></summary>
 
 ````sh
 #!/bin/sh
@@ -227,14 +227,25 @@ profile_zram() {
             fatal 'Could not load official util-linux-udeb into Debian Installer'
     fi
     # Check all remaining installer utilities before a destructive conversion.
-    zram_check_utilities
+    # Prerequisites belong to this one-time ZRAM profile operation.
+    for utility in parted blkid busybox readlink cmp awk sed; do
+        command -v "$utility" >/dev/null 2>&1 ||
+            fatal "ZRAM requires unavailable Debian Installer utility: $utility"
+    done
+    for applet in dd swapoff; do
+        busybox --list | grep -qx "$applet" ||
+            fatal "ZRAM requires unavailable Debian Installer BusyBox applet: $applet"
+    done
+    [ -d /sys/class/block ] && [ -r /proc/swaps ] &&
+        [ -r /proc/self/mountinfo ] && [ -d /dev/disk/by-partuuid ] ||
+        fatal 'ZRAM cannot inspect installer block devices, swaps, mounts or PARTUUID links'
     zram_collect_candidates
     zram_choose_candidate
     uuid=$zram_uuid
     device=$zram_device
     size=$zram_size
-    former_uuid="$(zram_blkid -s UUID -o value "$device" 2>/dev/null || true)"
-    former_label="$(zram_blkid -s LABEL -o value "$device" 2>/dev/null || true)"
+    former_uuid="$(blkid -s UUID -o value "$device" 2>/dev/null || true)"
+    former_label="$(blkid -s LABEL -o value "$device" 2>/dev/null || true)"
     zram_prepare_fstab
 
     # The automatically detected partition still requires exactly the same
@@ -374,13 +385,12 @@ profile_zram() {
         fatal 'Separate local root password is not enabled for ZRAM emergency recovery'
     log "ZRAM raw backing: $device PARTUUID=$uuid size=$size; boot kernel/sysfs and generator require first-boot validation"
 }
-
 ````
 
 </details>
 
 <details>
-<summary><strong>installer/zram-selection.sh</strong> — complete file; 290 lines; original blob <code>80179568e48742b74e87c9645f69e9e4ebe7c07a</code></summary>
+<summary><strong>installer/zram-selection.sh</strong> — complete file; 274 lines; original blob <code>760a7d4475f513bf08f2ea7bb0156930cf7d3d1a</code></summary>
 
 ````sh
 #!/bin/sh
@@ -392,22 +402,6 @@ profile_zram() {
 # requires the GPT type GUID, whereas blkid reports it for eligibility checks.
 ZRAM_SWAP_GUID=0657fd6d-a4ab-43c4-84e5-0933c84b4f4f
 ZRAM_DATA_GUID=0fc63daf-8483-4772-8e79-3d69d8477de4
-
-zram_blkid() { blkid "$@"; }
-
-zram_check_utilities() {
-    for utility in parted blkid busybox readlink cmp awk sed; do
-        command -v "$utility" >/dev/null 2>&1 ||
-            fatal "ZRAM requires unavailable Debian Installer utility: $utility"
-    done
-    for applet in dd swapoff; do
-        busybox --list | grep -qx "$applet" ||
-            fatal "ZRAM requires unavailable Debian Installer BusyBox applet: $applet"
-    done
-    [ -d /sys/class/block ] && [ -r /proc/swaps ] &&
-        [ -r /proc/self/mountinfo ] && [ -d /dev/disk/by-partuuid ] ||
-        fatal 'ZRAM cannot inspect installer block devices, swaps, mounts or PARTUUID links'
-}
 
 zram_probe_value() {
     printf '%s\n' "$zi_output" | sed -n "s/^$1=//p" | head -n 1
@@ -466,9 +460,9 @@ zram_ref_matches() (
         PARTUUID=*) [ "$(printf '%s' "${zr_ref#PARTUUID=}" | tr '[:upper:]' '[:lower:]')" = "$zr_part" ] ;;
         UUID=*) [ -n "$zr_swap_uuid" ] &&
             [ "$(printf '%s' "${zr_ref#UUID=}" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$zr_swap_uuid" | tr '[:upper:]' '[:lower:]')" ] &&
-            [ "$(readlink -f -- "$(zram_blkid -t "UUID=$zr_swap_uuid" -o device 2>/dev/null || true)" 2>/dev/null || true)" = "$zr_dev" ] ;;
+            [ "$(readlink -f -- "$(blkid -t "UUID=$zr_swap_uuid" -o device 2>/dev/null || true)" 2>/dev/null || true)" = "$zr_dev" ] ;;
         LABEL=*) [ -n "$zr_swap_label" ] && [ "${zr_ref#LABEL=}" = "$zr_swap_label" ] &&
-            [ "$(readlink -f -- "$(zram_blkid -t "LABEL=$zr_swap_label" -o device 2>/dev/null || true)" 2>/dev/null || true)" = "$zr_dev" ] ;;
+            [ "$(readlink -f -- "$(blkid -t "LABEL=$zr_swap_label" -o device 2>/dev/null || true)" 2>/dev/null || true)" = "$zr_dev" ] ;;
         # PARTLABEL is not unique and cannot prove which raw partition
         # belongs to the target. Do not resolve it automatically.
         PARTLABEL=*) return 1 ;;
@@ -516,8 +510,8 @@ zram_choose_candidate() {
     if [ "$(wc -l < "$WORK/zram-target-swap-refs")" -eq 1 ]; then
         za_ref="$(cat "$WORK/zram-target-swap-refs")"
         while IFS='|' read -r za_id za_dev za_kind za_size; do
-            za_swap_uuid="$(zram_blkid -s UUID -o value "$za_dev" 2>/dev/null || true)"
-            za_swap_label="$(zram_blkid -s LABEL -o value "$za_dev" 2>/dev/null || true)"
+            za_swap_uuid="$(blkid -s UUID -o value "$za_dev" 2>/dev/null || true)"
+            za_swap_label="$(blkid -s LABEL -o value "$za_dev" 2>/dev/null || true)"
             if [ "$za_kind" = swap ] &&
                 zram_ref_matches "$za_ref" "$za_id" "$za_dev" "$za_swap_uuid" "$za_swap_label"; then
                 za_count=$((za_count + 1))
