@@ -4,7 +4,7 @@ These files are **inputs to selected Simple-CDD profiles**, staged on the custom
 
 - `firmware-candidates.txt`: both CPU microcode packages and the broad firmware list; a separately usable copy exists in [the ordinary firmware guide](../../../05_extended_device_support/firmware-candidates.txt).
 - `debian-backports.sources`: optional signed Debian Backports source, priority 100 without a global pin.
-- `zram-generator.conf.template`, `zram-pressure.sh`, `zram-pressure.service`, `10-compressed-writeback.conf`, `90-zram-swappiness.conf`: original ZRAM generator and monitor design assets, copied into the [standalone ZRAM guide](../../../06_zram_writeback/files) for ordinary Debian use.
+- `zram-generator.conf.template`, `zram-pressure.sh`, `zram-pressure.service`, `override.conf`, `90-zram.conf`: original ZRAM generator and monitor design assets, copied into the [standalone ZRAM guide](../../../06_zram_writeback/files) for ordinary Debian use.
 
 The installer loads these from the ISO and provisions `/target` only when the corresponding profile was explicitly selected. The source `YOUR_PARTUUID` placeholder is replaced by the actual verified GPT partition UUID.
 
