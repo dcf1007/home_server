@@ -69,7 +69,7 @@ Do not mark the ordinary imported `profile-firmware.sh` source module as an inde
 
 1. The optional checkbox is called `extended-device-support`, but the dispatch function is `profile_firmware()`, loaded from `installer/profile-firmware.sh`.
 2. The `firmware-candidates.txt` file lists the **entire intended inventory**. **Both** `intel-microcode` and `amd64-microcode` remain listed even if the build machine uses only one CPU vendor. The installer does **not** limit packages to currently detected hardware.
-3. The repeated `normal_suite()` lookup belongs to this firmware handler, not the shared helper module. The handler inspects every requested package's actual signed APT candidates. If Backports was **separately selected**, a compatible Backports package is considered first; otherwise only normal Debian suites are used. Each candidate is simulated with the **accumulated** approved package set and rejected if it causes critical removals.
+3. The repeated `normal_suite()` lookup belongs to this firmware handler, not the shared helper module. The handler inspects every requested package's actual signed APT candidates. If Backports was **separately selected**, a compatible Backports package is considered first; otherwise only normal Debian suites are used. Each candidate is simulated with the **accumulated** approved package set and rejected if it causes critical removals. The same guard excludes only removal of the replaceable `systemd-timesyncd` time client; all other previously protected packages remain blocked.
 4. If a package is absent or conflicting, the **specific** package and reason are displayed in a **default-No omission question**. The installer must not skip it without affirmative consent.
 5. The complete combined APT transaction (including dependencies, selected source suites, recorded fallbacks and omissions) is displayed for **default-No approval before installation**.
 6. `firmware-ipw2x00` and `firmware-ivtv` may contain vendor license questions. Their *exact selected Debian package archives* are downloaded, verified, and original full Debconf templates extracted and loaded into **the installer's existing GTK/text frontend**. Accepted consent is then conveyed to the **target** Debconf database.
@@ -137,7 +137,7 @@ fi
 </details>
 
 <details>
-<summary><strong>Complete installer/profile-firmware.sh</strong> (219 lines; original blob <code>212b2e2c8c5d373fe5479837ae87d0c0120b8a68</code>)</summary>
+<summary><strong>Complete installer/profile-firmware.sh</strong> (223 lines; original blob <code>77c9361bff98f675b9212bdd2340af2f9f1ca586</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -252,6 +252,8 @@ profile_firmware() {
     : > "$WORK/firmware-selectors"
     : > "$WORK/firmware-fallbacks"
     : > "$WORK/firmware-omissions"
+    # systemd-timesyncd is a replaceable NTP client, not the systemd init
+    # package. Reject all other previously protected removals.
     for pkg in $(grep -Ev '^[[:space:]]*(#|$)' "$MEDIA/firmware-candidates.txt"); do
         case "$pkg" in
             ''|*[!a-zA-Z0-9.+-]*) fatal "Unsafe inventory package: $pkg";;
@@ -264,7 +266,8 @@ profile_firmware() {
         if [ -n "$bpo" ]; then
             candidate="$pkg/trixie-backports"
             if capture in-target apt-get -s install $(cat "$WORK/firmware-selectors") "$candidate"; then
-                if ! grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/output" >/dev/null; then
+                if ! grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/output" |
+                    grep -Ev '^Remv systemd-timesyncd([[:space:]:]|$)' >/dev/null; then
                     selector=$candidate
                 fi
             fi
@@ -274,7 +277,8 @@ profile_firmware() {
         if [ -z "$selector" ] && [ -n "$stable" ]; then
             candidate="$pkg/$stable"
             if capture in-target apt-get -s install $(cat "$WORK/firmware-selectors") "$candidate"; then
-                if ! grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/output" >/dev/null; then
+                if ! grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/output" |
+                    grep -Ev '^Remv systemd-timesyncd([[:space:]:]|$)' >/dev/null; then
                     selector=$candidate
                     if backports_is_selected; then
                         [ -n "$reason" ] || reason='No published Backports version'
