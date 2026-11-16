@@ -1,5 +1,29 @@
 # Validation — Test the scripts and generated Debian installer
 
+## Most recent real installer VM run — user screenshots, 2026-11-16
+
+**What the screenshots show (observed, not inferred):**
+
+1. A native GTK dialog displayed the exact automatically selected GPT backing partition, size, parent disk and PARTUUID; destructive conversion defaulted to **No**.
+2. The user approved converting the selected VM swap partition. The installer log shows targeted BusyBox `swapoff`, a bounded `dd` write of **1 MiB to the partition**, `parted` type/name updates and a completed ZRAM profile.
+3. The full `systemd-zram-generator` APT simulation was displayed, followed by the approved package installation.
+4. The next selected stage, **Debian tweaks**, ran `update-grub` and attempted `sshd -T`. It then stopped with **“OpenSSH configuration invalid”** and a FAILED status. The actual `sshd` stderr is **not visible in these screenshots**.
+5. There is **no verified first boot**, ZRAM writeback activity, emergency-mode recovery or completed custom installation in this evidence.
+
+**Working diagnosis, not a confirmed cause:** a not-yet-booted Debian target may not contain `/run/sshd`, a directory normally prepared by `ssh.service`. The revised installer shared SSH helper creates only that transient target directory, runs `sshd -t` and `sshd -T`, and records failures in `/target/var/log/installer/my-cdd.log`. This must be re-tested; host keys or real SSH configuration errors remain possible.
+
+**Safety improvement:** the approved new dispatcher order runs **Debian tweaks first**, so a recurrence of the same failure should stop **before** the ZRAM partition erase, rather than after it.
+
+**Next disposable-VM retest:**
+
+- [ ] Use blank initial root-password fields, a regular first user, verify that user has `sudo`, and set the separate root recovery password via the native late-stage prompt.
+- [ ] Select Debian tweaks and ZRAM with its separately approved 7.x prerequisite; confirm the profile screen and dispatcher start with **Debian tweaks**.
+- [ ] Verify the SSH check reports full stderr in `my-cdd.log` if it fails and does not mislabel a missing runtime directory as invalid configuration.
+- [ ] Verify SSH host keys, `/run/sshd`, effective `PermitRootLogin no`, and a real normal-user SSH login on first boot.
+- [ ] Verify automatic-upgrade handling both when `unattended-upgrades` is absent and when installed/enabled.
+- [ ] Only after tweaks succeeds, approve the separate ZRAM conversion on a **throwaway partition**, then verify generator, zram0, backing device and first-boot writeback behavior.
+- [ ] Preserve actual logs and mark the test failed on any selected-profile or first-boot failure.
+
 ## Step 0 — Test that the written guides can actually reproduce the source
 
 Before making an ISO, reproduce the **file contents from the chapters**, on a scratch checkout. Use the complete file listings, not shortened code samples.
@@ -99,4 +123,4 @@ Use only a **disposable GPT virtual disk**. Test all of the following before usi
 
 **Open as of 2026-11-16:** the current native-udeb ZRAM conversion, complete GUI/target APT flow and first-boot writeback have **not** been validated end to end. Do not use the new ISO on important physical disks until these tests pass.
 
-Historical design and earlier failure logs remain in [Validation](history/validation_and_pending.md).
+Historical design and earlier failure logs remain in [the original archived validation notes](history/08_validation_and_pending.md).

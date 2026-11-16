@@ -1,5 +1,23 @@
 # Guide provenance and scope
 
+## Current synchronization contract — approved 2026-11-16
+
+**Nearest user instruction:** “when there is a change in a section, the changes have to be reflected in the cdd as well. leave this recorded in your provenance/memory files ...” followed by approval and five screenshots from the latest generated ISO.
+
+**Mandatory change rule:** A feature change must update **both** its ordinary Debian how-to and its matching CDD construction tutorial **and source code**, where behavior changes are applicable. Differences necessary for installer-only udebs, cdebconf or `/target` must be documented. When CDD code changes, update its **complete embedded file listings and Git blob hashes** in the same change. Check chapter numbers, internal links, dispatcher order, selection summary and VM validation together. Record the user prompt, revision date, tests, and any still-open gates. Never infer successful runtime behavior from a shell syntax check or ISO build.
+
+**Approved new sequence:** 01 Base Debian → 02 Debian tweaks → 03 Backports → 04 Linux 7.x → 05 Firmware/microcode → 06 ZRAM → 07 OMV → 08 Docker. The CDD profile IDs remain their original stable names; only the offered/validated/executed **order** changes. CDD shared build/framework/validation tutorials are now unnumbered.
+
+**Identity and recovery:** In the native Debian installation, leave both initial root-password fields empty to enable sudo administration for the first regular user. The ordinary [base guide](01_base_debian/README.md) sets a local root recovery password **after** confirming sudo works. The CDD instead verifies the sudo account during the late installation stage and asks for the separate recovery password **before** any selected destructive or package operations, protecting first boot.
+
+**Automatic upgrades:** `unattended-upgrades` may be installed and enabled on some Debian 13 installations; do not assume a universal default. The standalone [tweaks guide](02_debian_tweaks/README.md) checks package presence and effective APT settings and uses Debian's own interactive reconfiguration only when needed. The CDD shared helper makes a target override **only when that package is installed and automatic installation is enabled**. OMV's independent scheduled-update and notification rules remain documented.
+
+**User's latest ISO evidence:** The five screenshots supplied on 2026-11-16 show a default-No ZRAM partition conversion dialog, user-approved conversion of a VM partition's first 1 MiB and GPT type/name, a reviewed `systemd-zram-generator` package transaction, and an explicit later failure: `OpenSSH configuration invalid` at `sshd -T` in Debian tweaks. They do **not** establish successful first-boot ZRAM writeback. The current CDD source now prepares a possible missing **transient** `/run/sshd` directory for target config checking, records the actual stderr when failing and runs tweaks **before** the destructive ZRAM stage. The missing-directory cause is a hypothesis, **not confirmed** by those screenshots; rerun in a disposable VM.
+
+**Scope of this revision:** Ordinary guide numbering/content, matching netinst developer chapter paths, selection summary/ordering, common sudo/SSH/update checks, embedded source copies, validation and provenance. No new ISO or first-boot test was executed by the assistant for this revision.
+
+## Historical provenance (earlier revisions; superseded where noted)
+
 **Latest construction-manual revision:** 2026-11-16 (Europe/Berlin).
 
 **Nearest user prompt:** “i still would not be able to take one of the guides, understand what i have to do, and recreate it. they are still confusing.”

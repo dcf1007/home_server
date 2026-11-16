@@ -1,5 +1,21 @@
 # my-cdd source manifest and provenance
 
+## Current synchronized change — 2026-11-16
+
+**Nearest approved user prompt:** leave the initial Debian root password blank for a sudo administrator, then set a separate root recovery password; move Debian tweaks immediately after Base Debian; reorder chapters logically everywhere; clarify conditional `unattended-upgrades` handling; use editor-neutral instructions; and require ordinary and CDD feature changes to be synchronized. User also provided five Debian Installer VM screenshots showing the latest test stopped at `sshd -T` after ZRAM setup.
+
+**Permanent rule:** Any new feature change must be reflected in its standalone Debian how-to, the corresponding CDD construction tutorial and, if needed, the actual installer source **in the same review**. Refresh the full embedded source listings and Git blob hashes, all links, selection order and release tests. Installer-only differences must explain the udeb/cdebconf/`in-target` reason. Record the authorizing prompt, date and evidence; request user approval before further decisions or edits.
+
+**Current CDD execution order:** `debian-tweaks` → `backports` → `ensure-7x-kernel` → `extended-device-support` → `zram-writeback` → `openmediavault` → `docker`. The profile **IDs** are unchanged. `simple-cdd.conf`, `ordered-selection.sh`, `profile-confirm.sh`, `profile-confirm.templates` and `run-selected.sh` were synchronized.
+
+**Account and SSH update:** Native Debian root password remains initially empty; the dispatcher verifies the first user is in `sudo` and that sudo is installed, then prompts for a distinct local root recovery password before selected work. Shared `verify_target_sshd` prepares a transient `/target/run/sshd` for config validation, runs `sshd -t` and `-T`, and preserves stderr in the target installer log. This is a **possible correction** for the latest failure, not a verified root cause.
+
+**APT check:** `ensure_manual_updates` verifies that `unattended-upgrades` is installed before checking its enabled state. It writes no override if absent or already disabled; if enabled, it disables automatic package installation and verifies the APT configuration. Selected OMV retains its separate policy.
+
+**Latest VM evidence, status:** User's screenshots show native ZRAM choice and GPT conversion plus reviewed generator installation, then the selected tweaks stage failed with an “OpenSSH configuration invalid” message. No screenshot shows the actual OpenSSH stderr or first-boot writeback. Re-test all new steps before declaring the ISO functional.
+
+**History below:** older “latest revision” and “installer source unchanged” statements describe their **own dates**, not this current change. Do not use those as current release status.
+
 > **Current location (2026-11-16):** `99_custom_netintst/my-cdd/` (relocated from `01_custom_netinst/my-cdd/`). The historical entries below are preserved as dated provenance, not all current operational instructions. For ordinary Debian setup see [numbered chapters](../../README.md); the active installer path is in [99's README](../README.md). No installer executables changed in the relocation.
 
 **Initial creation date:** 2026-11-14 (Europe/Berlin).  
