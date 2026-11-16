@@ -1,4 +1,4 @@
-# 04 — Add extra firmware and CPU microcode (optional)
+# 05 — Add extra firmware and CPU microcode (optional)
 
 **What this does:** installs additional firmware for network, storage, graphics and other devices, along with the approved **Intel and AMD microcode** packages. This is intentionally broader than simply supporting hardware that is currently attached.
 

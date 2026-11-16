@@ -1,4 +1,4 @@
-# 03 — Install an eligible Linux 7.x kernel (optional)
+# 04 — Install an eligible Linux 7.x kernel (optional)
 
 **What this does:** installs a Linux **7.x kernel and matching headers** while keeping your working Debian kernel as a boot fallback. This project's [ZRAM writeback setup]( ../06_zram_writeback/README.md) depends on this step.
 
@@ -108,6 +108,6 @@ sudo dpkg --audit
 
 **Done when:** Linux 7.x is actually running, matching headers are installed, and the original Stable kernel remains a selectable fallback.
 
-**Important:** A 7.x version alone does not prove that ZRAM compressed writeback is supported. Check the actual ZRAM features in [05]( ../06_zram_writeback/README.md).
+**Important:** A 7.x version alone does not prove that ZRAM compressed writeback is supported. Check the actual ZRAM features in [06]( ../06_zram_writeback/README.md).
 
 **References:** [Debian Backports](https://backports.debian.org/Instructions/) · [Available Trixie Backports kernel](https://packages.debian.org/trixie-backports/linux-image-amd64).

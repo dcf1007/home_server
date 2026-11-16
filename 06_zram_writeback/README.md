@@ -1,10 +1,10 @@
-# 05 — Set up ZSTD ZRAM with SSD writeback
+# 06 — Set up ZSTD ZRAM with SSD writeback
 
 **What this does:** creates compressed swap in RAM (`/dev/zram0`) and gives it a dedicated disk partition for writing older pages out when needed. The physical partition is **not** mounted or used as ordinary swap.
 
 **Important:** This is the project's experimental ZRAM writeback design. Its actual Linux 7.x compatibility, monitor behavior and emergency recovery still need a **disposable VM test**. Do not use the first attempt on a disk containing important data.
 
-Before starting, complete [03 — Linux 7.x]( ../04_kernel_7x/README.md) and make sure you have a working **local root recovery password**. You need a **separate GPT partition** that you are willing to dedicate completely to ZRAM. The example size is 16 GiB, but it is not fixed.
+Before starting, complete [04 — Linux 7.x]( ../04_kernel_7x/README.md) and make sure you have a working **local root recovery password**. You need a **separate GPT partition** that you are willing to dedicate completely to ZRAM. The example size is 16 GiB, but it is not fixed.
 
 ## Step 1 — Install the ordinary Debian tools
 
@@ -82,9 +82,7 @@ Open it:
 
 This opens the boot-time mount/swap list for manual editing. **Find the exact selected swap device by its original filesystem UUID**, then remove or comment out only its swap line. A different swap, the root filesystem and the EFI mount must stay untouched.
 
-~~~sh
-sudo nano /etc/fstab
-~~~
+Open `/etc/fstab` in a text editor with administrator privileges; review the existing content, make the described change and save the file.
 
 Find the **one entry for your selected swap partition**. Its source may be shown as a filesystem UUID rather than a device name. Compare that UUID with the selected partition in `lsblk` before removing the entry.
 
@@ -167,9 +165,7 @@ Edit the copy:
 
 This opens the **installed copy** of the generator configuration. Replace the two `YOUR_PARTUUID` placeholders with the actual identifier recorded earlier; if the two values differ or still contain placeholders, the device will not be configured as intended.
 
-~~~sh
-sudo nano /etc/systemd/zram-generator.conf
-~~~
+Open `/etc/systemd/zram-generator.conf` in a text editor with administrator privileges; review the existing content, make the described change and save the file.
 
 Replace **both occurrences** of `YOUR_PARTUUID` with the PARTUUID you recorded in Step 5. Leave the rest of the file unchanged. This template describes the project's intended ZSTD compression, RAM limits and backing device.
 
@@ -223,9 +219,7 @@ Open a service override file:
 
 This opens a new systemd override file for your chosen failure policy. The following `[Unit]` text belongs **inside that file**; it asks systemd to enter emergency mode if ZRAM setup fails. The actual emergency behavior is not yet verified.
 
-~~~sh
-sudo nano /etc/systemd/system/systemd-zram-setup@zram0.service.d/20-failure-emergency.conf
-~~~
+Open `/etc/systemd/system/systemd-zram-setup@zram0.service.d/20-failure-emergency.conf` in a text editor with administrator privileges; review the existing content, make the described change and save the file.
 
 Paste the following **file contents** and save:
 
@@ -241,9 +235,7 @@ Open GRUB's existing configuration:
 
 This opens GRUB’s configuration for editing boot options. Add `zswap.enabled=0` inside the existing parameter quotes to disable the separate zswap mechanism. Preserve other options and keep a working fallback kernel.
 
-~~~sh
-sudo nano /etc/default/grub
-~~~
+Open `/etc/default/grub` in a text editor with administrator privileges; review the existing content, make the described change and save the file.
 
 Find `GRUB_CMDLINE_LINUX_DEFAULT` and add `zswap.enabled=0` **inside the existing quotation marks**, preserving other options. That disables the separate kernel zswap feature so it does not compete with this ZRAM design.
 

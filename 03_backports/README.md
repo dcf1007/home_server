@@ -1,4 +1,4 @@
-# 02 — Enable Debian Backports (optional)
+# 03 — Enable Debian Backports (optional)
 
 **What this does:** makes newer Debian packages available without replacing the normal Stable package policy. It is useful for the optional [Linux 7.x kernel]( ../04_kernel_7x/README.md) and newer firmware.
 
@@ -10,9 +10,7 @@ Open a new repository configuration file:
 
 This opens the new APT source file in the `nano` editor. Its purpose is to tell Debian where Backports packages come from and which Debian signing key to trust; editing the file alone installs nothing.
 
-~~~sh
-sudo nano /etc/apt/sources.list.d/debian-backports.sources
-~~~
+Open `/etc/apt/sources.list.d/debian-backports.sources` in a text editor with administrator privileges; review the existing content, make the described change and save the file.
 
 Paste these lines **into the file**, not into the terminal:
 
@@ -24,7 +22,7 @@ Components: main contrib non-free non-free-firmware
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 ~~~
 
-Save with **Ctrl+O**, Enter, then exit with **Ctrl+X**.
+Save the file after reviewing the content.
 
 ## Step 2 — Refresh packages and check the source
 
@@ -76,7 +74,7 @@ This shows the available kernel metapackage versions and their repository origin
 apt policy linux-image-amd64
 ~~~
 
-If you deliberately want a particular package from Backports, select that package for the transaction rather than changing the priority of *all* packages. For the complete Linux 7.x image-and-headers procedure, follow [03]( ../04_kernel_7x/README.md).
+If you deliberately want a particular package from Backports, select that package for the transaction rather than changing the priority of *all* packages. For the complete Linux 7.x image-and-headers procedure, follow [04]( ../04_kernel_7x/README.md).
 
 Check package health when finished:
 
