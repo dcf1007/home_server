@@ -71,7 +71,7 @@ This sets the permission expected by Simple-CDD. `installer/profile-backports.sh
 2. The `.extra` file places the complete handler and signed source on the ISO. Staging is **not** installing.
 3. The dispatcher maps the selected ID `backports` to `profile_backports()` inside `installer/profile-backports.sh`.
 4. The function adds the signed source to `/target`, refreshes package indexes and confirms Backports' effective default priority **100**. It rejects an unexpected high-priority override.
-5. It runs **APT simulations first**, checks essential-package removals, displays the *complete* plan via native Debconf and asks default-No consent before a real upgrade.
+5. It performs its own upgrade simulation, essential-package removal check and default-No native Debconf approval directly in `profile_backports()`—no single-use shared upgrade wrapper. The same complete plan is reviewed before the real transaction.
 6. Cleanup is reviewed **per named package** before removal. The module finishes with package audits.
 7. The dispatcher writes a completion marker **only if the handler succeeds**; `backports.postinst` verifies that marker and does not repeat the installation.
 
@@ -134,7 +134,7 @@ fi
 </details>
 
 <details>
-<summary><strong>Complete installer/profile-backports.sh</strong> (60 lines; original blob <code>511655af80b34ad5fd807024bfee24bacaf7de77</code>)</summary>
+<summary><strong>Complete installer/profile-backports.sh</strong> (68 lines; original blob <code>18a09e6ba73537042d0dd1f591ad7583832588a0</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -156,7 +156,16 @@ profile_backports() {
         cat "$WORK/pin-errors" >> "$LOG"
         fatal 'Backports repository has an unexpected effective priority'
     fi
-    reviewed_upgrade
+    # Review this profile's complete Backports upgrade, then execute it.
+    simulate_target dist-upgrade
+    check_critical_removals
+    review_plan 'Backports: complete eligible-package full-upgrade' "$WORK/plan"
+    run_target apt-get -y dist-upgrade
+    run_target dpkg --audit
+    simulate_target dist-upgrade
+    if grep -E '^Inst |^Remv ' "$WORK/plan" >/dev/null; then
+        fatal 'Eligible upgrades/removals remain following approved full-upgrade'
+    fi
     simulate_target autoremove --purge
     check_critical_removals
     if grep -E '^Remv |^Purg ' "$WORK/plan" >/dev/null; then
@@ -196,7 +205,6 @@ profile_backports() {
         fatal 'Autoremove still proposes changes after approved cleanup'
     fi
 }
-
 ````
 
 </details>
