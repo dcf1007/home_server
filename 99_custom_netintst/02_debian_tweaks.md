@@ -131,7 +131,7 @@ fi
 </details>
 
 <details>
-<summary><strong>Complete installer/profile-tweaks.sh</strong> — 51 lines; Git blob <code>053f6fdd2abb9afe9c51bccca0f53502aef4435b</code></summary>
+<summary><strong>Complete installer/profile-tweaks.sh</strong> — 49 lines; Git blob <code>e032039024912a41ff03044c227fd8498a68bdb6</code></summary>
 
 ````sh
 #!/bin/sh
@@ -174,9 +174,7 @@ profile_tweaks() {
     if capture in-target sh -c 'command -v sshd >/dev/null 2>&1'; then
         mkdir -p /target/etc/ssh/sshd_config.d
         printf 'PermitRootLogin no\n' > /target/etc/ssh/sshd_config.d/01-my-cdd-root-login.conf
-        capture in-target sshd -T || fatal 'OpenSSH configuration invalid'
-        grep -Fx 'permitrootlogin no' "$WORK/output" >/dev/null ||
-            fatal 'Effective OpenSSH root-login setting is not no'
+        verify_target_sshd
     else
         log 'Debian tweaks: OpenSSH not installed; no SSH policy file created'
     fi
