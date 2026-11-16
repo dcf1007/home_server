@@ -1,43 +1,117 @@
-# 04 — Extended device firmware and CPU microcode (optional)
+# 04 — Add extra firmware and CPU microcode (optional)
 
-An optional proactive inventory for Debian 13 amd64. Enable the regular Debian `non-free-firmware` component first. The approved list includes **both Intel and AMD microcode**, plus the full additional firmware inventory in [firmware-candidates.txt](firmware-candidates.txt). Do not silently filter by CPU vendor or drop a package because hardware is not currently attached.
+**What this does:** installs additional firmware for network, storage, graphics and other devices, along with the approved **Intel and AMD microcode** packages. This is intentionally broader than simply supporting hardware that is currently attached.
 
-## The ordinary Debian method
+Debian already detects and installs some required firmware during normal installation. **This chapter is optional.** It applies to Debian 13 amd64 and requires the `non-free-firmware` component in your Debian APT sources.
 
-On a full Debian system, **APT itself** can install the packages and show their original Debconf license prompts. There is no need to extract licenses into the Debian Installer frontend.
-
-From this chapter directory, using **Bash**:
-
-~~~bash
-cd /path/to/home_server/04_extended_device_support  # use your actual clone path
-sudo apt-get update
-cat firmware-candidates.txt
-mapfile -t packages < <(grep -Ev '^[[:space:]]*(#|$)' firmware-candidates.txt)
-sudo apt-get -s install "${packages[@]}"
-~~~
-
-Read the full proposed transaction before running it. Availability, package conflicts, metapackages and both microcode packages must be considered. If any package is unavailable or conflicts, document its specific reason and **explicitly decide** whether to omit that package; edit your *working copy* of the list and re-run the simulation. Do not silently skip it.
-
-For an approved package set:
-
-~~~bash
-sudo apt-get install "${packages[@]}"
-sudo update-initramfs -u -k all
-sudo dpkg --audit
-~~~
-
-Do **not** add `-y` or force `DEBIAN_FRONTEND=noninteractive`: `firmware-ipw2x00` and `firmware-ivtv` may require accepting their complete vendor license. Refusing the license means revising the package set with explicit consent.
-
-If [Backports](../02_backports/README.md) is enabled, inspect `apt-cache policy <package>` and prefer a compatible Backports candidate through a targeted `package/trixie-backports` selector. Otherwise use the eligible normal Debian candidate. Always re-simulate the *combined* selected package set; do not increase global Backports priority.
-
-## Check the result
+## Step 1 — Refresh APT and read the package inventory
 
 ~~~sh
-dpkg-query -W intel-microcode amd64-microcode
-sudo dpkg --audit
-journalctl -k -b | grep -Ei 'firmware|microcode' || true
+sudo apt update
 ~~~
 
-Installation does not prove support for every device; check the relevant hardware logs and drivers after reboot.
+Open the [full firmware inventory](firmware-candidates.txt). It is organized below into small groups so you can review what is being installed.
 
-References: [Debian Firmware](https://wiki.debian.org/Firmware) · [Debian Backports](https://backports.debian.org/Instructions/).
+APT itself asks for any package-specific license acceptance, including the complete license prompts for `firmware-ipw2x00` and `firmware-ivtv`. You do **not** need the custom installer's Debconf workarounds.
+
+## Step 2 — Install the CPU microcode packages
+
+~~~sh
+sudo apt install intel-microcode amd64-microcode
+~~~
+
+The project deliberately attempts **both** packages. The CPU will only load the microcode appropriate to its manufacturer. Read APT's summary before confirming.
+
+## Step 3 — Install general Linux firmware
+
+~~~sh
+sudo apt install firmware-linux firmware-linux-nonfree firmware-misc-nonfree firmware-intel-misc
+~~~
+
+Some packages are metapackages that depend on other firmware packages; this is normal.
+
+## Step 4 — Install network and storage firmware
+
+~~~sh
+sudo apt install firmware-realtek firmware-bnx2 firmware-bnx2x firmware-cavium
+~~~
+
+~~~sh
+sudo apt install firmware-marvell-prestera firmware-myricom firmware-netronome
+~~~
+
+~~~sh
+sudo apt install firmware-netxen firmware-qlogic
+~~~
+
+## Step 5 — Install wireless firmware
+
+~~~sh
+sudo apt install firmware-atheros firmware-brcm80211 firmware-iwlwifi
+~~~
+
+~~~sh
+sudo apt install firmware-ipw2x00 firmware-libertas firmware-mediatek
+~~~
+
+~~~sh
+sudo apt install firmware-ti-connectivity firmware-ath9k-htc firmware-carl9170 firmware-zd1211
+~~~
+
+**Read the full license** if APT asks about `firmware-ipw2x00`. Declining it may prevent that package from installing.
+
+## Step 6 — Install graphics and media firmware
+
+~~~sh
+sudo apt install firmware-amd-graphics firmware-intel-graphics firmware-nvidia-graphics
+~~~
+
+~~~sh
+sudo apt install firmware-ast firmware-qcom-soc firmware-samsung firmware-siano firmware-ivtv
+~~~
+
+Read the full license if `firmware-ivtv` asks for permission.
+
+## Step 7 — Install sound, Bluetooth and peripheral firmware
+
+~~~sh
+sudo apt install firmware-cirrus firmware-intel-sound firmware-sof-signed bluez-firmware
+~~~
+
+### If APT reports a missing or conflicting package
+
+Stop that group and read the error. Do not blindly force the installation. You can check an individual name:
+
+~~~sh
+apt policy firmware-realtek
+~~~
+
+Substitute the **actual problematic package name**. Decide whether to retry just that package, use a compatible Backports version (if [Backports](../02_backports/README.md) was explicitly enabled), or **deliberately omit** that one package. Record every omission and its reason; do not silently skip requested firmware.
+
+With Backports enabled, APT still normally prefers Stable. To choose a compatible Backports package deliberately, the command looks like:
+
+~~~sh
+sudo apt install firmware-realtek/trixie-backports
+~~~
+
+This is an **example**, not a requirement to replace the Stable version. Review dependencies and conflicts. Don't raise the global Backports priority.
+
+## Step 8 — Finish and verify
+
+~~~sh
+sudo update-initramfs -u -k all
+~~~
+
+~~~sh
+sudo dpkg --audit
+~~~
+
+Reboot when convenient, then inspect kernel messages for any remaining firmware loading errors:
+
+~~~sh
+sudo journalctl -k -b
+~~~
+
+**Done when:** your approved packages are installed (or any omissions were explicitly reviewed), APT reports no unfinished packages and the devices you need work. Package installation alone cannot guarantee every device is supported.
+
+**Reference:** [Debian firmware information](https://wiki.debian.org/Firmware).

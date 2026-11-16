@@ -1,48 +1,77 @@
-# 02 — Debian Trixie Backports (optional)
+# 02 — Enable Debian Backports (optional)
 
-Applies to an installed Debian 13 system with network access. **Skip this entirely** if you do not need Backports.
+**What this does:** makes newer Debian packages available without replacing the normal Stable package policy. It is useful for the optional [Linux 7.x kernel](../03_kernel_7x/README.md) and newer firmware.
 
-## Add the signed source
+**Before starting:** Debian 13 is installed, you have Internet access, and you can use `sudo`. Skip this chapter if you do not need Backports.
+
+## Step 1 — Add the Backports source
+
+Open a new repository configuration file:
 
 ~~~sh
-sudo tee /etc/apt/sources.list.d/debian-backports.sources >/dev/null <<'EOF'
+sudo nano /etc/apt/sources.list.d/debian-backports.sources
+~~~
+
+Paste these lines **into the file**, not into the terminal:
+
+~~~text
 Types: deb
 URIs: https://deb.debian.org/debian
 Suites: trixie-backports
 Components: main contrib non-free non-free-firmware
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
-EOF
-sudo apt-get update
-apt-cache policy
 ~~~
 
-The standard Backports Release metadata yields APT priority **100**. Ordinary Stable/Security packages usually have priority **500**. Do not add a global priority-900 pin or silently set `APT::Default-Release` to Backports.
+Save with **Ctrl+O**, Enter, then exit with **Ctrl+X**.
 
-## Review the regular upgrade and cleanup
+## Step 2 — Refresh packages and check the source
 
 ~~~sh
-sudo apt-get -s full-upgrade
+sudo apt update
 ~~~
 
-Check the complete plan, including new dependencies and removals. If approved, run `sudo apt-get full-upgrade`, which normally asks for confirmation.
+APT should recognize `trixie-backports` without signature errors. If it does not, stop and correct the source file.
 
 ~~~sh
-sudo apt-get -s autoremove --purge
+apt policy
 ~~~
 
-Only after individually assessing all proposed removals should you run `sudo apt-get autoremove --purge`. Retain a working Stable kernel/GRUB fallback until a new kernel has been boot-tested. Inspect any `dpkg -l` residual `rc` entries before purging them.
+Look for `trixie-backports`. Its usual package priority is **100**; normal Stable packages normally have priority **500**. Do not add a custom priority-900 preference.
 
-## Selective Backports installs
-
-Backports priority 100 does not automatically replace Stable packages. When necessary, inspect and request the *specific* package:
+## Step 3 — Review normal package upgrades
 
 ~~~sh
-apt-cache policy linux-image-amd64 linux-headers-amd64
-sudo apt-get -s install linux-image-amd64/trixie-backports
+sudo apt full-upgrade
 ~~~
 
-The complete 7.x image+header transaction is in [03](../03_kernel_7x/README.md); firmware follows [04](../04_extended_device_support/README.md). Prefer `package/trixie-backports` instead of blanket `-t trixie-backports` selection.
+APT will show what it plans to install, upgrade or remove. **Read that summary before answering Yes.** If it proposes losing a working kernel, SSH or other essential software, answer **No** and investigate.
 
-Verify with `sudo dpkg --audit`, `apt-cache policy`, `apt-mark showhold` and a fresh dry-run `full-upgrade`.
+This command is a normal upgrade under Debian's existing priority rules. It does **not** install every package from Backports.
 
-Reference: [Debian Backports instructions](https://backports.debian.org/Instructions/).
+## Step 4 — Review optional cleanup
+
+~~~sh
+sudo apt autoremove --purge
+~~~
+
+Read the entire removal list before approving anything. In particular, keep the old bootable Stable kernel until the new one has been tested. If uncertain, answer **No**; cleanup is optional.
+
+## Step 5 — Install a particular Backports package only when needed
+
+For example, to see which kernel versions are available:
+
+~~~sh
+apt policy linux-image-amd64
+~~~
+
+If you deliberately want a particular package from Backports, select that package for the transaction rather than changing the priority of *all* packages. For the complete Linux 7.x image-and-headers procedure, follow [03](../03_kernel_7x/README.md).
+
+Check package health when finished:
+
+~~~sh
+sudo dpkg --audit
+~~~
+
+**Done when:** Backports appears in APT at priority 100, normal APT updates work and there are no unresolved package problems.
+
+**Reference:** [Official Debian Backports instructions](https://backports.debian.org/Instructions/).
