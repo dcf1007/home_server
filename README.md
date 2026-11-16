@@ -18,6 +18,14 @@ Each numbered chapter can be followed independently on an already installed Debi
 
 ## Usage
 
+On a normally installed server, obtain these guides with:
+
+~~~sh
+sudo apt-get install git
+git clone https://github.com/dcf1007/home_server.git
+cd home_server
+~~~
+
 1. Install Debian 13 amd64, then review [01](01_base_debian/README.md). The reference 256 GB system SSD and 32 GB RAM are examples, not fixed values.
 2. Apply whichever optional chapters you choose. When combining them, the numbered order is recommended. The specific ZRAM writeback design requires a supported **Linux 7.x** kernel first, so complete [03](03_kernel_7x/README.md) before [05](05_zram_writeback/README.md).
 3. Confirm package changes and disk targets yourself. Don't run destructive commands on guessed devices.
