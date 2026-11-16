@@ -1,42 +1,111 @@
-# Netinst — What the selected Backports profile actually does
+# 02 — Build the optional Backports installer profile
 
-**Goal:** add signed Trixie Backports to the new Debian system, review eligible upgrades and optional cleanup, while preserving normal APT priority **100**.
+**Build goal:** create the source files that allow a user to select signed Debian Trixie Backports during installation, inspect the effective priority, approve eligible upgrades and separately approve cleanup. The code runs under Debian Installer, against `/target`.
 
-For a system that already boots Debian, use the simpler [02 — Backports how-to](../02_backports/README.md). The following steps happen **inside Debian Installer** when you selected Backports.
+For the easy post-install procedure, use [02 — Normal Debian Backports](../02_backports/README.md). Start with the [shared profile construction pattern](00_profile_construction.md).
 
-## Step 1 — Add the source to the installed target
+## Step 1 — Register a selectable profile and its media inputs
 
-The installer copies its staged [`debian-backports.sources`](my-cdd/scripts/debian-backports.sources) into the target's `/etc/apt/sources.list.d/`. It contains:
+In `simple-cdd.conf`, include `backports` in `profiles` but leave `auto_profiles` and `default_profiles` empty. Put its menu label into `profiles/backports.description`.
 
-- `Suites: trixie-backports`, with Debian components including `non-free-firmware`;
-- Debian's archive signing key, not an unsigned third-party source.
+Create `profiles/backports.extra`:
 
-It rejects the project's old priority-override file if one unexpectedly exists. The selected profile must never silently raise Backports to priority 900.
+~~~text
+installer/profile-backports.sh
+scripts/debian-backports.sources
+~~~
 
-## Step 2 — Refresh package indexes and verify priorities
+**Why:** the module and its source template must exist under the ISO's `/cdrom/simple-cdd` directory. The manifest copies them; it does **not** automatically activate Backports.
 
-It runs target `apt-get update` through Debian Installer's progress frontend and checks target `apt-cache policy`. The **Backports lines must have effective priority 100**. Any unexpected priority is an error, not something the installer silently fixes.
+## Step 2 — Construct the signed source template
 
-**What you should check:** the proposed Backports versions appear as available alternatives; ordinary Stable/Security packages are not globally replaced.
+Create `scripts/debian-backports.sources`. The tracked template specifies Debian's mirror, `trixie-backports`, the components and Debian's archive key. Its contents are standard Deb822 APT source configuration:
 
-## Step 3 — Review the upgrade before APT changes packages
+~~~text
+Types: deb
+URIs: https://deb.debian.org/debian
+Suites: trixie-backports
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+~~~
 
-The target runs an **APT dry-run full/dist-upgrade**. Debian Installer shows the **complete proposed package actions** and asks for a separate default-No approval.
+Do **not** add an APT preference assigning Backports priority 900; its normal priority should remain **100**. The installed Debian guide uses the same source but a human edits it on the running machine.
 
-Check the package names, versions, repository origins, dependencies and **all removals**. If it proposes removing a kernel, GRUB, SSH, sudo, systemd or another critical package, the profile rejects it. An approved upgrade is executed through target `apt-get`, followed by a package-configuration audit and a second simulation to confirm that eligible work did not remain.
+## Step 3 — Create the selected-only module
 
-## Step 4 — Consider safe cleanup individually
+Create `installer/profile-backports.sh` with a function named `profile_backports()`, called only by the dispatcher when `backports` is selected.
 
-The installer next simulates `autoremove --purge`. If APT proposes removals, it shows the full plan, then asks **separately for every package** whether that exact removal is approved. A refusal stops this cleanup instead of deleting an unapproved package.
+The first operations verify and copy the staged file into the installed target, then update APT and check its effective policy. A source excerpt shows the intended structure:
 
-It also checks for packages left only with residual configuration (`dpkg` status `rc`). If present, it displays those exact names and requests review before purging their leftover configuration.
+~~~sh
+[ -r "$MEDIA/debian-backports.sources" ] ||
+    fatal 'Signed Backports repository template missing'
+[ ! -e /target/etc/apt/preferences.d/90-local-backports.pref ] ||
+    fatal 'Unexpected old Backports pin; manual review required'
+mkdir -p /target/etc/apt/sources.list.d
+cp "$MEDIA/debian-backports.sources" /target/etc/apt/sources.list.d/debian-backports.sources
+chmod 644 /target/etc/apt/sources.list.d/debian-backports.sources
+update_signed_apt
+~~~
 
-Finally it checks package consistency and repeats the cleanup simulation; outstanding unapproved changes are an error.
+Place this logic **inside** `profile_backports()`. The common `update_signed_apt` helper calls target `apt-get update`, then reads `apt-cache policy` into the review output. The module verifies that every Backports priority shown is 100 and rejects inconsistent priority records.
 
-## Step 5 — What is left after the profile
+**Reason:** a source file's presence alone does not prove APT will prefer Stable over Backports.
 
-Only when these stages complete does it record the Backports profile as successful. The newly installed system should have the signed source configured at priority **100**, without a blanket pin. Your decision to select this does **not** automatically select the Linux 7.x or firmware profiles.
+## Step 4 — Build the upgrade review and approval
 
-**Why the installer needs special handling:** Debian Installer runs outside `/target`; it must route package operations into the target and show approvals through its own Debconf interface. An ordinary installed system can use interactive APT directly.
+The shared `reviewed_upgrade` helper performs the complete process:
 
-**Validation:** the end-to-end GTK/text approval, target APT transaction and exact priorities must be checked in a VM; see [08 — Validation](08_validation_and_pending.md).
+1. Simulate a target `dist-upgrade` without changing installed packages.
+2. Fail if the plan would remove essential boot, kernel, SSH, sudo or package-manager components.
+3. Display the complete plan with a native GTK/text Debconf note.
+4. Ask a separate **default-No** approval before executing the upgrade.
+5. Run the approved target APT transaction through `debconf-apt-progress`.
+6. Audit package state and simulate again to ensure eligible changes were not left unapplied.
+
+The module calls:
+
+~~~sh
+reviewed_upgrade
+~~~
+
+**Do not** replace this with unconditional `in-target apt-get -y dist-upgrade`; the `-y` is permitted only *after* the installer user approves the complete simulation.
+
+## Step 5 — Implement cleanup without silently removing packages
+
+Build cleanup in the profile with the following **real source excerpt**:
+
+~~~sh
+simulate_target autoremove --purge
+check_critical_removals
+~~~
+
+Read the generated `$WORK/plan`. If it proposes packages marked `Remv` or `Purg`, show **the full plan**. Ask the existing native `my-cdd/approve-removal` default-No question **once for each individual package**. Only after all proposed removals have been approved may the module run:
+
+~~~sh
+run_target apt-get -y autoremove --purge
+~~~
+
+It then looks for `dpkg -l` entries in the `rc` state (removed package, residual configuration), displays the exact list, obtains a separate review and runs `dpkg --purge` only on those reviewed names.
+
+Finish with `dpkg --audit` and another cleanup simulation. If newly proposed changes remain, stop instead of silently repeating removal.
+
+## Step 6 — Wire completion and test the profile
+
+In `installer/run-selected.sh`, the actual mapping is:
+
+~~~sh
+backports) module=backports; handler=profile_backports ;;
+~~~
+
+Keep `profiles/backports.postinst` as a marker **verification** only; do not perform APT work twice. Add no Backports packages to an unconditional boot profile.
+
+Parse the module for shell errors before building:
+
+~~~sh
+sh -n installer/profile-backports.sh
+~~~
+
+Run the whole ISO build via `./build.sh`, then boot a disposable VM. Check the profile **unselected**, **selected but approval denied**, a safe upgrade, an unsafe removal plan and each individual cleanup approval. The installed target should have the signed source and normal priority 100.
+
+**Exact implementation:** [profile-backports.sh](my-cdd/installer/profile-backports.sh), [shared helpers](my-cdd/installer/profile-common.sh), [Backports source](my-cdd/scripts/debian-backports.sources). The guide explains the construction; these tracked files remain the authoritative source.

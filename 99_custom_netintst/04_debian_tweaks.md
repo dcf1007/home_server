@@ -1,60 +1,85 @@
-# Netinst — Apply Debian tweaks during the installation
+# 04 — Build the Debian tweaks installer module
 
-**Purpose:** describe the **optional non-default** Debian settings that the custom installer applies to the new system. These are independent of Backports, kernel, firmware, ZRAM, OMV and Docker.
+**Build goal:** implement **optional** changes to GRUB boot text, ext4 root options, SSH root login and unattended APT policy in the **installed target**. This is not where Debian Installer should configure language, keyboard, network, accounts or tasksel.
 
-For an already installed Debian server, use [06 — Debian tweaks](../06_debian_tweaks/README.md) and edit the files with a normal text editor. The installer does the following **only if Debian tweaks was selected**.
+The ordinary full-Debian procedure is [06 — Debian tweaks](../06_debian_tweaks/README.md).
 
-## Step 1 — Change GRUB's default boot arguments
+## Step 1 — Create and register the source module
 
-The profile opens `/target/etc/default/grub`, preserving the existing kernel arguments while:
+Offer `debian-tweaks` as a checkbox, label it in `profiles/debian-tweaks.description`, and create this `profiles/debian-tweaks.extra` manifest:
 
-1. Removing the optional `quiet` argument so boot messages remain visible.
-2. Adding `fsck.repair=no` if absent, to request **no automatic filesystem repair**.
+~~~text
+installer/profile-tweaks.sh
+~~~
 
-It then regenerates the target's GRUB configuration. It does **not** reconfigure installer locale/timezone/networking or set passwords: those belong to Debian's standard prompts.
+In `installer/run-selected.sh`, keep:
 
-**Why this matters:** manual-only repair is a deliberate recovery policy and can require physical-console intervention after filesystem damage.
+~~~sh
+debian-tweaks) module=tweaks; handler=profile_tweaks ;;
+~~~
 
-## Step 2 — Change only the ext4 root mount options
+Write a `profile_tweaks()` function in `installer/profile-tweaks.sh`. Its body must execute **only** when selected; its `.postinst` should check the marker instead of redoing the edits.
 
-The profile reads the installed `/target/etc/fstab`. It requires **exactly one** root entry with mount point `/` and type `ext4`; otherwise it stops instead of guessing.
+## Step 2 — Modify target GRUB arguments, not installer boot options
 
-On that one entry it keeps unrelated options, removes conflicting access-time and old `errors=...` values, and sets:
+Inside `profile_tweaks`, require `/target/etc/default/grub` to exist. The module uses a narrow `sed` expression to **remove `quiet` and add `fsck.repair=no`** to `GRUB_CMDLINE_LINUX_DEFAULT` while keeping unrelated kernel arguments.
 
-- `noatime` — avoid updating file access times on ordinary reads;
-- `errors=panic` — instruct ext4 to panic on detected filesystem errors.
+Then regenerate GRUB **inside the installed target**:
 
-It does **not** change EFI, data drives or any other mount entry. Confirm the resulting options after the first reboot.
+~~~sh
+run_target update-grub
+~~~
 
-## Step 3 — Deny root SSH, only when OpenSSH is installed
+**Why this belongs here:** default language/keyboard settings are handled earlier in `profile_defaults.conf`; this opt-in feature concerns filesystem recovery policy after installation. `fsck.repair=no` may require console intervention on filesystem errors.
 
-The profile does **not** silently install OpenSSH. If Debian's native tasksel selection included SSH, it writes a small target `sshd_config.d` drop-in containing:
+## Step 3 — Edit exactly one ext4 root fstab entry
+
+Build a parser for `/target/etc/fstab` that:
+
+1. Preserves comment lines and all non-root entries.
+2. Matches only mount point `/` with type `ext4`.
+3. Removes conflicting `atime`, `relatime`, `strictatime` and existing `errors=...` options.
+4. Adds `noatime,errors=panic` while keeping unrelated options.
+5. **Fails unless exactly one matching root entry was found**, before replacing the target `fstab`.
+
+The critical source predicate is:
+
+~~~awk
+$2=="/" && $3=="ext4" {
+    n=split($4, opts, ","); out=""
+    # Retain safe options; remove conflicting access-time and errors choices.
+    # Require exactly one match in the full AWK program before installing output.
+}
+~~~
+
+This is **a teaching excerpt**, not a complete AWK program; do not execute it as-is. The existing `profile-tweaks.sh` contains the complete validator and staged replacement. Never change other mounts or assume root is ext4.
+
+## Step 4 — Apply SSH policy only if OpenSSH exists
+
+The selected module first detects `sshd` **inside the target**, without installing it when the user omitted the normal SSH task. If present, create `/target/etc/ssh/sshd_config.d/01-my-cdd-root-login.conf` containing:
 
 ~~~text
 PermitRootLogin no
 ~~~
 
-It checks the resulting **effective** SSH daemon configuration and stops if the value is not `no`. If OpenSSH was not selected, it skips this change rather than adding a new service.
+The code then checks target `sshd -T` and requires the **effective** `permitrootlogin no` value. This prohibits SSH root login but preserves the usable local root password established by the common preflight.
 
-This leaves local root-password recovery possible while prohibiting root SSH.
+If SSH is absent, log the skip instead of adding a service.
 
-## Step 4 — Maintain the manual-only update policy
+## Step 5 — Enforce manual updates only when necessary
 
-The installer inspects target APT's effective periodic-update settings. If unattended upgrades are already disabled, it does not create a redundant file.
+Reuse `ensure_manual_updates` from `installer/profile-common.sh`. It reads target `apt-config dump`, and writes a small `Unattended-Upgrade "0"` override **only when an active automatic setting is detected**. Avoid overriding an already-disabled configuration without need.
 
-If unattended upgrades are enabled, it writes a small APT override to turn them off. Manual `apt-get update` and explicitly approved upgrades remain available. **Disabling automatic upgrades includes security updates**, so regular manual maintenance is necessary.
+The OMV selected profile adds its own OMV and APT notification policy later; keep the two features independent.
 
-If OMV 8 is also selected, the later OMV profile applies its own OMV-specific scheduled-update and notification settings as well.
+## Step 6 — Syntax check, build and test
 
-## Step 5 — Validate the actual installed system
+The file you are building is a POSIX shell module, so parse it before rebuilding:
 
-After reboot, check that:
+~~~sh
+sh -n installer/profile-tweaks.sh
+~~~
 
-- `/proc/cmdline` includes `fsck.repair=no` and does not include `quiet`;
-- root is ext4 with `noatime,errors=panic`, if you selected this tweak;
-- non-root SSH works and root SSH is denied, when SSH was installed;
-- the effective APT periodic-update policy matches your intended manual schedule.
+Then run `./build.sh`. In a disposable VM compare **unselected** (no target change) with **selected** (expected GRUB, ext4, SSH and APT policies). Test missing/ext4-mismatch root, absent OpenSSH and effective SSH overrides. After reboot inspect `/proc/cmdline` and the actual root mount options.
 
-**Installer adaptation:** the exact operations are performed on files under `/target` and commands run through Debian Installer's target environment. The normal guide needs none of that staging.
-
-**Runtime validation remains open.** Implementation: [profile-tweaks.sh](my-cdd/installer/profile-tweaks.sh).
+**Source:** [profile-tweaks.sh](my-cdd/installer/profile-tweaks.sh) and [shared APT helper](my-cdd/installer/profile-common.sh).
