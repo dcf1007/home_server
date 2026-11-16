@@ -15,7 +15,7 @@ The optional profile ID is `openmediavault`. Its source file is `installer/profi
 | `profiles/openmediavault.description` | The OMV 8 checkbox label. |
 | `profiles/openmediavault.extra` | Stages the OMV installer-side module onto the ISO. |
 | `profiles/openmediavault.postinst` | Verifies completion; it must be executable and must not reinstall OMV. |
-| `installer/profile-omv.sh` | Official OMV 8 installation scope: signed mirror list, reviewed APT and two upstream initialization commands. |
+| `installer/profile-omv.sh` | Official OMV 8 installation scope: single official signed APT source, reviewed installation and two upstream initialization commands. |
 
 Create source directories if absent:
 
@@ -43,7 +43,7 @@ Open `profiles/openmediavault.postinst` in a text editor, paste the indicated co
 
 Use the matching complete listing below and save it at this path; editing does not execute installer code.
 
-**4. Create `installer/profile-omv.sh`.** Official OMV 8 installation scope: signed mirror list, reviewed APT and two upstream initialization commands.
+**4. Create `installer/profile-omv.sh`.** Official OMV 8 installation scope: single official signed APT source, reviewed installation and two upstream initialization commands.
 
 Open `installer/profile-omv.sh` in a text editor, paste the indicated contents and save it at that path.
 
@@ -60,11 +60,11 @@ Do **not** mark the imported OMV module as a standalone installer and execute it
 
 ## Step 3 — Understand the limited installer scope
 
-The OMV handler runs **only when selected**. It is constrained to actions performed by the official [OMV 8 `install.sh`](https://github.com/openmediavault/openmediavault/blob/master/install.sh):
+The OMV handler runs **only when selected**. It uses the same signed-APT installation pattern as the [Docker profile](08_docker.md), while restricting OMV-specific actions to its official installation and initialization. The repository entry comes from [OMV's manual Debian installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html):
 
 1. Confirm Debian Trixie, supported architecture and no installed desktop display manager.
-2. Install the signing/download tools with reviewed APT approval, retrieve the official key, and configure upstream's signed `mirror+file` repository with ordered fallback mirrors.
-3. Refresh APT, show the entire `openmediavault` transaction and require **default-No approval** before installation. The official script's permissive downgrade/held-package flags are intentionally omitted for safety.
+2. Install the signing/download tools with reviewed APT approval, retrieve the official key, and configure the first signed APT repository listed in [OMV's manual Debian installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html), without extra suites.
+3. Refresh signed APT metadata, verify the official package origin, show the entire `openmediavault` transaction and require **default-No approval** before installation. The official script's permissive downgrade/held-package flags are intentionally omitted for safety.
 4. Check that OMV 8 was installed and run the two official initialization commands: `omv-confdbadm populate` and `omv-salt deploy run hosts`.
 
 **Not allowed in the OMV CDD profile:** SSH configuration, user/group changes, automatic-update or notification policy, extra services, OMV-Extras, Docker, plugins or NAS configuration. OMV's own package maintainer scripts may modify services as part of normal installation; the CDD adds no further policy.
@@ -83,7 +83,7 @@ sh -n profiles/openmediavault.postinst
 
 This checks the post-install verifier's syntax. For byte-for-byte checking, `git hash-object <path>` prints a Git blob SHA; compare it with the SHA printed in the complete file heading below.
 
-Once the entire shared framework is assembled, run `./build.sh`. Boot a **disposable VM** and test selected/unselected, the official signed mirror configuration, refused package approval, OMV 8 version, database population, hosts deployment and first-boot reachability. Confirm the OMV module made **no SSH, account, update or notification changes**. **None of these runtime tests are claimed as passed.**
+Once the entire shared framework is assembled, run `./build.sh`. Boot a **disposable VM** and test selected/unselected, the single signed APT repository and package origin, refused package approval, OMV 8 version, database population, hosts deployment and first-boot reachability. Confirm the OMV module made **no SSH, account, update or notification changes**. **None of these runtime tests are claimed as passed.**
 
 ## Exact source files
 
@@ -127,7 +127,7 @@ fi
 </details>
 
 <details>
-<summary><strong>installer/profile-omv.sh</strong> — complete file (66 lines; Git blob <code>321dae7f837b7b9563bc4aa201411a0aee745de5</code>)</summary>
+<summary><strong>installer/profile-omv.sh</strong> — complete file (60 lines; Git blob <code>4a8afe4a622b0719db890b3eafaaea111377bb82</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -161,23 +161,17 @@ profile_omv() {
         /usr/share/keyrings/openmediavault-archive-keyring.gpg /tmp/my-cdd-omv-key
     rm -f /target/tmp/my-cdd-omv-key
 
-    # Mirror priorities and the signed sources match upstream install.sh.
-    mkdir -p /target/etc/apt/mirrors /target/etc/apt/sources.list.d
-    cat > /target/etc/apt/mirrors/openmediavault.txt <<'EOF'
-https://packages.openmediavault.org/public/ priority:1
-https://packages.openmediavault.io/ priority:2
-https://openmediavault.github.io/packages/ priority:3
-https://downloads.sourceforge.net/project/openmediavault/packages/ priority:4
-EOF
+    # Single official signed repository: first entry in OMV 8's
+    # manual Debian installation guide. No mirror list or extra suites.
+    mkdir -p /target/etc/apt/sources.list.d
     cat > /target/etc/apt/sources.list.d/openmediavault.list <<'EOF'
-deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] mirror+file:/etc/apt/mirrors/openmediavault.txt synchrony main
-## Uncomment the following line to add software from the proposed repository.
-# deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] mirror+file:/etc/apt/mirrors/openmediavault.txt synchrony-proposed main
-## This software is not part of OpenMediaVault, but is offered by third-party
-## developers as a service to OpenMediaVault users.
-# deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] mirror+file:/etc/apt/mirrors/openmediavault.txt synchrony partner
+deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] http://packages.openmediavault.org/public/ synchrony main
 EOF
-    run_target apt-get update
+    update_signed_apt
+    capture in-target apt-cache policy openmediavault ||
+        fatal 'Cannot inspect official OMV package origin'
+    grep -F 'packages.openmediavault.org/public' "$WORK/output" >/dev/null ||
+        fatal 'Official signed OMV repository is unavailable'
 
     # Preserve full default-No APT approval, but do not accept upstream's
     # unreviewed --allow-downgrades/--allow-change-held-packages flags.
