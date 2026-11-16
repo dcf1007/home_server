@@ -1,5 +1,15 @@
 # Guide provenance and scope
 
+## Approved OMV installation boundary and ZRAM consolidation — 2026-11-16
+
+**Nearest user instruction:** “omv cdd should do nothing about ssh, that will be dealt later. the only things omv cdd is allowed to do at max are the ones done in the install script ... nothing more”; approval of the single-override ZRAM approach, followed by “go ahead”.
+
+**Current OMV contract (supersedes earlier OMV-specific CDD policies):** The selected OMV profile must perform **only** the official OpenMediaVault 8 `install.sh` operations: validate a supported Debian/architecture/desktop environment, obtain the official signing key, configure the signed prioritized `mirror+file` repositories, install OMV through an explicitly reviewed/default-No package transaction, run `omv-confdbadm populate`, and run `omv-salt deploy run hosts`. Do **not** configure SSH, root login, user groups, automatic updates, notifications, OMV-Extras, Compose, Docker, storage or other policies in this profile. The official quick installer's permissive APT downgrade/held-package flags are deliberately not used. The shared CDD installer framework's existing root-recovery preflight remains separate and unchanged. The normal OMV how-to now follows the same signed-APT and initialization sequence.
+
+**Current ZRAM contract:** Keep the generator-supported size/compression/backing settings, selected-only `vm.swappiness=100`, existing pressure monitor and restart policy. Replace the two setup drop-ins with one `override.conf` containing the compressed-writeback pre-initialization step plus emergency-mode-on-setup-failure policy; use the short `90-zram.conf` asset. The generator cannot replace the compressed-writeback pre-initialization action. Partition selection, confirmations, bounded erase and first-boot validation gates remain unchanged.
+
+**Verification boundary:** Source/listing synchronization, structural checks and source-file presence can be checked without booting. **No successful new ISO build, Debian Installer VM execution, compressed writeback or OMV first-boot result is established by this change.** The most recent user VM evidence still ends at the old Debian-tweaks SSH failure. See [validation](99_custom_netintst/validation_and_pending.md).
+
 ## Current synchronization contract — approved 2026-11-16
 
 **Nearest user instruction:** “when there is a change in a section, the changes have to be reflected in the cdd as well. leave this recorded in your provenance/memory files ...” followed by approval and five screenshots from the latest generated ISO.
