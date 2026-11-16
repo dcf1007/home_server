@@ -6,9 +6,13 @@
 
 ## Step 1 — Prepare Debian
 
+This updates Debian’s package indexes before adding OMV. It does **not** install OMV; stop if normal Debian repositories cannot be reached or verified.
+
 ~~~sh
 sudo apt update
 ~~~
+
+This installs `wget`, the program used next to download OMV’s official installer script. Review APT’s proposed changes and confirm only if acceptable.
 
 ~~~sh
 sudo apt install wget
@@ -20,11 +24,15 @@ Keep local access available during installation in case the network configuratio
 
 OMV publishes a [quick installation method for Debian 13](https://www.openmediavault.org/install). To avoid piping a remote script directly into a shell, **download it as a file first**:
 
+This **downloads** the OMV vendor’s current installer to the local file `openmediavault-install.sh` without running it. Confirm the download succeeded; the file contains code that would later run as root.
+
 ~~~sh
 wget https://get.openmediavault.io -O openmediavault-install.sh
 ~~~
 
 Open the downloaded script and review it:
+
+This opens the downloaded shell script so you can **read what it would do** before executing it. If it does anything you do not understand or approve, do not run the next command.
 
 ~~~sh
 nano openmediavault-install.sh
@@ -34,6 +42,8 @@ This is vendor-supplied code that will run as root. **If you do not trust or app
 
 When satisfied, run the saved script:
 
+This runs the reviewed, downloaded OMV installation script with **root privileges**. It may install packages and change network/service settings. Use local recovery access, read its output and stop if it reports an error.
+
 ~~~sh
 sudo sh openmediavault-install.sh
 ~~~
@@ -42,17 +52,23 @@ Follow any prompts and let the installer finish. If it fails, resolve the report
 
 ## Step 3 — Check that OMV installed correctly
 
+This shows the OMV package’s installed and candidate versions and repository origins. The `Installed` line should identify **OMV 8.x**; if it says `(none)`, the installation did not complete.
+
 ~~~sh
 apt policy openmediavault
 ~~~
 
 Check the installed version. It should be **8.x**.
 
+This checks whether Debian has packages that are unpacked but not configured. **No output generally means no incomplete packages**; address listed items before configuring the NAS.
+
 ~~~sh
 sudo dpkg --audit
 ~~~
 
 If nothing is reported, Debian has no unfinished package configurations.
+
+This shows the server’s IP addresses after OMV installation. Use the address of the active network interface to reach the web UI, and compare with the pre-install network configuration if access changed.
 
 ~~~sh
 ip -brief address
@@ -66,6 +82,8 @@ Do not configure disks or shares until you have reviewed OMV's storage model and
 
 OMV may require SSH users to belong to the `_ssh` group. Check your existing Debian administrator:
 
+This shows which groups and numeric IDs belong to the specified administrator. Replace `YOUR_USERNAME` with your actual Debian account and check whether `sudo` and OMV’s `_ssh` group are already present.
+
 ~~~sh
 id YOUR_USERNAME
 ~~~
@@ -73,6 +91,8 @@ id YOUR_USERNAME
 Replace `YOUR_USERNAME` with the actual account you created during Debian installation.
 
 If necessary, add that user to the `sudo` and `_ssh` groups:
+
+This **adds** the named user to the `sudo` and `_ssh` groups without removing other memberships. It grants administrator and allowed-SSH access; run it only for a trusted account and verify the groups after signing in again.
 
 ~~~sh
 sudo usermod -aG sudo,_ssh YOUR_USERNAME
@@ -90,17 +110,23 @@ The repository includes a small [configuration helper](disable-automatic-updates
 
 First enter the guide's directory (adapt the path if you cloned the repository elsewhere):
 
+This changes into the repository’s OMV guide directory so the helper below can be found. If your checkout is elsewhere, use its actual path; this command changes no OMV settings.
+
 ~~~sh
 cd ~/home_server/07_openmediavault
 ~~~
 
 Open and review the helper before using it:
 
+This opens the project’s Python helper for inspection. The script modifies **two OMV configuration database values**; read it and verify those are the intended settings before proceeding.
+
 ~~~sh
 nano disable-automatic-updates.py
 ~~~
 
 Apply only the two OMV-specific settings:
+
+This runs the reviewed helper as root. It disables OMV 8 unattended-upgrade and APT notification settings in OMV’s own configuration database. **If it reports an unexpected schema, stop** rather than forcing an edit.
 
 ~~~sh
 sudo python3 disable-automatic-updates.py
@@ -110,17 +136,23 @@ If it reports an unexpected OMV configuration format, **stop**. Do not force a d
 
 Refresh OMV's Salt settings:
 
+This refreshes the OMV Salt environment (grains/modules/pillar) before deploying changed configuration. It is not a general package upgrade; inspect the output for errors.
+
 ~~~sh
 sudo omv-salt stage run prepare
 ~~~
 
 Apply only the relevant update states:
 
+This applies only OMV’s `apt` and `apticron` Salt states, which implement its update/notification policy. Check that the command succeeds; do not deploy unrelated OMV states as a workaround.
+
 ~~~sh
 sudo omv-salt deploy run apt apticron
 ~~~
 
 Next, disable Debian's periodic APT tasks. Open:
+
+This opens Debian’s additional APT settings file. The two configuration lines shown next disable Debian’s scheduled list updates and unattended upgrades, **including automatic security updates**, while leaving manual updates possible.
 
 ~~~sh
 sudo nano /etc/apt/apt.conf.d/99-home-server-manual-updates
@@ -135,9 +167,13 @@ APT::Periodic::Unattended-Upgrade "0";
 
 Check the OMV scheduled-update directories:
 
+This lists jobs in `/etc/cron.daily`. Check whether an OMV `openmediavault-apticron` notification job remains; the list is for **inspection**, not removal.
+
 ~~~sh
 ls /etc/cron.daily
 ~~~
+
+This lists jobs in `/etc/cron.weekly`. Again look for an OMV `openmediavault-apticron` job; if one remains, inspect OMV’s Salt output instead of deleting a generated file by hand.
 
 ~~~sh
 ls /etc/cron.weekly
