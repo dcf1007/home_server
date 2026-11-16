@@ -9,6 +9,7 @@ On a full Debian system, **APT itself** can install the packages and show their 
 From this chapter directory, using **Bash**:
 
 ~~~bash
+cd /path/to/home_server/04_extended_device_support  # use your actual clone path
 sudo apt-get update
 cat firmware-candidates.txt
 mapfile -t packages < <(grep -Ev '^[[:space:]]*(#|$)' firmware-candidates.txt)
