@@ -35,6 +35,6 @@ The complete [build-project construction guide](../build_project.md) explains ev
 
 `udebs` are not ordinary Debian packages: Debian Installer is a stripped-down environment. Partition discovery/conversion uses native `blkid` from `util-linux-udeb`, `parted-udeb`, BusyBox, `/sys` and `/proc`. The ordinary [ZRAM guide](../../06_zram_writeback/README.md) can use full `wipefs` and `sgdisk` instead. Other installer-only mechanisms include `in-target`, cdebconf and preseed/late_command.
 
-**Validation:** The user-supplied latest ISO screenshots show ZRAM conversion and generator installation, but the selected tweaks profile then failed during target OpenSSH validation. This branch includes a proposed transient-runtime-directory correction, **not yet retested**. First-boot ZRAM writeback remains unverified. See [active release gates](../validation_and_pending.md).
+**Validation:** Earlier ISO screenshots show approved ZRAM conversion and generator installation. The latest VM run instead stopped during Debian tweaks (now first) at `sshd -t`, with syslog reporting `Missing privilege separation directory: /run/sshd`. The revised source eliminates pre-boot SSH daemon tests, uses the existing main SSH file and sets filesystem-appropriate root mount options. **No fresh ISO or first-boot ZRAM test has been performed.** See [active release gates](../validation_and_pending.md).
 
 The previous long README, including the detailed VM failures and obsolete interim tool strategies, is preserved in [history/my-cdd-README-20261115.md](../history/my-cdd-README-20261115.md).

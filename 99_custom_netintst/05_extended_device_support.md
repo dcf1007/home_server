@@ -69,7 +69,7 @@ Do not mark the ordinary imported `profile-firmware.sh` source module as an inde
 
 1. The optional checkbox is called `extended-device-support`, but the dispatch function is `profile_firmware()`, loaded from `installer/profile-firmware.sh`.
 2. The `firmware-candidates.txt` file lists the **entire intended inventory**. **Both** `intel-microcode` and `amd64-microcode` remain listed even if the build machine uses only one CPU vendor. The installer does **not** limit packages to currently detected hardware.
-3. The handler inspects every requested package's actual signed APT candidates. If Backports was **separately selected**, a compatible Backports package is considered first; otherwise only normal Debian suites are used. Each candidate is simulated with the **accumulated** approved package set and rejected if it causes critical removals.
+3. The repeated `normal_suite()` lookup belongs to this firmware handler, not the shared helper module. The handler inspects every requested package's actual signed APT candidates. If Backports was **separately selected**, a compatible Backports package is considered first; otherwise only normal Debian suites are used. Each candidate is simulated with the **accumulated** approved package set and rejected if it causes critical removals.
 4. If a package is absent or conflicting, the **specific** package and reason are displayed in a **default-No omission question**. The installer must not skip it without affirmative consent.
 5. The complete combined APT transaction (including dependencies, selected source suites, recorded fallbacks and omissions) is displayed for **default-No approval before installation**.
 6. `firmware-ipw2x00` and `firmware-ivtv` may contain vendor license questions. Their *exact selected Debian package archives* are downloaded, verified, and original full Debconf templates extracted and loaded into **the installer's existing GTK/text frontend**. Accepted consent is then conveyed to the **target** Debconf database.
@@ -137,11 +137,29 @@ fi
 </details>
 
 <details>
-<summary><strong>Complete installer/profile-firmware.sh</strong> (203 lines; original blob <code>00d27db1c306ad7d873b72ac046b4ffa2e04d850</code>)</summary>
+<summary><strong>Complete installer/profile-firmware.sh</strong> (219 lines; original blob <code>212b2e2c8c5d373fe5479837ae87d0c0120b8a68</code>)</summary>
 
 ````sh
 #!/bin/sh
 # Sourced by the approved installer dispatcher; no automatic execution.
+
+# Used repeatedly for each firmware candidate; keep its suite-selection
+# policy inside the only profile that needs it.
+normal_suite() {
+    best_suite=''
+    best_version=''
+    for suite in trixie-security trixie-updates trixie; do
+        v="$(suite_version "$1" "$suite")"
+        [ -n "$v" ] || continue
+        if [ -z "$best_version" ] ||
+            in-target dpkg --compare-versions "$v" gt "$best_version"; then
+            best_suite=$suite
+            best_version=$v
+        fi
+    done
+    [ -n "$best_suite" ] || return 1
+    printf '%s\n' "$best_suite"
+}
 
 # Read the original Debconf license question from the exact APT-selected
 # .deb, never from a copied or shortened license. Uses Simple-CDD's existing

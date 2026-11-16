@@ -1,5 +1,17 @@
 # Guide provenance and scope
 
+## Root-filesystem policy and one-use helper simplification — 2026-11-16
+
+**Nearest user prompt:** “the noatime and errors=panic should be set no matter the filesystem of the root partition ... ensure_manual_updates sounds like a helper used only once. i prefer readable code that does not jump to useless one time helpers. review all code for that kind of useless helpers”, followed by “i agree” to the examined changes.
+
+**Latest VM evidence:** The newer installer run established the local root password, completed GRUB generation, then failed during Debian tweaks' former `sshd -t` test. The installer syslog explicitly reports `Missing privilege separation directory: /run/sshd`. No ZRAM conversion occurred in that latest run. Earlier screenshots established a ZRAM GPT conversion under the old execution order; no successful complete install or first-boot writeback has been shown.
+
+**Selected Debian tweaks:** `profile-tweaks.sh` edits only the single target root `fstab` entry and preserves `/target/etc/fstab.before-tweaks`: generic `noatime` for all root filesystem types, ext2/3/4 `errors=panic`, Btrfs `fatal_errors=panic`, and no unsupported panic option for XFS/other types. Main `/etc/ssh/sshd_config` gets `PermitRootLogin no` before `Include`/`Match`; no additional SSH drop-in, `sshd -t`, `sshd -T` or transient `/run/sshd` directory. `unattended-upgrades` policy is configured **once** if enabled, using native `20auto-upgrades` where present and one fallback override otherwise. No post-edit or later-profile rechecks.
+
+**Function audit:** Removed single-use `ensure_manual_updates`, `verify_target_sshd`, `reviewed_upgrade`, `zram_check_utilities`, `mark_complete`, and pass-through `zram_blkid`. Inlined their operations at their callers, except for SSH runtime validation, which was removed entirely. Moved repeated `normal_suite` selection into the only profile that needs it (firmware). Retained shared `capture`, approval, transaction and target-execution interfaces; complex root recovery, firmware licensing and ZRAM selection/revalidation routines stay separate. No other feature semantics were intentionally changed.
+
+**Verification:** Update both standalone and CDD instructions and refresh full source listings/hashes. Static source checks do not constitute an ISO build, graphical installer execution or first-boot validation.
+
 ## Approved OMV installation boundary and ZRAM consolidation — 2026-11-16
 
 **Nearest user instruction:** “omv cdd should do nothing about ssh, that will be dealt later. the only things omv cdd is allowed to do at max are the ones done in the install script ... nothing more”; approval of the single-override ZRAM approach, followed by “go ahead”.

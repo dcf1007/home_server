@@ -28,14 +28,25 @@ profile_zram() {
             fatal 'Could not load official util-linux-udeb into Debian Installer'
     fi
     # Check all remaining installer utilities before a destructive conversion.
-    zram_check_utilities
+    # Prerequisites belong to this one-time ZRAM profile operation.
+    for utility in parted blkid busybox readlink cmp awk sed; do
+        command -v "$utility" >/dev/null 2>&1 ||
+            fatal "ZRAM requires unavailable Debian Installer utility: $utility"
+    done
+    for applet in dd swapoff; do
+        busybox --list | grep -qx "$applet" ||
+            fatal "ZRAM requires unavailable Debian Installer BusyBox applet: $applet"
+    done
+    [ -d /sys/class/block ] && [ -r /proc/swaps ] &&
+        [ -r /proc/self/mountinfo ] && [ -d /dev/disk/by-partuuid ] ||
+        fatal 'ZRAM cannot inspect installer block devices, swaps, mounts or PARTUUID links'
     zram_collect_candidates
     zram_choose_candidate
     uuid=$zram_uuid
     device=$zram_device
     size=$zram_size
-    former_uuid="$(zram_blkid -s UUID -o value "$device" 2>/dev/null || true)"
-    former_label="$(zram_blkid -s LABEL -o value "$device" 2>/dev/null || true)"
+    former_uuid="$(blkid -s UUID -o value "$device" 2>/dev/null || true)"
+    former_label="$(blkid -s LABEL -o value "$device" 2>/dev/null || true)"
     zram_prepare_fstab
 
     # The automatically detected partition still requires exactly the same

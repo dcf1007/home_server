@@ -1,6 +1,6 @@
 # 02 — Recreate the optional Debian tweaks profile
 
-**Goal:** build the actual installer source for the opt-in filesystem, boot, SSH and manual-update changes. For a normal installed Debian system follow [06 — Debian tweaks](../02_debian_tweaks/README.md), not this installer code.
+**Goal:** build the actual installer source for the opt-in filesystem, boot, SSH and manual-update changes. For a normal installed Debian system follow [02 — Debian tweaks](../02_debian_tweaks/README.md), not this installer code.
 
 ## Before you start
 
@@ -13,7 +13,7 @@ Finish the shared [Build project](build_project.md), [Shared profile helpers](pr
 | `profiles/debian-tweaks.description` | The label shown only when the optional tweaks checkbox is offered. |
 | `profiles/debian-tweaks.extra` | Stages the selected-only tweaks module on the ISO. |
 | `profiles/debian-tweaks.postinst` | Checks the marker after successful application; it does not reconfigure Debian. |
-| `installer/profile-tweaks.sh` | Complete code that edits target GRUB, root ext4 fstab, SSH and the manual APT-update policy. |
+| `installer/profile-tweaks.sh` | Complete code that edits target GRUB, root filesystem fstab, SSH and the manual APT-update policy. |
 
 The choice ID is `debian-tweaks`; the dispatcher sources `installer/profile-tweaks.sh` and calls `profile_tweaks()`.
 
@@ -45,7 +45,7 @@ Open `profiles/debian-tweaks.postinst` in a text editor, paste the indicated con
 
 This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, Save the document after reviewing the pasted contents.
 
-**4. Create `installer/profile-tweaks.sh`.** Complete code that edits target GRUB, root ext4 fstab, SSH and the manual APT-update policy.
+**4. Create `installer/profile-tweaks.sh`.** Complete code that edits target GRUB, root filesystem fstab, SSH and the manual APT-update policy.
 
 Open `installer/profile-tweaks.sh` in a text editor, paste the indicated contents and save it at that path.
 
@@ -64,9 +64,9 @@ The installer `profile-tweaks.sh` module is *sourced*, not independently execute
 
 1. The early profile selector makes `debian-tweaks` **optional**, never a normal Debian default. Its module runs only when that choice is approved.
 2. The module changes the target's **`/etc/default/grub`** to remove `quiet` and add `fsck.repair=no`, preserving other boot options. It regenerates GRUB in the **target**.
-3. It parses the **target's `/etc/fstab`** and requires one root ext4 entry. Only that entry receives `noatime,errors=panic`; EFI and NAS data mounts must remain unchanged. `errors=panic` is a deliberate failure-handling policy.
-4. If a target OpenSSH daemon exists, the module creates an SSH drop-in with `PermitRootLogin no` and uses the shared `verify_target_sshd` helper. That helper prepares the transient `/target/run/sshd` directory, tests syntax with `sshd -t`, checks the effective policy with `sshd -T`, and records actual OpenSSH errors in the installer log. This is necessary because the target has not yet booted systemd. It does not install OpenSSH solely for the tweak.
-5. The shared APT helper first checks whether the **`unattended-upgrades` package is installed**. If it is absent or automatic installation is already disabled, it makes **no override**. Only when both the package and an enabled `APT::Periodic::Unattended-Upgrade` setting exist does it create a target override disabling unattended installations, then verify the effective setting. This also disables automated **security updates**; the administrator must maintain those manually.
+3. It finds the single root entry in the **target's `/etc/fstab`**, makes a persistent backup, and adds `noatime` on any root filesystem. For ext2/ext3/ext4 it adds `errors=panic`; for Btrfs it uses `fatal_errors=panic`; for XFS and other filesystems it preserves native error handling rather than adding an unsupported option. Other mount entries are unchanged.
+4. If `/target/etc/ssh/sshd_config` exists, the module sets `PermitRootLogin no` directly at the start of that existing file, before `Include` or `Match`. It creates no drop-in and does not attempt to run or validate the SSH daemon before first boot.
+5. The selected profile checks whether **`unattended-upgrades` is installed and periodic automatic installations are enabled**. Only if so, it disables the setting in Debian's existing `20auto-upgrades` file when available, otherwise uses one local override. No subsequent post-install checks or other profiles alter this policy. Disabling it also disables automated security updates, so the administrator must update manually.
 6. The late dispatcher marks the profile complete only when every required operation succeeds.
 
 The full source below includes the validations, error handling and file-editing logic. Earlier short AWK and `sed` fragments were **not complete enough to reproduce this behavior**.
@@ -87,7 +87,7 @@ This similarly parses the marker checker.
 
 Each complete listing includes its original Git blob SHA; `git hash-object <path>` calculates the hash of a recreated copy without modifying it. Match the two strings to verify exact bytes before attempting `./build.sh`.
 
-Once the **shared framework and other expected build inputs** are present, run `./build.sh` and boot a **disposable VM**. Test this feature unchecked, selected, missing/ambiguous root fstab, no SSH installed, and first-boot effective mount/GRUB/SSH/APT configuration.
+Once the **shared framework and other expected build inputs** are present, run `./build.sh` and boot a **disposable VM**. Test unchecked/selected profiles, root filesystems ext4/Btrfs/XFS, missing or ambiguous root entries, no SSH installed, and first-boot mount/GRUB/SSH/APT behavior. The previous pre-boot sshd failure must not recur.
 
 ## Full source listings
 
@@ -131,16 +131,15 @@ fi
 </details>
 
 <details>
-<summary><strong>Complete installer/profile-tweaks.sh</strong> — 49 lines; Git blob <code>e032039024912a41ff03044c227fd8498a68bdb6</code></summary>
+<summary><strong>Complete installer/profile-tweaks.sh</strong> — 76 lines; Git blob <code>6b363c62770cb6536179ea9111c38b937443f8dc</code></summary>
 
 ````sh
 #!/bin/sh
-# Sourced by the approved installer dispatcher; no automatic execution.
+# Sourced only when the Debian tweaks profile is explicitly selected.
 
 profile_tweaks() {
     [ -f /target/etc/default/grub ] || fatal 'GRUB defaults absent'
-    # The user approved only removal of quiet and fsck.repair=no; retain
-    # all other kernel arguments and normal GRUB behavior.
+    # Keep unrelated kernel arguments; remove quiet and request no automatic fsck repair.
     sed -i -E '/^GRUB_CMDLINE_LINUX_DEFAULT=/ {
         s/"quiet([[:space:]]|")/"\1/g
         s/[[:space:]]quiet([[:space:]]|")/ \1/g
@@ -150,39 +149,67 @@ profile_tweaks() {
     }' /target/etc/default/grub
     run_target update-grub
 
+    # Edit only the root mount entry. noatime is generic; the panic option
+    # depends on the actual root filesystem.
     [ -f /target/etc/fstab ] || fatal 'Target fstab absent'
     awk '
       /^[[:space:]]*#/ {print; next}
-      $2=="/" && $3=="ext4" {
-        n=split($4, opts, ","); out=""
+      $2=="/" {
+        fs=$3; n=split($4, opts, ","); out=""
         for (i=1;i<=n;i++) {
-          if (opts[i]=="atime" || opts[i]=="relatime" || opts[i]=="strictatime") continue
-          if (opts[i] ~ /^errors=/ || opts[i]=="noatime") continue
-          out=out (out? ",":"") opts[i]
+          if (opts[i]=="atime" || opts[i]=="relatime" ||
+              opts[i]=="strictatime" || opts[i]=="noatime") continue
+          if (fs ~ /^ext[234]$/ && opts[i] ~ /^errors=/) continue
+          if (fs=="btrfs" && opts[i] ~ /^fatal_errors=/) continue
+          out=out (out ? "," : "") opts[i]
         }
-        $4=out ",noatime,errors=panic"
+        $4=out (out ? "," : "") "noatime"
+        if (fs ~ /^ext[234]$/) $4=$4 ",errors=panic"
+        else if (fs=="btrfs") $4=$4 ",fatal_errors=panic"
         changed++
       }
       {print}
       END {if (changed!=1) exit 2}
     ' /target/etc/fstab > "$WORK/tweaks-fstab" ||
-        fatal 'Cannot identify exactly one ext4 root mount in fstab'
-    cp "$WORK/tweaks-fstab" /target/etc/fstab
+        fatal 'Cannot identify exactly one root filesystem in fstab'
+    cp -p /target/etc/fstab /target/etc/fstab.before-tweaks ||
+        fatal 'Cannot preserve the original root mount configuration'
+    cp "$WORK/tweaks-fstab" /target/etc/fstab ||
+        fatal 'Cannot install root mount options'
 
-    # The profile must not force OpenSSH onto a Debian installation where
-    # the native tasksel SSH option was intentionally deselected.
-    if capture in-target sh -c 'command -v sshd >/dev/null 2>&1'; then
-        mkdir -p /target/etc/ssh/sshd_config.d
-        printf 'PermitRootLogin no\n' > /target/etc/ssh/sshd_config.d/01-my-cdd-root-login.conf
-        verify_target_sshd
+    # Fresh Debian installation: place the global setting before Include
+    # and Match, without adding a project-owned sshd_config.d file.
+    if [ -f /target/etc/ssh/sshd_config ]; then
+        if [ "$(head -n 1 /target/etc/ssh/sshd_config)" != 'PermitRootLogin no' ]; then
+            sed -i '1iPermitRootLogin no' /target/etc/ssh/sshd_config ||
+                fatal 'Cannot disable root login in the existing SSH configuration'
+        fi
     else
-        log 'Debian tweaks: OpenSSH not installed; no SSH policy file created'
+        log 'Debian tweaks: OpenSSH not installed; no SSH configuration changed'
     fi
-    # Do not create a needless periodic-APT override if the policy is already
-    # disabled. This guard is also checked after later selected profiles.
-    ensure_manual_updates
-}
 
+    # This is a one-time, selected-profile policy; later profiles do not
+    # reconfigure APT automatic updates.
+    if capture in-target dpkg-query -W '-f=${Status}\n' unattended-upgrades &&
+        grep -Fx 'install ok installed' "$WORK/output" >/dev/null; then
+        capture in-target apt-config dump ||
+            fatal 'Cannot inspect Debian automatic-update settings'
+        if grep -Eiq '^APT::Periodic::Unattended-Upgrade[[:space:]]+"?([1-9][0-9]*|yes|true)' "$WORK/output"; then
+            native_apt=/target/etc/apt/apt.conf.d/20auto-upgrades
+            if [ -f "$native_apt" ] &&
+                grep -Eq '^[[:space:]]*APT::Periodic::Unattended-Upgrade[[:space:]]+' "$native_apt"; then
+                sed -i -E 's@^[[:space:]]*APT::Periodic::Unattended-Upgrade[[:space:]]+[^;]*;@APT::Periodic::Unattended-Upgrade "0";@' "$native_apt" ||
+                    fatal 'Cannot disable periodic upgrades in Debian APT configuration'
+                log 'Disabled automatic upgrades in Debian native 20auto-upgrades'
+            else
+                mkdir -p /target/etc/apt/apt.conf.d
+                printf 'APT::Periodic::Unattended-Upgrade "0";\n' > \
+                    /target/etc/apt/apt.conf.d/99-my-cdd-manual-updates
+                log 'Disabled automatic upgrades with one APT override'
+            fi
+        fi
+    fi
+}
 ````
 
 </details>

@@ -22,7 +22,7 @@ A single feature's source module is **not** a complete ISO: it depends on the sh
 
 | Chapter | What you will create |
 | --- | --- |
-| [02 — Debian tweaks](02_debian_tweaks.md) | Selected-only GRUB, ext4, SSH and conditional unattended-upgrade policy |
+| [02 — Debian tweaks](02_debian_tweaks.md) | Selected-only GRUB, root-filesystem-aware mount options, native SSH and one-time automatic-update policy |
 | [03 — Backports](03_backports_apt.md) | Signed Backports source, priority 100, reviewed upgrades and removals |
 | [04 — Linux 7.x kernel](04_ensure_7x_kernel.md) | Eligible suite selection, image and matching headers, GRUB |
 | [05 — Extended device support](05_extended_device_support.md) | Firmware manifest, microcode and original vendor-license dialogs |
@@ -42,7 +42,7 @@ After all required files exist, use the guarded `./build.sh` wrapper to create t
 
 ## Recent installer test and open blocker
 
-The latest user-supplied Debian 13 VM screenshots (16 November 2026) show a ZRAM partition conversion and a reviewed generator-package installation, followed by a failure during the Debian-tweaks OpenSSH check. The actual `sshd` stderr was not visible in the screenshot.
+Earlier Debian 13 VM screenshots (16 November 2026) show approved ZRAM conversion and generator installation. The latest run stopped during Debian tweaks, before ZRAM, at a pre-boot sshd runtime-directory check; the revised source removes that check. The actual `sshd` stderr was not visible in the screenshot.
 
 The current source addresses a **possible** unbooted-target issue by preparing the temporary `/run/sshd` directory before validation and preserving the true diagnostic in the installer log. It also moves Debian tweaks **before** ZRAM, so a failure there stops before the partition conversion. The fix is **not yet runtime-verified**.
 

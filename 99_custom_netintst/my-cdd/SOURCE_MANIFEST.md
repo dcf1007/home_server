@@ -1,5 +1,15 @@
 # my-cdd source manifest and provenance
 
+## Approved Debian tweaks / helper refactor — 2026-11-16
+
+**Nearest user instruction:** “the noatime and errors=panic should be set no matter the filesystem of the root partition ... ensure_manual_updates sounds like a helper used only once. ... review all code for that kind of useless helpers”, approved by “i agree”.
+
+**Source changes:** Debian tweaks now processes the only root `fstab` entry regardless of filesystem, saves `fstab.before-tweaks`, writes `noatime` generally, `errors=panic` only for ext2/3/4, and `fatal_errors=panic` for Btrfs. XFS/other filesystem error behavior is left untouched. The existing main SSH configuration receives `PermitRootLogin no` before global includes; the former drop-in, both preboot daemon tests and transient directory handling are gone. Automatic-upgrade configuration executes only in Debian tweaks and is never revisited by later profiles. The source refactor removes one-use `ensure_manual_updates`, `verify_target_sshd`, `reviewed_upgrade`, `zram_check_utilities`, `mark_complete`, and trivial `zram_blkid`; the repeated firmware `normal_suite` helper is moved into the firmware module. Complex and shared safety functions remain.
+
+**Observed VM evidence:** The latest screenshots confirm Debian tweaks ran first, root recovery password was set, and the previous `sshd -t` test failed with the installer syslog `Missing privilege separation directory: /run/sshd`. Earlier screenshots demonstrated the selected-partition 1 MiB ZRAM conversion, not a successful first boot.
+
+**Scope and release status:** The ZRAM partition chooser, default-No destructive approval, bounded erase, generator and monitor remain functionally unchanged. OMV and Docker remain independently selectable signed-APT profiles with no added SSH/update policy. Full CDD listings, hashes and guides require synchronization. No new ISO/VM outcome is claimed by this source refactor.
+
 ## Current approved OMV/ZRAM simplification — 2026-11-16
 
 **Nearest user instruction:** “omv cdd should do nothing about ssh ... only things ... allowed ... are the ones done in the [official] install script ... nothing more”; “2. agreed” to the single ZRAM systemd override and preserved monitor; “go ahead”.
@@ -8,7 +18,7 @@
 
 **ZRAM source boundary:** `installer/profile-zram.sh` copies one selected-only `scripts/override.conf` combining the previous compressed-writeback and setup-failure directives, plus `scripts/90-zram.conf`; the standalone `06_zram_writeback/files` assets use exactly the same bytes. `profiles/zram-writeback.extra` stages only the new filenames. Existing monitor, generator, backing identity and destructive safeguards remain unchanged.
 
-**Tests and release gate:** The documentation's full embedded files and hashes must match their current source. Source-level review does not replace `sh -n`, an ISO build, a fresh text/GTK disposable-VM install, or first-boot compressed-writeback/OMV checks. The most recent observed VM failure was in Debian tweaks' SSH validation and has not been retested.
+**Tests and release gate:** The documentation's full embedded files and hashes must match their current source. Source-level review does not replace `sh -n`, an ISO build, a fresh text/GTK disposable-VM install, or first-boot compressed-writeback/OMV checks. That earlier SSH failure has now been reproduced with a visible `/run/sshd` diagnostic; the replacement source awaits a fresh VM test.
 
 ## Current synchronized change — 2026-11-16
 

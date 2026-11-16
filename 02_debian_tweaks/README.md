@@ -24,76 +24,58 @@ sudo update-grub
 
 **Recovery consequence:** the server may require hands-on intervention when a filesystem needs repair. Confirm the root recovery password from Chapter 01 is usable before continuing.
 
-## Step 2 — Configure the ext4 root filesystem
+## Step 2 — Configure only the root filesystem
 
-First identify the filesystem mounted as `/`:
+Identify the filesystem currently mounted as `/`:
 
 ~~~sh
 findmnt /
 ~~~
 
-This reports its source, type and currently active mount options. **Only proceed if the filesystem type is `ext4`.** If you installed a different filesystem, skip this step.
+This shows the root source, filesystem type and current mount options. The settings below apply **only** to the root entry in `/etc/fstab`; do not alter other partitions or mount points.
 
-Back up the mount table before editing it:
+Back up the existing mount instructions:
 
 ~~~sh
 sudo cp -a /etc/fstab /etc/fstab.before-tweaks
 ~~~
 
-This saves the existing mount instructions to a separate file. It does not change active mounts.
+Open `/etc/fstab` with administrator privileges. Find the single entry whose mount point is `/`. Keep its device identity and every unrelated option, then:
 
-Open `/etc/fstab` in a text editor **with administrator privileges**. Find the entry whose mount point is `/` and filesystem type is `ext4`. In **that entry's option field only**:
+1. Remove any existing `atime`, `relatime`, `strictatime` or duplicate `noatime` option; add **`noatime`** once, regardless of filesystem type.
+2. On **ext2, ext3 or ext4**, replace any existing `errors=...` option with **`errors=panic`**.
+3. On **Btrfs**, replace any existing `fatal_errors=...` option with **`fatal_errors=panic`**.
+4. On **XFS or another filesystem**, retain its own error handling settings. Do **not** insert an unsupported panic mount option.
 
-1. Add `noatime`, reducing filesystem access-time writes.
-2. Add `errors=panic`, instructing ext4 to panic when it detects a filesystem error.
-3. Remove conflicting access-time settings and previous `errors=...` options.
-4. Preserve every unrelated option, the root filesystem's identity and all other entries.
+These options are filesystem-specific: Btrfs's `fatal_errors=panic` is not identical in scope to the ext-family `errors=panic`. See [Linux ext4 documentation](https://docs.kernel.org/admin-guide/ext4.html) and [Btrfs mount options](https://btrfs.readthedocs.io/en/latest/ch-mount-options.html).
 
-Save the file. Incorrect `fstab` entries can prevent booting; do not change the EFI or NAS data-drive entries.
+Save the file. Invalid root options can prevent normal boot; preserve the backup and your local recovery access.
 
 ## Step 3 — Disable root SSH, but keep normal-user SSH
 
-Make sure you can already sign in over SSH using the regular sudo administrator from Chapter 01. **Keep that existing session open** while changing SSH configuration.
+Confirm that your ordinary sudo account can log in via SSH, and keep its existing session open while editing.
 
-Ensure the dedicated SSH configuration directory exists:
-
-~~~sh
-sudo mkdir -p /etc/ssh/sshd_config.d
-~~~
-
-This creates a directory only if needed; it does not change the running SSH daemon.
-
-Open `/etc/ssh/sshd_config.d/01-home-server-root.conf` in a text editor **with administrator privileges**, enter this single configuration line, and save:
+Open the **existing** `/etc/ssh/sshd_config` with administrator privileges. Set the following directive **in the global section, before `Include` and `Match` statements**, so it takes precedence over later entries:
 
 ~~~text
 PermitRootLogin no
 ~~~
 
-This denies **SSH connections directly as root** while preserving the local root password for physical-console and emergency recovery.
+Edit an existing global occurrence instead of adding duplicate active settings where feasible. Do not create a project-specific `sshd_config.d` file. This disables direct root SSH login while retaining the separate local root recovery password.
 
-Check the configuration syntax **without reloading SSH**:
+Because this is a **running** Debian system, validate syntax before reloading SSH:
 
 ~~~sh
 sudo /usr/sbin/sshd -t
 ~~~
 
-No output and a successful return normally mean the syntax is valid. If an error appears, fix it before continuing.
-
-Now display the daemon's effective options:
-
-~~~sh
-sudo /usr/sbin/sshd -T
-~~~
-
-Find `permitrootlogin no`. If another value appears, investigate other SSH configuration files before reloading.
-
-Apply the change to the running SSH daemon:
+If this reports an error, correct it before applying the configuration. Otherwise reload SSH without restarting the machine:
 
 ~~~sh
 sudo systemctl reload ssh
 ~~~
 
-This rereads SSH configuration. **Open a second SSH session as your normal user**, confirm it works, and only then close the first.
+Open a second SSH session as your ordinary sudo user and confirm access before closing the first.
 
 ## Step 4 — Check the actual automatic-update policy
 
@@ -127,7 +109,7 @@ Recheck the effective configuration using `apt-config dump`. Confirm automatic i
 
 **Important:** choosing manual-only updates means **security updates will not install themselves**. Maintain a routine to run `sudo apt update` and review `sudo apt upgrade`. These operations remain available.
 
-The custom netinst implementation makes this same check **inside the installed target** and creates an override **only if the package exists and automatic installations are enabled**. OMV's own update and notification settings remain user-controlled; the OMV CDD profile does not change them.
+The custom netinst implementation performs this policy step **once, inside the selected Debian tweaks profile**. It edits Debian's existing `20auto-upgrades` setting when present, using a single local override only if necessary. No later installation profile rechecks or changes this update policy. OMV's own update and notification settings remain user-controlled; the OMV CDD profile does not change them.
 
 ## Step 5 — Reboot and confirm the changes
 
