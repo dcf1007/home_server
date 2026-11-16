@@ -359,6 +359,8 @@ profile_firmware() {
     run_target apt-get -y install $(cat "$WORK/firmware-selectors")
     run_target dpkg --audit
 }
+
+
 ````
 
 </details>
