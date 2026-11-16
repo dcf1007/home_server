@@ -22,8 +22,12 @@ profile_zram() {
     fi
     command -v parted >/dev/null 2>&1 ||
         fatal 'Official parted-udeb did not provide a usable parted command'
-    # Check all remaining required installer and target utilities before
-    # offering any destructive ZRAM backing conversion.
+    # Load installer-native blkid from util-linux-udeb when absent.
+    if ! command -v blkid >/dev/null 2>&1; then
+        capture anna-install util-linux-udeb ||
+            fatal 'Could not load official util-linux-udeb into Debian Installer'
+    fi
+    # Check all remaining installer utilities before a destructive conversion.
     zram_check_utilities
     zram_collect_candidates
     zram_choose_candidate
@@ -82,7 +86,7 @@ profile_zram() {
             used_kb=$((active_used / 1024 + 1))
             [ "$available_kb" -gt "$((used_kb + reserve_kb))" ] ||
                 fatal 'Insufficient remaining RAM for a safe targeted swapoff'
-            capture zram_swapoff "$device" ||
+            capture busybox swapoff "$device" ||
                 fatal 'Targeted swapoff failed; GPT and signatures left unchanged'
         fi
         zram_read_active_swap
@@ -94,29 +98,27 @@ profile_zram() {
     [ -z "$active_used" ] ||
         fatal 'Selected backing was reactivated as swap before conversion'
 
-    # The only destructive partition commands target the one confirmed GPT
-    # partition. No automatic partition creation, sizing or formatting.
+    # Write only the approved partition's first 1 MiB, never its parent disk.
+    # The GPT layout and PARTUUID are preserved; no filesystem is created.
     cmp -s /target/etc/fstab "$WORK/zram-original-fstab" ||
         fatal 'Installed target fstab changed after verification; conversion stopped'
     log "USER APPROVED CONVERSION: $device, PARTUUID=$uuid, size=$size"
-    capture parted -s "$disk" type "$partn" 0FC63DAF-8483-4772-8E79-3D69D8477DE4 ||
+    capture busybox dd if=/dev/zero of="$device" bs=4096 count=256 conv=notrunc,fsync ||
+        fatal 'Could not erase swap signature from the confirmed backing partition'
+    capture parted -s "$disk" type "$partn" "$ZRAM_DATA_GUID" ||
         fatal 'Could not change only the confirmed GPT partition type'
     capture parted -s "$disk" name "$partn" zram-writeback ||
         fatal 'Could not set confirmed GPT PARTLABEL'
-    capture zram_wipefs -a "$device" ||
-        fatal 'Could not remove signatures from only the confirmed partition'
-    [ "$(zram_lsblk -dnro PARTUUID "$device" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$uuid" | tr '[:upper:]' '[:lower:]')" ] ||
-        fatal 'PARTUUID changed unexpectedly after conversion'
-    [ "$(zram_lsblk -dnro PARTLABEL "$device")" = zram-writeback ] ||
-        fatal 'Converted GPT PARTLABEL not visible'
-    [ "$(zram_lsblk -dnro PARTTYPE "$device" | tr '[:upper:]' '[:lower:]')" = 0fc63daf-8483-4772-8e79-3d69d8477de4 ] ||
-        fatal 'Confirmed partition has the wrong GPT type after conversion'
-    [ -z "$(zram_blkid -p -s TYPE -o value "$device" 2>/dev/null || true)" ] ||
-        fatal 'Backing partition still has a filesystem/swap signature'
-    if zram_lsblk -dnro MOUNTPOINTS "$device" |
-        grep -Ev '^[[:space:]]*$' | grep -q .; then
-        fatal 'Converted partition unexpectedly mounted or active'
-    fi
+    zram_partition_info "$device" ||
+        fatal 'Cannot re-probe converted GPT partition'
+    [ "$zi_type" = "$ZRAM_DATA_GUID" ] && [ "$zi_label" = zram-writeback ] ||
+        fatal 'Converted backing GPT type or name is incorrect'
+    [ -z "$zi_signature" ] ||
+        fatal 'Converted backing still has a detected filesystem/swap signature'
+    [ "$zi_partuuid" = "$uuid" ] ||
+        fatal 'PARTUUID unexpectedly changed without partition recreation'
+    ! zram_is_mounted ||
+        fatal 'Converted partition unexpectedly mounted'
     zram_read_active_swap
     [ -z "$active_used" ] ||
         fatal 'Converted raw backing is still conventional swap'
@@ -126,7 +128,7 @@ profile_zram() {
         fatal 'Installed target fstab changed after conversion; manual repair is required'
     # Stage the verified fstab on the target filesystem, then replace it
     # atomically. A failed copy must not truncate the active target fstab.
-    fstab_tmp="/target/etc/.fstab.my-cdd.$"
+    fstab_tmp="/target/etc/.fstab.my-cdd.$$"
     [ ! -e "$fstab_tmp" ] ||
         fatal 'Unexpected temporary target fstab path already exists'
     cp "$WORK/zram-safe-fstab" "$fstab_tmp" ||

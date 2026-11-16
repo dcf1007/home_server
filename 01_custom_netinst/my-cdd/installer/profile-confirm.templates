@@ -79,9 +79,10 @@ Description: Convert ${MYCDD_PARTITION} into raw ZRAM backing?
  .
  Reusing this partition may break conventional swap in another operating
  system, including one not currently running.
- This permanently destroys signatures on ONLY that partition. The
- partition will become GPT type 8300 with PARTLABEL zram-writeback,
- without a filesystem or ordinary swap activation. Default is No.
+ The first 1 MiB of ONLY this partition will be erased, destroying its
+ existing swap signature and any data in that area. The partition will
+ become GPT type 8300 with PARTLABEL zram-writeback, without a
+ filesystem or ordinary swap activation. Default is No.
 
 Template: my-cdd/zram-swapoff
 Type: boolean

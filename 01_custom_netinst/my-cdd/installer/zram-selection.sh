@@ -1,48 +1,73 @@
 #!/bin/sh
-# Debian Installer is a stripped-down udeb environment. Use native
-# 'in-target' for util-linux discovery, reads, and the one explicitly approved
-# swapoff/wipefs operation. That wrapper mounts target /dev, /proc and /sys.
-# Never run /target binaries directly with the installer's libraries or PATH.
-zram_target_tool() {
-    # Some callers run inside 'while read ... < file' loops or pipelines.
-    # in-target reserves fd 0 for Debconf passthrough; these block utilities
-    # never ask Debconf questions. Isolate their stdin so they cannot consume
-    # the partition-selection input or corrupt loop iteration.
-    in-target --pass-stdout "$@" </dev/null
-}
-zram_lsblk() { zram_target_tool lsblk "$@"; }
-zram_blkid() { zram_target_tool blkid "$@"; }
-zram_findmnt() { zram_target_tool findmnt "$@"; }
-zram_swapon() { zram_target_tool swapon "$@"; }
-zram_swapoff() { zram_target_tool swapoff "$@"; }
-zram_wipefs() { zram_target_tool wipefs "$@"; }
+# Native Debian Installer ZRAM tools; no target util-linux block commands.
+# Standard GPT PARTITION TYPE GUIDs (not disk-specific PARTUUIDs):
+#   Linux swap:                 0657FD6D-A4AB-43C4-84E5-0933C84B4F4F
+#   Linux filesystem/data:      0FC63DAF-8483-4772-8E79-3D69D8477DE4 (gdisk 8300)
+# The ZRAM backing remains raw/unformatted. GNU Parted's "type" command
+# requires the GPT type GUID, whereas blkid reports it for eligibility checks.
+ZRAM_SWAP_GUID=0657fd6d-a4ab-43c4-84e5-0933c84b4f4f
+ZRAM_DATA_GUID=0fc63daf-8483-4772-8e79-3d69d8477de4
+
+zram_blkid() { blkid "$@"; }
 
 zram_check_utilities() {
-    # Keep parted's GPT edits and target-fstab operations in the installer's
-    # own filesystem namespace, where /target is the mounted OS root.
-    for utility in parted readlink cmp; do
+    for utility in parted blkid busybox readlink cmp awk sed; do
         command -v "$utility" >/dev/null 2>&1 ||
             fatal "ZRAM requires unavailable Debian Installer utility: $utility"
     done
-    # The installed Debian target already supplies util-linux. It is NOT an
-    # added profile dependency and requires no package install or ISO udeb.
-    for utility in lsblk blkid findmnt swapon swapoff wipefs; do
-        capture in-target sh -c 'command -v "$1" >/dev/null 2>&1' my-cdd "$utility" ||
-            fatal "ZRAM requires unavailable installed-target utility: $utility"
+    for applet in dd swapoff; do
+        busybox --list | grep -qx "$applet" ||
+            fatal "ZRAM requires unavailable Debian Installer BusyBox applet: $applet"
     done
-    capture in-target sh -c '
-        [ -d /sys/class/block ] &&
-        [ -r /proc/self/mountinfo ] &&
-        [ -d /dev/disk/by-partuuid ]
-    ' || fatal 'ZRAM cannot inspect target block devices, /sys or /proc'
-    capture in-target lsblk -pnro PATH,TYPE ||
-        fatal 'ZRAM cannot enumerate block devices from installed target'
+    [ -d /sys/class/block ] && [ -r /proc/swaps ] &&
+        [ -r /proc/self/mountinfo ] && [ -d /dev/disk/by-partuuid ] ||
+        fatal 'ZRAM cannot inspect installer block devices, swaps, mounts or PARTUUID links'
 }
 
-# ZRAM backing discovery and native Debconf selection, sourced by selected profile-zram.sh.
-# No partition is created, formatted or modified by these functions.
-ZRAM_SWAP_GUID=0657fd6d-a4ab-43c4-84e5-0933c84b4f4f
-ZRAM_DATA_GUID=0fc63daf-8483-4772-8e79-3d69d8477de4
+zram_probe_value() {
+    printf '%s\n' "$zi_output" | sed -n "s/^$1=//p" | head -n 1
+}
+
+# The native blkid low-level probe supplies GPT PART_ENTRY_* fields even on
+# raw partitions. sysfs exposes partition topology and size in 512B sectors.
+zram_partition_info() {
+    zi_device=$1
+    [ -b "$zi_device" ] || return 1
+    zi_name=$(basename "$zi_device")
+    case "$zi_name" in ''|*[!a-zA-Z0-9_.-]*) return 1 ;; esac
+    zi_sys="/sys/class/block/$zi_name"
+    [ -r "$zi_sys/partition" ] && [ -r "$zi_sys/size" ] || return 1
+    zi_partn=$(cat "$zi_sys/partition") || return 1
+    zi_sectors=$(cat "$zi_sys/size") || return 1
+    case "$zi_partn:$zi_sectors" in ''|*[!0-9:]*|:*|*:) return 1 ;; esac
+    zi_parent=$(basename "$(dirname "$(readlink -f "$zi_sys")")") || return 1
+    case "$zi_parent" in ''|*[!a-zA-Z0-9_.-]*) return 1 ;; esac
+    zi_disk="/dev/$zi_parent"
+    [ -b "$zi_disk" ] || return 1
+    [ "$(blkid -p -s PTTYPE -o value "$zi_disk" 2>/dev/null)" = gpt ] || return 1
+    zi_output=$(blkid -p -o export "$zi_device" 2>/dev/null || true)
+    [ "$(zram_probe_value PART_ENTRY_SCHEME)" = gpt ] || return 1
+    zi_partuuid=$(zram_probe_value PART_ENTRY_UUID | tr '[:upper:]' '[:lower:]')
+    printf '%s\n' "$zi_partuuid" |
+        grep -Eq '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' ||
+        return 1
+    zi_type=$(zram_probe_value PART_ENTRY_TYPE | tr '[:upper:]' '[:lower:]')
+    [ "$(zram_probe_value PART_ENTRY_NUMBER)" = "$zi_partn" ] || return 1
+    zi_entry_disk=$(zram_probe_value PART_ENTRY_DISK)
+    if [ -n "$zi_entry_disk" ]; then
+        [ "$zi_entry_disk" = "$(cat "/sys/class/block/$zi_parent/dev")" ] || return 1
+    fi
+    zi_label=$(zram_probe_value PART_ENTRY_NAME)
+    zi_signature=$(zram_probe_value TYPE)
+    zi_size_kib=$((zi_sectors / 2))
+}
+
+zram_is_mounted() {
+    zm_name=$(basename "$zram_device")
+    zm_id=$(cat "/sys/class/block/$zm_name/dev") ||
+        fatal 'Cannot inspect selected partition mount identity'
+    awk -v id="$zm_id" '$3 == id { found=1 } END { exit !found }' /proc/self/mountinfo
+}
 
 zram_ref_matches() (
     # Return success only when a target fstab source resolves to the exact
@@ -68,46 +93,30 @@ zram_ref_matches() (
 )
 
 zram_collect_candidates() {
-    # The target fstab reflects this installation's actual partman assignment;
-    # it also supports swap partitions reused from a previous installation.
+    # Prefer swap in this target's fstab; allow manually selected existing raw backing.
     [ -f /target/etc/fstab ] || fatal 'No installed-target fstab: cannot identify assigned swap'
-    # /target is an installer-side mountpoint, not a path in the target
-    # chroot. Verify it from the installer's own mount namespace.
     [ -r /proc/self/mountinfo ] &&
         awk '$5 == "/target" { found=1 } END { exit !found }' /proc/self/mountinfo ||
         fatal 'Installed target root is not a separately mounted filesystem'
     : > "$WORK/zram-candidate-map"
-    capture zram_lsblk -pnro PATH,TYPE ||
-        fatal 'Cannot enumerate block devices for ZRAM backing'
-    cp "$WORK/output" "$WORK/zram-block-list"
-    while read -r zc_path zc_type; do
-        [ "$zc_type" = part ] || continue
-        case "$zc_path" in /dev/*) ;; *) continue ;; esac
-        zc_device="$(readlink -f -- "$zc_path")"
-        [ -b "$zc_device" ] || continue
-        zc_partuuid="$(zram_lsblk -dnro PARTUUID "$zc_device" | tr '[:upper:]' '[:lower:]')"
-        printf '%s\n' "$zc_partuuid" |
-            grep -Eq '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' ||
-            continue
-        zc_parent="$(zram_lsblk -dnro PKNAME "$zc_device")"
-        [ -n "$zc_parent" ] && [ "$(zram_lsblk -dnro PTTYPE "/dev/$zc_parent")" = gpt ] || continue
-        zc_guid="$(zram_lsblk -dnro PARTTYPE "$zc_device" | tr '[:upper:]' '[:lower:]')"
-        zc_signature="$(zram_blkid -p -s TYPE -o value "$zc_device" 2>/dev/null || true)"
+    for zc_entry in /sys/class/block/*/partition; do
+        [ -r "$zc_entry" ] || continue
+        zc_device="/dev/$(basename "$(dirname "$zc_entry")")"
+        zram_partition_info "$zc_device" || continue
         zc_kind=''
-        if [ "$zc_guid" = "$ZRAM_SWAP_GUID" ] && [ "$zc_signature" = swap ]; then
+        if [ "$zi_type" = "$ZRAM_SWAP_GUID" ] && [ "$zi_signature" = swap ]; then
             zc_kind=swap
-        elif [ "$zc_guid" = "$ZRAM_DATA_GUID" ] &&
-            [ "$(zram_lsblk -dnro PARTLABEL "$zc_device")" = zram-writeback ] &&
-            [ -z "$zc_signature" ]; then
+        elif [ "$zi_type" = "$ZRAM_DATA_GUID" ] &&
+            [ "$zi_label" = zram-writeback ] &&
+            { [ -z "$zi_signature" ] || [ "$zi_signature" = swap ]; }; then
             zc_kind=existing-raw
         fi
         [ -n "$zc_kind" ] || continue
-        ! grep -q "^$zc_partuuid|" "$WORK/zram-candidate-map" ||
+        ! grep -q "^$zi_partuuid|" "$WORK/zram-candidate-map" ||
             fatal 'Duplicate GPT partition identity; refusing ZRAM selection'
-        zc_size="$(zram_lsblk -dnro SIZE "$zc_device")"
-        case "$zc_size" in ''|*'|'*|*','*) fatal 'Cannot display safe partition capacity' ;; esac
-        printf '%s|%s|%s|%s\n' "$zc_partuuid" "$zc_device" "$zc_kind" "$zc_size" >> "$WORK/zram-candidate-map"
-    done < "$WORK/zram-block-list"
+        zc_size="$zi_size_kib KiB"
+        printf '%s|%s|%s|%s\n' "$zi_partuuid" "$zc_device" "$zc_kind" "$zc_size" >> "$WORK/zram-candidate-map"
+    done
     [ -s "$WORK/zram-candidate-map" ] ||
         fatal 'No eligible GPT swap or existing raw zram-writeback partition. Return to partitioning or deselect ZRAM.'
 }
@@ -176,68 +185,65 @@ zram_choose_candidate() {
 }
 
 zram_validate_candidate() {
-    # Re-read all identity and usage metadata, including immediately before
-    # a destructive change. Never trust a stale menu label or device name.
+    # Re-check live identity, active use and mounts before destructive changes.
     zc_link="/dev/disk/by-partuuid/$zram_uuid"
     [ -b "$zc_link" ] || fatal 'Selected PARTUUID block device is missing'
-    [ "$(readlink -f -- "$zc_link")" = "$zram_device" ] ||
+    [ "$(readlink -f "$zc_link")" = "$zram_device" ] ||
         fatal 'Backing device has changed since selection'
-    [ "$(zram_lsblk -dnro TYPE "$zram_device")" = part ] ||
-        fatal 'ZRAM backing is no longer a partition'
-    parent="$(zram_lsblk -dnro PKNAME "$zram_device")"
-    partn="$(zram_lsblk -dnro PARTN "$zram_device")"
-    case "$parent" in ''|*[!a-zA-Z0-9_-]*) fatal 'Unsafe parent disk identity' ;; esac
-    case "$partn" in ''|*[!0-9]*) fatal 'Unsafe partition number' ;; esac
-    disk="/dev/$parent"
-    [ -b "$disk" ] && [ "$(zram_lsblk -dnro PTTYPE "$disk")" = gpt ] ||
-        fatal 'Backing partition is not on a GPT disk'
-    [ "$(zram_lsblk -dnro PARTUUID "$zram_device" | tr '[:upper:]' '[:lower:]')" = "$zram_uuid" ] ||
+    zram_partition_info "$zram_device" ||
+        fatal 'Selected backing is not a readable GPT partition'
+    [ "$zi_partuuid" = "$zram_uuid" ] ||
         fatal 'Backing PARTUUID changed before conversion'
-    # Include ineligible partitions in this collision check: cloned GPT disks
-    # can reuse a PARTUUID even when only one copy currently carries swap.
-    zc_id_count="$(zram_lsblk -pnro PARTUUID,TYPE | awk -v id="$zram_uuid" '
-        tolower($1) == id && $2 == "part" {n++}
-        END {print n+0}
-    ')"
-    [ "$zc_id_count" -eq 1 ] ||
+    parent=$zi_parent
+    partn=$zi_partn
+    disk=$zi_disk
+    [ "$zi_sectors" -ge 2048 ] ||
+        fatal 'Selected backing is smaller than the required 1 MiB signature erase'
+    # Cloned disks can duplicate a PARTUUID even on ineligible partitions.
+    zc_hits=0
+    for zc_entry in /sys/class/block/*/partition; do
+        [ -r "$zc_entry" ] || continue
+        zc_other="/dev/$(basename "$(dirname "$zc_entry")")"
+        zram_partition_info "$zc_other" || continue
+        if [ "$zi_partuuid" = "$zram_uuid" ]; then
+            zc_hits=$((zc_hits + 1))
+        fi
+    done
+    [ "$zc_hits" -eq 1 ] ||
         fatal 'Selected PARTUUID occurs on multiple block partitions; refusing ambiguous backing'
-    zc_guid="$(zram_lsblk -dnro PARTTYPE "$zram_device" | tr '[:upper:]' '[:lower:]')"
-    zc_sig="$(zram_blkid -p -s TYPE -o value "$zram_device" 2>/dev/null || true)"
+    zram_partition_info "$zram_device" ||
+        fatal 'Selected backing vanished during validation'
     case "$zram_kind" in
         swap)
-            [ "$zc_guid" = "$ZRAM_SWAP_GUID" ] && [ "$zc_sig" = swap ] ||
+            [ "$zi_type" = "$ZRAM_SWAP_GUID" ] && [ "$zi_signature" = swap ] ||
                 fatal 'Backing is no longer a conventional GPT swap partition' ;;
         existing-raw)
-            [ "$zc_guid" = "$ZRAM_DATA_GUID" ] && [ -z "$zc_sig" ] &&
-                [ "$(zram_lsblk -dnro PARTLABEL "$zram_device")" = zram-writeback ] ||
+            [ "$zi_type" = "$ZRAM_DATA_GUID" ] &&
+                [ "$zi_label" = zram-writeback ] &&
+                { [ -z "$zi_signature" ] || [ "$zi_signature" = swap ]; } ||
                 fatal 'Previously converted backing no longer matches raw GPT identity' ;;
         *) fatal 'Unknown ZRAM backing class' ;;
     esac
-    # A partition which is part of a mapped/RAID/storage stack is not safe.
     for zc_holder in "/sys/class/block/$(basename "$zram_device")/holders/"*; do
         [ ! -e "$zc_holder" ] || fatal 'Selected ZRAM backing is held by another block device'
     done
-    if zram_lsblk -dnro MOUNTPOINTS "$zram_device" |
-        grep -Ev '^[[:space:]]*(\[SWAP\])?[[:space:]]*$' | grep -q .; then
+    ! zram_is_mounted ||
         fatal 'Selected backing has filesystem mounts; refusing conversion'
-    fi
-    if [ -n "$(zram_findmnt -rn -S "$zram_device" -o TARGET 2>/dev/null || true)" ]; then
-        fatal 'Selected backing is mounted; refusing conversion'
-    fi
 }
 
 zram_read_active_swap() {
+    # /proc/swaps reports KiB used; preserve byte units for RAM checks/prompts.
     active_used=''
-    zram_swapon --noheadings --bytes -o NAME,USED > "$WORK/zram-active-swaps" ||
-        fatal 'Cannot enumerate installer-active swap'
-    while read -r zs_path zs_used; do
+    [ -r /proc/swaps ] || fatal 'Cannot enumerate installer-active swap'
+    while read -r zs_path zs_type zs_size zs_used zs_priority; do
+        [ "$zs_path" != Filename ] || continue
         [ -n "$zs_path" ] || continue
-        if [ "$(readlink -f -- "$zs_path" 2>/dev/null || true)" = "$zram_device" ]; then
+        if [ "$(readlink -f "$zs_path" 2>/dev/null || true)" = "$zram_device" ]; then
             [ -z "$active_used" ] || fatal 'Duplicate active-swap mapping for the chosen partition'
-            case "$zs_used" in ''|*[!0-9]*) fatal 'Invalid used-swap byte count' ;; esac
-            active_used=$zs_used
+            case "$zs_used" in ''|*[!0-9]*) fatal 'Invalid used-swap KiB count' ;; esac
+            active_used=$((zs_used * 1024))
         fi
-    done < "$WORK/zram-active-swaps"
+    done < /proc/swaps
 }
 
 zram_prepare_fstab() {

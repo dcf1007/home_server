@@ -1,5 +1,6 @@
 # Build-only Debian Installer package. Never installed into /target.
-# Official Trixie parted-udeb supplies the installer-native parted command;
-# anna-install loads it only when the selected ZRAM profile needs GPT editing.
-# Its version-matched .udeb dependencies are handled by native anna.
+# Official Trixie udebs supply parted for GPT editing and blkid for native
+# partition probing; anna-install loads them only for selected ZRAM.
+# Version-matched .udeb dependencies are resolved by native anna.
 parted-udeb
+util-linux-udeb
