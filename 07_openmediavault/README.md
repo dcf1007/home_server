@@ -2,7 +2,7 @@
 
 **Goal:** install OMV 8 from its official signed APT repository and perform the two initialization steps in the [official OMV installer](https://github.com/openmediavault/openmediavault/blob/master/install.sh). The OMV web interface handles later NAS configuration. This guide does **not** configure SSH, account groups, automatic updates, notifications, plugins or Docker.
 
-**Before starting:** use Debian 13 (Trixie) without a desktop environment, on amd64 or arm64. Confirm working network/DNS and keep local console access: OMV's own packages may change system services or networking. Follow the numbered [base Debian guide](../01_base_debian/README.md) first.
+**Before starting:** use Debian 13 (Trixie) without a desktop environment, on amd64 or arm64. Follow the numbered [base Debian guide](../01_base_debian/README.md) first. OMV's [manual installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html) explicitly requires working DNS and a configured `systemd-resolved` **before** installing OMV; otherwise the package installation can interrupt name resolution. Verify this prerequisite and keep local console access. OMV's packages may change network services.
 
 ## Step 1 — Install repository tools
 
