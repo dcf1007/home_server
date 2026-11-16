@@ -36,7 +36,7 @@ Paste the complete matching listings below. The early hook must run **before** `
 
 | File | Purpose |
 | --- | --- |
-| `installer/run-selected.sh` | Supplies `capture`, `fatal`, target-APT simulation and review helpers; checks local root recovery access; sources and runs only selected functions; writes completion markers and logs. |
+| `installer/run-selected.sh` | Supplies `capture`, `fatal`, target-APT simulation and review helpers; checks local root recovery access; sources and runs only selected functions; writes completion markers directly in the profile loop and retains failure logs. |
 | `installer/15my-cdd-status` | Finish-install hook that blocks success if status is not `COMPLETE` or a selected marker is absent. |
 
 Paste both entire listings below. **Do not trim `run-selected.sh` down to the short dispatcher excerpt.** Its review and error-handling code is necessary for safety. The guard uses Debian Installer's finish-install **exit status 10**, not a generic shell exit 1.
@@ -379,7 +379,7 @@ Description: Remove the package ${MYCDD_REMOVAL}?
 
 
 <details>
-<summary><strong>Complete file: installer/run-selected.sh</strong> (370 lines, current Git blob <code>036d9cf904f9b5e8400b76b0c7e0be8c93917bd3</code>)</summary>
+<summary><strong>Complete file: installer/run-selected.sh</strong> (356 lines, current Git blob <code>5fd68f3bf8b4bb2974f7b5113ad841509b3907af</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -547,17 +547,6 @@ review_install() {
     run_target apt-get -y install "$@"
     run_target dpkg --audit
 }
-reviewed_upgrade() {
-    simulate_target dist-upgrade
-    check_critical_removals
-    review_plan 'Backports: complete eligible-package full-upgrade' "$WORK/plan"
-    run_target apt-get -y dist-upgrade
-    run_target dpkg --audit
-    simulate_target dist-upgrade
-    if grep -E '^Inst |^Remv ' "$WORK/plan" >/dev/null; then
-        fatal 'Eligible upgrades/removals remain following approved full-upgrade'
-    fi
-}
 report_omission() {
     db_subst my-cdd/approve-omission MYCDD_PACKAGE "$1" ||
         fatal 'Cannot present named omission'
@@ -568,11 +557,6 @@ report_omission() {
     else
         fatal "Omission declined: $1"
     fi
-}
-mark_complete() {
-    printf 'Completed: %s\n' "$1" > "$LOG_DIR/my-cdd-completed/$1"
-    chmod 600 "$LOG_DIR/my-cdd-completed/$1"
-    log "PROFILE COMPLETE: $1"
 }
 [ -r "$MEDIA/profile-common.sh" ] || fatal 'Missing shared profile helpers'
 [ -r "$MEDIA/ordered-selection.sh" ] || fatal 'Missing selection validator'
@@ -746,7 +730,9 @@ for profile in $ordered; do
     [ -r "$MEDIA/profile-$module.sh" ] || fatal "Missing selected module: $module"
     . "$MEDIA/profile-$module.sh"
     "$handler"
-    mark_complete "$profile"
+    printf 'Completed: %s\n' "$profile" > "$LOG_DIR/my-cdd-completed/$profile"
+    chmod 600 "$LOG_DIR/my-cdd-completed/$profile"
+    log "PROFILE COMPLETE: $profile"
 done
 log 'All selected optional profiles completed.'
 printf 'COMPLETE\n' > "$STATUS"
