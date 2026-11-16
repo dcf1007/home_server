@@ -27,6 +27,8 @@ profile_omv() {
         fatal 'Official OMV signing key has no fingerprint'
     run_target gpg --batch --yes --dearmor -o \
         /usr/share/keyrings/openmediavault-archive-keyring.gpg /tmp/my-cdd-omv-key
+    # The installer uses umask 077; APT's _apt user must read this public key.
+    run_target chmod 0644 /usr/share/keyrings/openmediavault-archive-keyring.gpg
     rm -f /target/tmp/my-cdd-omv-key
 
     # Single official signed repository: first entry in OMV 8's
