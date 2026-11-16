@@ -2,7 +2,7 @@
 
 These are the **complete former top-level `01_custom_netinst` Markdown guides**, retained as source history rather than current step-by-step instructions. They include earlier decisions, superseded approaches, installer screenshots/log findings and the original complete ZRAM design.
 
-For current **post-install** steps, start at [the repository index](../../README.md). For the current **custom ISO**, start at [the netinst README](../README.md). This archive deliberately preserves historical wording and may include outdated commands, implementation status or relative links into the former layout. Do **not** use it as the executable current guide.
+For current **post-install** steps, start at [the repository index](../../README.md). For the current **custom ISO**, start at [the netinst README](../README.md). This archive preserves historical technical wording and may include outdated commands or implementation status. Relative Markdown links have been adjusted where necessary to follow the relocated source files. Do **not** use it as the executable current guide.
 
 | Original document | Historical content |
 | --- | --- |
