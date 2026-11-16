@@ -105,7 +105,7 @@ profile_zram() {
     log "USER APPROVED CONVERSION: $device, PARTUUID=$uuid, size=$size"
     capture busybox dd if=/dev/zero of="$device" bs=4096 count=256 conv=notrunc,fsync ||
         fatal 'Could not erase swap signature from the confirmed backing partition'
-    capture parted -s "$disk" type "$partn" 0FC63DAF-8483-4772-8E79-3D69D8477DE4 ||
+    capture parted -s "$disk" type "$partn" "$ZRAM_DATA_GUID" ||
         fatal 'Could not change only the confirmed GPT partition type'
     capture parted -s "$disk" name "$partn" zram-writeback ||
         fatal 'Could not set confirmed GPT PARTLABEL'
