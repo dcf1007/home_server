@@ -24,7 +24,7 @@ This means the **actual function** must be named `profile_kernel` in `installer/
 
 ## Step 2 — Build a version/ABI validator
 
-APT's moving metapackages may point to 6.x, 7.x or a later branch. Create a helper to retrieve the **actual version** from a suite (`suite_version` is already in `profile-common.sh`), inspect that version's `Depends` field, and accept only a real 7.x kernel dependency.
+APT's moving metapackages may point to 6.x, 7.x or a later branch. Create a helper to retrieve the **actual version** from a suite (`suite_version` is already in `profile-common.sh`), inspect that version's `Depends` field, and accept only a real 7.x kernel dependency. The current source checks that both metapackages depend on 7.x and relies on joint APT resolution, then verifies an exact matching installed pair later; it does **not** explicitly compare the two dependency ABI strings before installation.
 
 The tracked implementation's core test is:
 
@@ -38,7 +38,7 @@ esac
 
 This runs inside the helper `is_7x_metapackage` after target `apt-cache show` has populated `$WORK/output`. **Do not use the name `linux-image-amd64` alone as proof** that the selected dependency is 7.x.
 
-A complete build also checks the image and header pair in the resulting APT transaction and validates exact matching installed ABI directories later.
+A complete build simulates installing both metapackages together and validates that at least one installed 7.x image has an exact matching header directory afterwards.
 
 ## Step 3 — Implement suite selection without changing APT policy
 
