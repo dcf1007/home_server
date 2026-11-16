@@ -110,6 +110,8 @@ profile_firmware() {
     : > "$WORK/firmware-selectors"
     : > "$WORK/firmware-fallbacks"
     : > "$WORK/firmware-omissions"
+    # systemd-timesyncd is a replaceable NTP client, not the systemd init
+    # package. Reject all other previously protected removals.
     for pkg in $(grep -Ev '^[[:space:]]*(#|$)' "$MEDIA/firmware-candidates.txt"); do
         case "$pkg" in
             ''|*[!a-zA-Z0-9.+-]*) fatal "Unsafe inventory package: $pkg";;
@@ -122,7 +124,8 @@ profile_firmware() {
         if [ -n "$bpo" ]; then
             candidate="$pkg/trixie-backports"
             if capture in-target apt-get -s install $(cat "$WORK/firmware-selectors") "$candidate"; then
-                if ! grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/output" >/dev/null; then
+                if ! grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/output" |
+                    grep -Ev '^Remv systemd-timesyncd([[:space:]:]|$)' >/dev/null; then
                     selector=$candidate
                 fi
             fi
@@ -132,7 +135,8 @@ profile_firmware() {
         if [ -z "$selector" ] && [ -n "$stable" ]; then
             candidate="$pkg/$stable"
             if capture in-target apt-get -s install $(cat "$WORK/firmware-selectors") "$candidate"; then
-                if ! grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/output" >/dev/null; then
+                if ! grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/output" |
+                    grep -Ev '^Remv systemd-timesyncd([[:space:]:]|$)' >/dev/null; then
                     selector=$candidate
                     if backports_is_selected; then
                         [ -n "$reason" ] || reason='No published Backports version'
