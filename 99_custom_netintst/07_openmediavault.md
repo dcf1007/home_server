@@ -128,7 +128,7 @@ fi
 </details>
 
 <details>
-<summary><strong>installer/profile-omv.sh</strong> — complete file (129 lines; Git blob <code>3887f60260657ad8f34f7e2565b2a91a5b60da8d</code>)</summary>
+<summary><strong>installer/profile-omv.sh</strong> — complete file (127 lines; Git blob <code>04ba376974d72e21046012b529f0f5bc3201a7fa</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -176,9 +176,7 @@ EOT
     run_target usermod -aG sudo,_ssh "$admin"
     mkdir -p /target/etc/ssh/sshd_config.d
     printf 'PermitRootLogin no\n' > /target/etc/ssh/sshd_config.d/01-my-cdd-root-login.conf
-    capture in-target sshd -T || fatal 'OMV SSH config invalid'
-    grep -Fx 'permitrootlogin no' "$WORK/output" >/dev/null ||
-        fatal 'OMV root SSH still enabled'
+    verify_target_sshd
 
     # OMV 8 source controls scheduled updates through conf.system.apt.updates
     # and the "apt" notification record, deploying apt + apticron (not the
