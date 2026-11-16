@@ -6,6 +6,8 @@ Debian already detects and installs some required firmware during normal install
 
 ## Step 1 — Refresh APT and read the package inventory
 
+This updates APT’s available package information before evaluating firmware. It does **not** install firmware or change drivers; stop if the configured Debian sources cannot be refreshed.
+
 ~~~sh
 sudo apt update
 ~~~
@@ -16,6 +18,8 @@ APT itself asks for any package-specific license acceptance, including the compl
 
 ## Step 2 — Install the CPU microcode packages
 
+This requests both Intel and AMD **CPU microcode** packages, as specified by the project. Microcode is low-level CPU firmware; APT shows the complete proposed changes and may report compatibility issues. Read the summary before confirming, and do not silently omit either package.
+
 ~~~sh
 sudo apt install intel-microcode amd64-microcode
 ~~~
@@ -23,6 +27,8 @@ sudo apt install intel-microcode amd64-microcode
 The project deliberately attempts **both** packages. The CPU will only load the microcode appropriate to its manufacturer. Read APT's summary before confirming.
 
 ## Step 3 — Install general Linux firmware
+
+This requests the broad Linux and Intel miscellaneous firmware packages. The `firmware-linux` packages include metapackages that can pull in additional binaries; read APT’s dependency list and approve only the intended changes.
 
 ~~~sh
 sudo apt install firmware-linux firmware-linux-nonfree firmware-misc-nonfree firmware-intel-misc
@@ -32,13 +38,19 @@ Some packages are metapackages that depend on other firmware packages; this is n
 
 ## Step 4 — Install network and storage firmware
 
+This requests firmware covering Realtek, Broadcom and Cavium network/storage devices. These are device-support files, not network configuration changes; review any proposed removals before approving.
+
 ~~~sh
 sudo apt install firmware-realtek firmware-bnx2 firmware-bnx2x firmware-cavium
 ~~~
 
+This requests firmware for Marvell, Myricom and Netronome network/storage hardware. You may not have those devices today; the goal is the project’s approved **proactive support**. Check the APT proposal.
+
 ~~~sh
 sudo apt install firmware-marvell-prestera firmware-myricom firmware-netronome
 ~~~
+
+This adds NetXen and QLogic device firmware. As with the preceding groups, check APT’s proposed package list and report any unavailable package instead of proceeding blindly.
 
 ~~~sh
 sudo apt install firmware-netxen firmware-qlogic
@@ -46,13 +58,19 @@ sudo apt install firmware-netxen firmware-qlogic
 
 ## Step 5 — Install wireless firmware
 
+This requests Atheros, Broadcom wireless and Intel Wi-Fi firmware. If APT reports a dependency conflict or missing package, **stop this group** and decide how to handle that package.
+
 ~~~sh
 sudo apt install firmware-atheros firmware-brcm80211 firmware-iwlwifi
 ~~~
 
+This requests older Intel wireless, Libertas and MediaTek firmware. `firmware-ipw2x00` may display a **license agreement**; read it and explicitly accept or decline before continuing.
+
 ~~~sh
 sudo apt install firmware-ipw2x00 firmware-libertas firmware-mediatek
 ~~~
+
+This requests TI, Atheros USB, carl9170 and ZyDAS wireless firmware. Review what APT offers; these packages are for additional wireless chipsets, not Wi-Fi network setup.
 
 ~~~sh
 sudo apt install firmware-ti-connectivity firmware-ath9k-htc firmware-carl9170 firmware-zd1211
@@ -62,9 +80,13 @@ sudo apt install firmware-ti-connectivity firmware-ath9k-htc firmware-carl9170 f
 
 ## Step 6 — Install graphics and media firmware
 
+This requests AMD, Intel and NVIDIA graphics firmware. It provides firmware blobs for supported hardware; it does **not** install full proprietary GPU drivers unless APT explicitly proposes such packages—review the plan.
+
 ~~~sh
 sudo apt install firmware-amd-graphics firmware-intel-graphics firmware-nvidia-graphics
 ~~~
+
+This requests ASPEED, Qualcomm, Samsung, Siano and IVTV graphics/media firmware. `firmware-ivtv` may prompt for an additional vendor license; read and decide explicitly.
 
 ~~~sh
 sudo apt install firmware-ast firmware-qcom-soc firmware-samsung firmware-siano firmware-ivtv
@@ -74,6 +96,8 @@ Read the full license if `firmware-ivtv` asks for permission.
 
 ## Step 7 — Install sound, Bluetooth and peripheral firmware
 
+This requests firmware for audio controllers, Intel sound, SOF DSP and Bluetooth devices. Check whether the transaction is compatible with the packages already installed.
+
 ~~~sh
 sudo apt install firmware-cirrus firmware-intel-sound firmware-sof-signed bluez-firmware
 ~~~
@@ -81,6 +105,8 @@ sudo apt install firmware-cirrus firmware-intel-sound firmware-sof-signed bluez-
 ### If APT reports a missing or conflicting package
 
 Stop that group and read the error. Do not blindly force the installation. You can check an individual name:
+
+This **inspects one package** and its available versions without installing it. Replace `firmware-realtek` with the specific package causing the error, then check whether it is missing, pinned or available in another enabled repository.
 
 ~~~sh
 apt policy firmware-realtek
@@ -90,6 +116,8 @@ Substitute the **actual problematic package name**. Decide whether to retry just
 
 With Backports enabled, APT still normally prefers Stable. To choose a compatible Backports package deliberately, the command looks like:
 
+This is an **example only** of requesting one package specifically from Trixie Backports. Use the *real* problematic package name only if Backports was intentionally enabled and the candidate is compatible; review APT’s changes before approving.
+
 ~~~sh
 sudo apt install firmware-realtek/trixie-backports
 ~~~
@@ -98,15 +126,21 @@ This is an **example**, not a requirement to replace the Stable version. Review 
 
 ## Step 8 — Finish and verify
 
+This regenerates early-boot images so the installed firmware can be available to the kernel during startup. Read any warnings; if the operation fails, resolve it before rebooting.
+
 ~~~sh
 sudo update-initramfs -u -k all
 ~~~
+
+This checks for incomplete Debian package installations/configurations. **No output means no issues found**; listed packages require attention before proceeding.
 
 ~~~sh
 sudo dpkg --audit
 ~~~
 
 Reboot when convenient, then inspect kernel messages for any remaining firmware loading errors:
+
+This shows kernel messages from the **current boot**. Read for firmware-loading and microcode-related warnings or errors; the command may print many unrelated messages and does not alter anything.
 
 ~~~sh
 sudo journalctl -k -b
