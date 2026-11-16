@@ -109,21 +109,23 @@ sudo omv-confdbadm read --prettify conf.system.notification.notification
 
 Find the record with `"id": "apt"` and check that its `"enable"` field is `false`. Do not change other notification events just to silence APT.
 
-**Apply the OMV-managed update/notification configuration** using its normal Apply button. If the generated daily/weekly apticron jobs remain after applying the UI changes, do not delete those generated files manually: first inspect OMV's configuration and, if necessary, ask OMV to redeploy only the affected states.
+**Apply the OMV-managed update/notification configuration** using its normal Apply button. Normally, no further command is needed to apply an accepted UI change. Check the cron schedules in Step 6 first.
 
-Refresh OMV's Salt configuration before targeted deployment:
+**Only if** the database values are correct but an OMV-generated apticron schedule remains active, investigate the OMV Apply result and use its own Salt mechanism as a targeted repair. Do not delete OMV-generated cron files manually.
+
+For that corrective action, first refresh OMV's Salt configuration:
 
 ~~~sh
 sudo omv-salt stage run prepare
 ~~~
 
-Then redeploy only the APT and apticron states, not unrelated services:
+If the first command succeeded, redeploy only the APT and apticron states, not unrelated services:
 
 ~~~sh
 sudo omv-salt deploy run apt apticron
 ~~~
 
-These commands apply OMV's own configuration choices; they are not package upgrades. Check their output for errors.
+These optional repair commands reapply OMV's own configuration choices; they are not package upgrades. Check their output for errors, then recheck the schedules.
 
 ## Step 6 — Disable Debian's automatic APT tasks
 
@@ -161,6 +163,14 @@ ls /etc/cron.weekly
 ~~~
 
 Look for `openmediavault-apticron`. If it remains active, the policy is **not fully verified**; resolve the OMV event configuration and its Salt deployment rather than deleting an OMV-generated cron file.
+
+On systems upgraded from older OMV versions, there may also be a legacy `cron-apt` schedule. **If** `/etc/cron.d/cron-apt` exists, open it for inspection:
+
+~~~sh
+sudo nano /etc/cron.d/cron-apt
+~~~
+
+This shows whether an actual, uncommented scheduled command remains. **Do not edit the file merely because it exists**; identify whether another package or OMV still manages the schedule and disable it through that configuration. A legacy active update schedule means the manual-only policy is not yet complete.
 
 ## Step 7 — Use the OMV web interface for your NAS
 
