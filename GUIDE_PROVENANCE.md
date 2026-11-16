@@ -1,5 +1,13 @@
 # Guide provenance and scope
 
+**Latest construction-manual revision:** 2026-11-16 (Europe/Berlin).
+
+**Nearest user prompt:** “i still would not be able to take one of the guides, understand what i have to do, and recreate it. they are still confusing.”
+
+**Change in response:** The 99_custom_netintst build chapters now specify **prerequisites, exact source paths, the purpose of each file, exact text-editor commands, full file listings for every non-document file needed by the current Simple-CDD project, Git blob SHA provenance and a syntax/build/VM checklist**. The listings are byte-for-byte copies of source at commit `bf5090eb37338d9304be7e7c88fcd063b5db7b0e` (before this documentation update). The project source and normal post-install guides remain unchanged. The guide makes explicit that one optional profile needs the shared framework, whereas the current full ISO contains seven profile choices.
+
+**Validation boundary:** The file-copy source hashes can be checked statically. This documentation work does **not** constitute a new ISO build, installer execution, partition conversion, or first-boot test.
+
 **Current update date:** 2026-11-16 (Europe/Berlin).
 
 **Nearest user prompt:** “you're messing everything up. the netinst sections should describe how to build the custom script for the section. i don't know what you did but it's useless”.
