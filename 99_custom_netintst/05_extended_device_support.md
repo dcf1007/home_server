@@ -1,10 +1,10 @@
-# 10 — Recreate the firmware and CPU microcode installer profile
+# 05 — Recreate extended firmware and microcode support
 
 **Outcome:** assemble the complete **selected-only firmware source** that handles a broad inventory, both CPU vendors' microcode packages, reviewed Backports fallbacks, individual omissions and **the package vendors' original license questions**. The normal Debian version is simpler: [04 — Firmware](../05_extended_device_support/README.md).
 
 ## Step 1 — Prepare the shared installer framework
 
-Complete [01 — ISO build](build_project.md), [00 — Common helpers](profile_construction.md) and [05 — Early/late dispatcher](installer_framework.md) first. The profile cannot run independently because it requires `/target`, target APT, `capture`, native Debconf and the installed target's separate Debconf database.
+Complete [Build project](build_project.md), [Shared profile helpers](profile_construction.md) and [Installer framework](installer_framework.md) first. The profile cannot run independently because it requires `/target`, target APT, `capture`, native Debconf and the installed target's separate Debconf database.
 
 Work inside `99_custom_netintst/my-cdd/` in a **test branch or scratch copy**. Do not run its source module as a shell script on a normal NAS.
 
@@ -28,43 +28,33 @@ This is only filesystem organization, not package installation.
 
 **1. Create `profiles/extended-device-support.description`.** Human-readable checkbox for additional firmware and both CPU microcode packages.
 
-~~~sh
-nano profiles/extended-device-support.description
-~~~
+Open `profiles/extended-device-support.description` in a text editor, paste the indicated contents and save it at that path.
 
-Open that specific file, expand the matching **complete source listing** below, paste all contents, save with Ctrl+O and Enter, then exit with Ctrl+X. This does **not** execute the file.
+Open that specific file, expand the matching **complete source listing** below, paste all contents, Save the document after reviewing the pasted contents. This does **not** execute the file.
 
 **2. Create `profiles/extended-device-support.extra`.** Stages the firmware module and full list of requested packages on the ISO.
 
-~~~sh
-nano profiles/extended-device-support.extra
-~~~
+Open `profiles/extended-device-support.extra` in a text editor, paste the indicated contents and save it at that path.
 
-Open that specific file, expand the matching **complete source listing** below, paste all contents, save with Ctrl+O and Enter, then exit with Ctrl+X. This does **not** execute the file.
+Open that specific file, expand the matching **complete source listing** below, paste all contents, Save the document after reviewing the pasted contents. This does **not** execute the file.
 
 **3. Create `profiles/extended-device-support.postinst`.** Checks completion and must be executable, but performs no second install.
 
-~~~sh
-nano profiles/extended-device-support.postinst
-~~~
+Open `profiles/extended-device-support.postinst` in a text editor, paste the indicated contents and save it at that path.
 
-Open that specific file, expand the matching **complete source listing** below, paste all contents, save with Ctrl+O and Enter, then exit with Ctrl+X. This does **not** execute the file.
+Open that specific file, expand the matching **complete source listing** below, paste all contents, Save the document after reviewing the pasted contents. This does **not** execute the file.
 
 **4. Create `installer/profile-firmware.sh`.** All selection, fallback, per-package omission, complete APT review and native vendor-license Debconf code.
 
-~~~sh
-nano installer/profile-firmware.sh
-~~~
+Open `installer/profile-firmware.sh` in a text editor, paste the indicated contents and save it at that path.
 
-Open that specific file, expand the matching **complete source listing** below, paste all contents, save with Ctrl+O and Enter, then exit with Ctrl+X. This does **not** execute the file.
+Open that specific file, expand the matching **complete source listing** below, paste all contents, Save the document after reviewing the pasted contents. This does **not** execute the file.
 
 **5. Create `scripts/firmware-candidates.txt`.** The full approved package inventory, including both Intel and AMD CPU microcode.
 
-~~~sh
-nano scripts/firmware-candidates.txt
-~~~
+Open `scripts/firmware-candidates.txt` in a text editor, paste the indicated contents and save it at that path.
 
-Open that specific file, expand the matching **complete source listing** below, paste all contents, save with Ctrl+O and Enter, then exit with Ctrl+X. This does **not** execute the file.
+Open that specific file, expand the matching **complete source listing** below, paste all contents, Save the document after reviewing the pasted contents. This does **not** execute the file.
 
 
 Allow Simple-CDD to execute the success-marker verifier:

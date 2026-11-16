@@ -1,10 +1,10 @@
-# 07 — Recreate the Docker installer profile from source
+# 08 — Recreate the Docker installer profile
 
 **Outcome:** reconstruct a Docker Engine + Compose **optional** module for Debian Installer, including all its inputs and checks. To install Docker on an already running system, use [08 — Docker](../08_docker/README.md).
 
 ## Step 1 — Start with the common installer framework
 
-Complete [01 — Build project](build_project.md), [00 — Shared profile helpers](profile_construction.md) and [05 — Installer hooks](installer_framework.md), then work inside `99_custom_netintst/my-cdd/` on a **test branch or scratch copy**. This profile uses `in-target` and native Debconf; it is not a general Debian installation script.
+Complete [Build project](build_project.md), [Shared profile helpers](profile_construction.md) and [Installer framework](installer_framework.md), then work inside `99_custom_netintst/my-cdd/` on a **test branch or scratch copy**. This profile uses `in-target` and native Debconf; it is not a general Debian installation script.
 
 The profile ID is `docker`, its file is `installer/profile-docker.sh`, and its dispatcher function is `profile_docker()`. The first is the checkbox name; the last is the code that actually runs.
 
@@ -27,35 +27,27 @@ This creates source directories; it does not install Docker.
 
 **1. Open `profiles/docker.description`.** The text shown next to the separate Docker checkbox.
 
-~~~sh
-nano profiles/docker.description
-~~~
+Open `profiles/docker.description` in a text editor, paste the indicated contents and save it at that path.
 
-The editor opens the file without executing it. Expand the **full listing with the same filename below**, copy *every line*, save with Ctrl+O, Enter, then exit with Ctrl+X. Do not use an abbreviated snippet instead.
+The editor opens the file without executing it. Expand the **full listing with the same filename below**, Save the document after reviewing the pasted contents. Do not use an abbreviated snippet instead.
 
 **2. Open `profiles/docker.extra`.** Makes the Docker module available on the ISO.
 
-~~~sh
-nano profiles/docker.extra
-~~~
+Open `profiles/docker.extra` in a text editor, paste the indicated contents and save it at that path.
 
-The editor opens the file without executing it. Expand the **full listing with the same filename below**, copy *every line*, save with Ctrl+O, Enter, then exit with Ctrl+X. Do not use an abbreviated snippet instead.
+The editor opens the file without executing it. Expand the **full listing with the same filename below**, Save the document after reviewing the pasted contents. Do not use an abbreviated snippet instead.
 
 **3. Open `profiles/docker.postinst`.** Verifies the Docker completion marker and must be executable.
 
-~~~sh
-nano profiles/docker.postinst
-~~~
+Open `profiles/docker.postinst` in a text editor, paste the indicated contents and save it at that path.
 
-The editor opens the file without executing it. Expand the **full listing with the same filename below**, copy *every line*, save with Ctrl+O, Enter, then exit with Ctrl+X. Do not use an abbreviated snippet instead.
+The editor opens the file without executing it. Expand the **full listing with the same filename below**, Save the document after reviewing the pasted contents. Do not use an abbreviated snippet instead.
 
 **4. Open `installer/profile-docker.sh`.** Full selected-only target Docker installation: prerequisites, HTTPS key, signed repository, complete APT review and audit.
 
-~~~sh
-nano installer/profile-docker.sh
-~~~
+Open `installer/profile-docker.sh` in a text editor, paste the indicated contents and save it at that path.
 
-The editor opens the file without executing it. Expand the **full listing with the same filename below**, copy *every line*, save with Ctrl+O, Enter, then exit with Ctrl+X. Do not use an abbreviated snippet instead.
+The editor opens the file without executing it. Expand the **full listing with the same filename below**, Save the document after reviewing the pasted contents. Do not use an abbreviated snippet instead.
 
 
 Make the completion verifier executable:
@@ -93,7 +85,7 @@ When the shared framework and other required profile manifests are complete, run
 
 ## Complete source listings
 
-Each expandable section below is the exact complete source file to paste into its matching path. No missing helper functions are hidden inside a short excerpt; **shared** helpers are in [00](profile_construction.md) and [05](installer_framework.md).
+Each expandable section below is the exact complete source file to paste into its matching path. No missing helper functions are hidden inside a short excerpt; **shared** helpers are in [Shared profile helpers](profile_construction.md) and [Installer framework](installer_framework.md).
 <details>
 <summary><strong>profiles/docker.description</strong> — complete file; 1 lines; Git blob <code>925cd79edbfa31c2475ff40380291cd394226372</code></summary>
 

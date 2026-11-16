@@ -1,10 +1,10 @@
-# 06 — Recreate the OpenMediaVault 8 installer profile
+# 07 — Recreate OpenMediaVault 8 installer support
 
 **Outcome:** build the full **optional OMV 8 profile source** for the custom Debian netinst image, not a script someone must run manually after installation. On a running Debian server, follow [07 — Manual OMV setup](../07_openmediavault/README.md); that guide uses the OMV GUI and requires **no external project Python helper**.
 
 ## Step 1 — Prepare the shared installer code
 
-Complete [01 — Simple-CDD build](build_project.md), [00 — Common helpers](profile_construction.md) and [05 — Selection and dispatcher](installer_framework.md), then work inside `99_custom_netintst/my-cdd/` on a test branch or scratch copy.
+Complete [Build project](build_project.md), [Shared profile helpers](profile_construction.md) and [Installer framework](installer_framework.md), then work inside `99_custom_netintst/my-cdd/` on a test branch or scratch copy.
 
 The optional profile ID is `openmediavault`. Its source file is `installer/profile-omv.sh`, which defines `profile_omv()`. The existing dispatcher maps the ID to that function **only when selected**.
 
@@ -27,35 +27,27 @@ This only creates folders.
 
 **1. Create `profiles/openmediavault.description`.** The OMV 8 checkbox label.
 
-~~~sh
-nano profiles/openmediavault.description
-~~~
+Open `profiles/openmediavault.description` in a text editor, paste the indicated contents and save it at that path.
 
-Open the file in `nano`, expand its **entire source listing below**, paste all its lines, save with Ctrl+O, Enter, and exit with Ctrl+X. The source is **not executed** while you edit it.
+Open the file in `nano`, expand its **entire source listing below**, paste all its lines, Save the document after reviewing the pasted contents. The source is **not executed** while you edit it.
 
 **2. Create `profiles/openmediavault.extra`.** Stages the OMV installer-side module onto the ISO.
 
-~~~sh
-nano profiles/openmediavault.extra
-~~~
+Open `profiles/openmediavault.extra` in a text editor, paste the indicated contents and save it at that path.
 
-Open the file in `nano`, expand its **entire source listing below**, paste all its lines, save with Ctrl+O, Enter, and exit with Ctrl+X. The source is **not executed** while you edit it.
+Open the file in `nano`, expand its **entire source listing below**, paste all its lines, Save the document after reviewing the pasted contents. The source is **not executed** while you edit it.
 
 **3. Create `profiles/openmediavault.postinst`.** Verifies completion; it must be executable and must not reinstall OMV.
 
-~~~sh
-nano profiles/openmediavault.postinst
-~~~
+Open `profiles/openmediavault.postinst` in a text editor, paste the indicated contents and save it at that path.
 
-Open the file in `nano`, expand its **entire source listing below**, paste all its lines, save with Ctrl+O, Enter, and exit with Ctrl+X. The source is **not executed** while you edit it.
+Open the file in `nano`, expand its **entire source listing below**, paste all its lines, Save the document after reviewing the pasted contents. The source is **not executed** while you edit it.
 
 **4. Create `installer/profile-omv.sh`.** Full code for prerequisites, official OMV key/source, APT approval, admin SSH, OMV update database and Salt deployment.
 
-~~~sh
-nano installer/profile-omv.sh
-~~~
+Open `installer/profile-omv.sh` in a text editor, paste the indicated contents and save it at that path.
 
-Open the file in `nano`, expand its **entire source listing below**, paste all its lines, save with Ctrl+O, Enter, and exit with Ctrl+X. The source is **not executed** while you edit it.
+Open the file in `nano`, expand its **entire source listing below**, paste all its lines, Save the document after reviewing the pasted contents. The source is **not executed** while you edit it.
 
 
 The postinst is a marker verifier and needs execute permission:
