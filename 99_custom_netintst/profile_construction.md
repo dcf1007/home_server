@@ -53,7 +53,7 @@ Expand the file you want to create. **These are full files, not fragments.** Cop
 
 
 <details>
-<summary><strong>Complete file: installer/ordered-selection.sh</strong> (25 lines, original Git blob <code>f320353746db5ee7c941ca56c5baa3b7ca494099</code>)</summary>
+<summary><strong>Complete file: installer/ordered-selection.sh</strong> (25 lines, current Git blob <code>55445d43401de3209f7bbbc4ef08fa2eee54279d</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -62,7 +62,7 @@ Expand the file you want to create. **These are full files, not fragments.** Cop
 set -eu
 [ "$#" -eq 1 ] || { printf >&2 'Expected one comma-separated selection string\n'; exit 2; }
 selected="$(printf %s "$1" | tr ',' ' ')"
-order='backports ensure-7x-kernel extended-device-support zram-writeback debian-tweaks openmediavault docker'
+order='debian-tweaks backports ensure-7x-kernel extended-device-support zram-writeback openmediavault docker'
 for token in $selected; do
   case " $order " in *" $token "*) ;; *)
     printf >&2 'Unknown/unapproved profile: %s\n' "$token"; exit 1;;
@@ -87,7 +87,7 @@ printf '%s\n' "$out"
 
 
 <details>
-<summary><strong>Complete file: installer/profile-common.sh</strong> (47 lines, original Git blob <code>b2fa64b5bac89eb33ff76a7f91a0997cb27bbb9c</code>)</summary>
+<summary><strong>Complete file: installer/profile-common.sh</strong> (81 lines, current Git blob <code>4193c159eb137daa1c8e56ed1a13353a602b24f2</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -126,17 +126,51 @@ update_signed_apt() {
     capture in-target apt-cache policy || fatal 'Cannot inspect APT priorities'
 }
 
+# Automatic installs require both the unattended-upgrades package and an
+# enabled APT::Periodic::Unattended-Upgrade setting. Do not create an override
+# on a freshly installed system where no automatic installer is active.
 ensure_manual_updates() {
+    if ! capture in-target dpkg-query -W '-f=${Status}\n' unattended-upgrades; then
+        log 'unattended-upgrades is absent; no automatic-install override needed'
+        return 0
+    fi
+    if ! grep -Fx 'install ok installed' "$WORK/output" >/dev/null; then
+        log 'unattended-upgrades is not fully installed; no override needed'
+        return 0
+    fi
     capture in-target apt-config dump || fatal 'Cannot inspect automatic APT settings'
     if grep -Ei 'APT::Periodic::Unattended-Upgrade[[:space:]]+"?([1-9]|yes|true)' "$WORK/output" >/dev/null; then
         mkdir -p /target/etc/apt/apt.conf.d
         printf 'APT::Periodic::Unattended-Upgrade "0";\n' > \
             /target/etc/apt/apt.conf.d/99-my-cdd-manual-updates
-        log 'Explicitly disabled an enabled unattended APT upgrade setting'
+        capture in-target apt-config dump ||
+            fatal 'Cannot verify manual-update APT override'
+        if grep -Ei 'APT::Periodic::Unattended-Upgrade[[:space:]]+"?([1-9]|yes|true)' "$WORK/output" >/dev/null; then
+            fatal 'Unattended upgrades still enabled after writing override'
+        fi
+        log 'Installed unattended-upgrades was enabled; automatic installations disabled'
+    else
+        log 'unattended-upgrades is installed but automatic installation already disabled'
     fi
 }
 
-
+# ssh.service normally creates /run/sshd via RuntimeDirectory=sshd.
+# During Debian Installer late_command the target has not booted and
+# that transient directory may not exist. Do not mistake that condition
+# for an invalid sshd_config. Capture real diagnostics if checks still fail.
+verify_target_sshd() {
+    [ -x /target/usr/sbin/sshd ] || fatal 'Installed OpenSSH daemon is missing'
+    mkdir -p /target/run/sshd ||
+        fatal 'Cannot create transient target /run/sshd for validation'
+    chmod 755 /target/run/sshd ||
+        fatal 'Cannot set transient target /run/sshd directory mode'
+    capture in-target /usr/sbin/sshd -t ||
+        fatal 'OpenSSH syntax/prerequisite check failed; read sshd stderr in my-cdd.log'
+    capture in-target /usr/sbin/sshd -T ||
+        fatal 'OpenSSH effective configuration check failed; read sshd stderr in my-cdd.log'
+    grep -Fx 'permitrootlogin no' "$WORK/output" >/dev/null ||
+        fatal 'OpenSSH effective PermitRootLogin policy is not no'
+}
 ````
 
 </details>

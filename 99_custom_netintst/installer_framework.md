@@ -88,7 +88,7 @@ Expand the file you want to create. **These are full files, not fragments.** Cop
 
 
 <details>
-<summary><strong>Complete file: profiles/default.extra</strong> (9 lines, original Git blob <code>8b604a4a6d11f85904e1cc5670713cd7d795721d</code>)</summary>
+<summary><strong>Complete file: profiles/default.extra</strong> (9 lines, current Git blob <code>8b604a4a6d11f85904e1cc5670713cd7d795721d</code>)</summary>
 
 ````text
 # Common installer source assets for every build; copied by Simple-CDD.
@@ -106,7 +106,7 @@ installer/15my-cdd-status
 
 
 <details>
-<summary><strong>Complete file: profiles/default.preseed</strong> (20 lines, original Git blob <code>0d5971206483997eaba0de1f4dc2f2f4c734100f</code>)</summary>
+<summary><strong>Complete file: profiles/default.preseed</strong> (20 lines, current Git blob <code>0d5971206483997eaba0de1f4dc2f2f4c734100f</code>)</summary>
 
 ````text
 # my-cdd minimal default profile for Debian 13.
@@ -135,7 +135,7 @@ d-i preseed/late_command string /bin/sh /cdrom/simple-cdd/run-selected.sh
 
 
 <details>
-<summary><strong>Complete file: installer/profile-confirm.sh</strong> (125 lines, original Git blob <code>52bbb7e87a9c95d7c8459e3a96bf57311af50c8e</code>)</summary>
+<summary><strong>Complete file: installer/profile-confirm.sh</strong> (125 lines, current Git blob <code>b88e2656d7365593cf0caa67e599db10997b9565</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -197,6 +197,8 @@ status_of() {
 }
 
 display_summary() {
+    status_of debian-tweaks
+    db_subst my-cdd/profile-summary MYCDD_TWEAKS "$profile_status" || return 1
     status_of backports
     db_subst my-cdd/profile-summary MYCDD_BACKPORTS "$profile_status" || return 1
     status_of ensure-7x-kernel
@@ -205,8 +207,6 @@ display_summary() {
     db_subst my-cdd/profile-summary MYCDD_FIRMWARE "$profile_status" || return 1
     status_of zram-writeback
     db_subst my-cdd/profile-summary MYCDD_ZRAM "$profile_status" || return 1
-    status_of debian-tweaks
-    db_subst my-cdd/profile-summary MYCDD_TWEAKS "$profile_status" || return 1
     status_of openmediavault
     db_subst my-cdd/profile-summary MYCDD_OMV "$profile_status" || return 1
     status_of docker
@@ -269,7 +269,7 @@ done
 
 
 <details>
-<summary><strong>Complete file: installer/profile-confirm.templates</strong> (101 lines, original Git blob <code>aa09b76badd121fe6f8723068b23ced27db6b8ea</code>)</summary>
+<summary><strong>Complete file: installer/profile-confirm.templates</strong> (101 lines, current Git blob <code>6fefa7c97820932eec3faceb96b41bea8ad08c1a</code>)</summary>
 
 ````text
 # Native Debconf templates for the user-approved early preseed confirmation.
@@ -281,11 +281,11 @@ Type: note
 Description: Review the selected custom installation profiles
  All seven optional profiles are shown in their required execution order.
  .
+  Debian tweaks: ${MYCDD_TWEAKS}
   Backports: ${MYCDD_BACKPORTS}
   Ensure Linux 7.x kernel: ${MYCDD_KERNEL}
   Extended device support: ${MYCDD_FIRMWARE}
   ZSTD ZRAM writeback: ${MYCDD_ZRAM}
-  Debian tweaks: ${MYCDD_TWEAKS}
   OpenMediaVault 8: ${MYCDD_OMV}
   Docker: ${MYCDD_DOCKER}
  .
@@ -379,7 +379,7 @@ Description: Remove the package ${MYCDD_REMOVAL}?
 
 
 <details>
-<summary><strong>Complete file: installer/run-selected.sh</strong> (362 lines, original Git blob <code>718eca693f61b53a5009b7bd43f9d7ed49bef8e3</code>)</summary>
+<summary><strong>Complete file: installer/run-selected.sh</strong> (370 lines, current Git blob <code>036d9cf904f9b5e8400b76b0c7e0be8c93917bd3</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -587,6 +587,20 @@ mark_complete() {
 # Use the existing Debian Installer password-type Debconf questions; never
 # log or write a password to a preseed, the ISO, or a command argument.
 ensure_root_recovery() {
+    # Debian's initial root password should be left blank to give the
+    # first ordinary account sudo. Verify it rather than granting sudo
+    # to an unexpected account silently.
+    db_get passwd/username || fatal 'Cannot read the native installer username'
+    recovery_user=$RET
+    [ -n "$recovery_user" ] || fatal 'Missing installer-created admin account'
+    capture in-target id -nG "$recovery_user" ||
+        fatal 'Installer-created admin account is unavailable'
+    case " $(cat "$WORK/output") " in
+        *' sudo '*) log 'Verified native sudo administrator account' ;;
+        *) fatal 'Installer-created user is not in sudo group; leave initial root-password fields empty during Debian setup' ;;
+    esac
+    capture in-target sh -c 'command -v sudo >/dev/null 2>&1' ||
+        fatal 'sudo is not available in the installed target'
     capture in-target passwd -S root ||
         fatal 'Cannot inspect installed root account for emergency recovery'
     root_state="$(awk '$1 == "root" { print $2 }' "$WORK/output")"
@@ -599,12 +613,6 @@ ensure_root_recovery() {
         *)
             fatal 'Unrecognized root account password state; refusing optional operations' ;;
     esac
-
-    db_get passwd/username || fatal 'Cannot read the native installer username'
-    recovery_user=$RET
-    [ -n "$recovery_user" ] || fatal 'No installer-created user; cannot confirm recovery account'
-    capture in-target id "$recovery_user" ||
-        fatal 'Installer-created user unavailable for root-recovery preflight'
 
     # These are native user-setup-udeb templates, not project custom files.
     # Native user-setup clears them after initial account creation; clear them
@@ -726,11 +734,11 @@ fi
 for profile in $ordered; do
     log "PROFILE BEGIN: $profile"
     case "$profile" in
+        debian-tweaks) module=tweaks; handler=profile_tweaks ;;
         backports) module=backports; handler=profile_backports ;;
         ensure-7x-kernel) module=kernel; handler=profile_kernel ;;
         extended-device-support) module=firmware; handler=profile_firmware ;;
         zram-writeback) module=zram; handler=profile_zram ;;
-        debian-tweaks) module=tweaks; handler=profile_tweaks ;;
         openmediavault) module=omv; handler=profile_omv ;;
         docker) module=docker; handler=profile_docker ;;
         *) fatal "Unknown selected profile: $profile" ;;
@@ -750,7 +758,7 @@ exit 0
 
 
 <details>
-<summary><strong>Complete file: installer/15my-cdd-status</strong> (25 lines, original Git blob <code>7da85e3e09c57c9b184748a083cc30c4fa801b3f</code>)</summary>
+<summary><strong>Complete file: installer/15my-cdd-status</strong> (25 lines, current Git blob <code>7da85e3e09c57c9b184748a083cc30c4fa801b3f</code>)</summary>
 
 ````sh
 #!/bin/sh
