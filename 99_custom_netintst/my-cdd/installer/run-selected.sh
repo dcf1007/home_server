@@ -87,6 +87,14 @@ fatal() {
                 "$FAILED_CAPTURE_COMMAND" "$FAILED_CAPTURE_STATUS"
             printf '\nACTUAL COMMAND OUTPUT (including stderr; last 100 lines):\n'
             if [ -s "$WORK/output" ]; then
+                # Put recognizable APT/dpkg errors at the top of the dialog
+                # before any lengthy contextual output.
+                if grep -E '^(Err:|E:|W:|Error:|ERROR:|dpkg: error:|fatal:)' \
+                    "$WORK/output" > "$WORK/errors"; then
+                    echo 'Reported error/warning lines:'
+                    tail -n 30 "$WORK/errors"
+                    echo
+                fi
                 tail -n 100 "$WORK/output"
             else
                 echo 'No output was captured from the failed command.'
