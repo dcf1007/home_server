@@ -1,5 +1,15 @@
 # my-cdd source manifest and provenance
 
+## OMV APT simulation essential-removal false positive — 2026-11-16
+
+**Nearest user prompt:** Two latest installer failure screenshots showing `Remv systemd-timesyncd [257.13-1~deb13u1]` and a failed common “Proposed removal of boot/essential administration packages” check.
+
+**Confirmed code cause:** The `^Remv (...|systemd|...)` expression in `installer/run-selected.sh` and two firmware candidate simulations also matched the nonessential `systemd-timesyncd` client. This separate NTP component is replaceable by Chrony as used by OMV. The screenshot was of a dry-run plan; no successful OMV package install was demonstrated.
+
+**Minimal correction:** Keep the complete original safety expression and filter only `^Remv systemd-timesyncd([[:space:]:]|$)`. The generic shared check and both firmware candidate checks use the same exception. There are no new helper functions or changes to OMV's signed repository, automatic-update/SSH policy, Docker source, ZRAM selected partition safeguards, or the native APT simulation/confirmation process.
+
+**Source verification boundary:** The changed full source listings, current Git blob hashes, and standalone/CDD explanations must match. Synthetic grep fixtures demonstrate behavior for the exact client and core protected package removals; a disposable VM must still demonstrate a fully approved OMV install, Docker installation, and first boot.
+
 ## OMV keyring permission fix — 2026-11-16
 
 **Nearest user prompt:** Screenshot evidence from the newest Debian Installer VM, showing OMV `apt-get update` failed after key import with `/usr/bin/sqv` error `Failed to parse keyring ... Permission denied (os error 13)` and exit status 100.
