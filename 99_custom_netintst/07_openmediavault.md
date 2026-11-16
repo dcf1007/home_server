@@ -63,7 +63,7 @@ Do **not** mark the imported OMV module as a standalone installer and execute it
 The OMV handler runs **only when selected**. It uses the same signed-APT installation pattern as the [Docker profile](08_docker.md), while restricting OMV-specific actions to its official installation and initialization. The repository entry comes from [OMV's manual Debian installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html):
 
 1. Confirm Debian Trixie, supported architecture and no installed desktop display manager.
-2. Install the signing/download tools with reviewed APT approval, retrieve the official key, and configure the first signed APT repository listed in [OMV's manual Debian installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html), without extra suites.
+2. Install the signing/download tools with reviewed APT approval, retrieve the official public key, set its keyring to mode `0644` so APT's `_apt` signature verifier can read it despite the installer's private umask, and configure the first signed APT repository listed in [OMV's manual Debian installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html), without extra suites.
 3. Refresh signed APT metadata, verify the official package origin, show the entire `openmediavault` transaction and require **default-No approval** before installation. The official script's permissive downgrade/held-package flags are intentionally omitted for safety.
 4. Check that OMV 8 was installed and run the two official initialization commands: `omv-confdbadm populate` and `omv-salt deploy run hosts`.
 
@@ -127,7 +127,7 @@ fi
 </details>
 
 <details>
-<summary><strong>installer/profile-omv.sh</strong> — complete file (60 lines; Git blob <code>4a8afe4a622b0719db890b3eafaaea111377bb82</code>)</summary>
+<summary><strong>installer/profile-omv.sh</strong> — complete file (62 lines; Git blob <code>26ae2cc166cb8921abf56d5511ed7787ccfbf210</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -159,6 +159,8 @@ profile_omv() {
         fatal 'Official OMV signing key has no fingerprint'
     run_target gpg --batch --yes --dearmor -o \
         /usr/share/keyrings/openmediavault-archive-keyring.gpg /tmp/my-cdd-omv-key
+    # The installer uses umask 077; APT's _apt user must read this public key.
+    run_target chmod 0644 /usr/share/keyrings/openmediavault-archive-keyring.gpg
     rm -f /target/tmp/my-cdd-omv-key
 
     # Single official signed repository: first entry in OMV 8's
