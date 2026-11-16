@@ -698,3 +698,147 @@ zram_prepare_fstab() {
 ````
 
 </details>
+
+<details>
+<summary><strong>scripts/zram-generator.conf.template</strong> — complete file; 10 lines; original blob <code>bd95dec18d1a82a7d8723d0984f0cb11730c15b3</code></summary>
+
+````text
+# Early unit generation may precede creation of the PARTUUID symlink.
+# The generator re-reads the configuration during device setup.
+set!backingBytes = /usr/sbin/blockdev --getsize64 /dev/disk/by-partuuid/YOUR_PARTUUID 2>/dev/null || echo 0
+
+[zram0]
+zram-size = ram + backingBytes / 1048576
+zram-resident-limit = ram / 2
+compression-algorithm = zstd
+writeback-device = /dev/disk/by-partuuid/YOUR_PARTUUID
+swap-priority = 100
+````
+
+</details>
+
+<details>
+<summary><strong>scripts/10-compressed-writeback.conf</strong> — complete file; 2 lines; original blob <code>901ebe1d7c228bb4053cc56ea766854048ba5f0f</code></summary>
+
+````ini
+[Service]
+ExecStartPre=/bin/sh -c 'echo yes > /sys/block/zram0/compressed_writeback'
+````
+
+</details>
+
+<details>
+<summary><strong>scripts/zram-pressure.sh</strong> — complete file; 76 lines; original blob <code>9a40b02f7bb80504c1f4a6d831d2ca4ac08cbf3d</code></summary>
+
+````sh
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+Z=/sys/block/zram0
+POLL=1
+START=80
+TARGET=70
+EMERGENCY=95
+PSI_MIN=500                  # 5.00% as hundredths of a percent
+AGES=(86400 21600 3600 300 60)
+
+state() {
+    local kind avg whole fraction
+    read -r _ _ used limit _ < "$Z/mm_stat" || return 1
+    (( limit > 0 )) || return 1
+    read -r kind avg _ < /proc/pressure/memory || return 1
+    [[ $kind == some && $avg =~ ^avg10=([0-9]+)\.([0-9]{2})$ ]] || return 1
+    whole=${BASH_REMATCH[1]}
+    fraction=${BASH_REMATCH[2]}
+    psi=$(( 10#$whole * 100 + 10#$fraction ))
+    occupancy=$(( used * 100 / limit ))
+}
+
+for name in mm_stat idle writeback bd_stat compressed_writeback writeback_limit_enable; do
+    [[ -e $Z/$name ]] || { echo "Missing $Z/$name" >&2; exit 1; }
+done
+read -r value < "$Z/compressed_writeback"
+[[ $value == 1 ]] || { echo 'Compressed writeback is not enabled' >&2; exit 1; }
+read -r value < "$Z/writeback_limit_enable"
+[[ $value == 0 ]] || { echo 'Disable writeback_limit before starting' >&2; exit 1; }
+
+while :; do
+    state || { echo 'Cannot read PSI/zram state' >&2; exit 1; }
+    if (( occupancy < EMERGENCY && (occupancy < START || psi < PSI_MIN) )); then
+        sleep "$POLL"
+        continue
+    fi
+
+    echo "Writeback triggered: zram=${occupancy}% PSI=${psi}bp"
+    read -r _ _ before < "$Z/bd_stat"
+    failed=0
+
+    for age in "${AGES[@]}"; do
+        state || exit 1
+        # Once started, continue only while pressure + insufficient
+        # headroom persist, or the emergency threshold is reached.
+        if (( occupancy < EMERGENCY && (occupancy < TARGET || psi < PSI_MIN) )); then
+            break
+        fi
+        if ! printf '%s\n' "$age" > "$Z/idle" ||
+           ! printf '%s\n' 'type=idle' > "$Z/writeback"; then
+            echo "Writeback failed for age=${age}s" >&2
+            failed=1
+            break
+        fi
+        echo "Writeback completed: age=${age}s"
+    done
+
+    state || exit 1
+    if (( failed == 0 && occupancy >= EMERGENCY )); then
+        echo 'Emergency writeback: all remaining eligible entries'
+        if ! printf '%s\n' all > "$Z/idle" ||
+           ! printf '%s\n' 'type=idle' > "$Z/writeback"; then
+            echo 'Emergency writeback failed' >&2
+            failed=1
+        fi
+    fi
+
+    read -r _ _ after < "$Z/bd_stat"
+    echo "Cycle complete; backing writes delta=$((after - before))"
+    if (( failed || after == before )); then
+        sleep 30                 # Avoid rapid retries on full/ineffective backing
+    else
+        sleep "$POLL"
+    fi
+done
+````
+
+</details>
+
+<details>
+<summary><strong>scripts/zram-pressure.service</strong> — complete file; 13 lines; original blob <code>14c1716d05700ab187a64d8bf4474f41dcd1bced</code></summary>
+
+````ini
+[Unit]
+Description=Pressure-triggered zram writeback
+BindsTo=dev-zram0.swap
+After=dev-zram0.swap
+
+[Service]
+Type=exec
+ExecStart=/usr/local/sbin/zram-pressure.sh
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+````
+
+</details>
+
+<details>
+<summary><strong>scripts/90-zram-swappiness.conf</strong> — complete file; 3 lines; original blob <code>290648ab923c198a74a4c11774df270e01b679ab</code></summary>
+
+````ini
+# Deploy ONLY when the ZRAM profile was explicitly selected.
+# Not a Debian tweaks default and never deployed for unselected ZRAM.
+vm.swappiness = 100
+````
+
+</details>
