@@ -385,6 +385,7 @@ profile_zram() {
         fatal 'Separate local root password is not enabled for ZRAM emergency recovery'
     log "ZRAM raw backing: $device PARTUUID=$uuid size=$size; boot kernel/sysfs and generator require first-boot validation"
 }
+
 ````
 
 </details>
