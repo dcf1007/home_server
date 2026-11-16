@@ -351,7 +351,7 @@ profile_firmware() {
 <summary><strong>Complete scripts/firmware-candidates.txt</strong> (41 lines; original blob <code>bf28f4a9b91413c1d1f585c2fc368dc5b797d38c</code>)</summary>
 
 ````text
-# Provisional Debian 13 binary firmware candidates from 05_extended_device_support.md.
+# Provisional Debian 13 binary firmware candidates from 10_extended_device_support.md.
 # These are NOT auto-installed; resolve the full set at install time.
 # With Backports explicitly selected, prefer viable targeted Backports versions.
 # Each unavailable/conflicting package requires its own omission consent.
