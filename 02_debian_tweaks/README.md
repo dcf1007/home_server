@@ -1,183 +1,158 @@
-# 06 — Apply optional Debian tweaks
+# 02 — Apply the optional foundational Debian tweaks
 
-These are **deliberate changes to Debian's defaults**, not necessary steps for every server. You can apply them independently of Backports, ZRAM, OMV and Docker.
+**Goal:** configure clear boot messages, a deliberate ext4 root-failure policy, **no root login over SSH**, and a **conditional** check for automatic package upgrades.
 
-**Before starting:** you have a working administrator account and console or SSH access. Keep a recovery route available when changing boot or SSH settings.
+Apply this chapter after [01 — Base Debian](../01_base_debian/README.md), before adding Backports, a newer kernel or ZRAM. You should already have a working normal **sudo** account and a separate **local root recovery password**.
 
-## Step 1 — Show boot messages and disable automatic filesystem repairs
+The boot and filesystem changes are **opt-in, non-default policies**. They can complicate recovery after hardware or filesystem errors; make them only if you want those behaviors.
 
-Open GRUB's configuration:
+## Step 1 — Make boot messages visible and stop automatic filesystem repair
 
-This opens GRUB’s boot-parameter configuration. You are editing the existing line so Linux shows more boot messages and does not automatically repair a damaged filesystem; **do not replace the other parameters**.
+Open `/etc/default/grub` **in a text editor with administrator privileges**. Find the `GRUB_CMDLINE_LINUX_DEFAULT` line:
 
-~~~sh
-sudo nano /etc/default/grub
-~~~
+1. Remove the standalone option `quiet`, if it is present, to show more kernel boot messages.
+2. Add `fsck.repair=no` **within the existing quotation marks** so Debian does not automatically repair a damaged filesystem during boot.
+3. Preserve every other option. If you later configure [ZRAM](../06_zram_writeback/README.md), its separate `zswap.enabled=0` argument must also be preserved.
 
-Find the line beginning with `GRUB_CMDLINE_LINUX_DEFAULT=`.
-
-1. Remove the word `quiet`, if present.
-2. Add `fsck.repair=no` inside the existing quotation marks.
-3. Leave all other kernel parameters intact (including `zswap.enabled=0` if you configured [ZRAM]( ../06_zram_writeback/README.md)).
-
-Save the file, then update GRUB:
-
-This regenerates GRUB’s boot menu configuration from your edited defaults. Check for errors; the new kernel arguments will apply **after reboot**, not immediately.
+Save the file, then regenerate GRUB:
 
 ~~~sh
 sudo update-grub
 ~~~
 
-The new settings take effect after the next reboot. **Manual-only filesystem repair means the system may refuse to boot normally when the filesystem is damaged; plan for local recovery access.**
+**What this does:** rebuilds GRUB's boot configuration using your edited defaults. Check that it reports no errors and still detects the installed Debian kernels. The argument changes apply after reboot.
 
-## Step 2 — Set the root filesystem mount options
+**Recovery consequence:** the server may require hands-on intervention when a filesystem needs repair. Confirm the root recovery password from Chapter 01 is usable before continuing.
 
-First look at the root filesystem:
+## Step 2 — Configure the ext4 root filesystem
 
-This shows which device supplies `/`, its filesystem type and current mount options. **Check the FSTYPE column**: the planned `noatime,errors=panic` edit applies only if the root filesystem is ext4.
+First identify the filesystem mounted as `/`:
 
 ~~~sh
 findmnt /
 ~~~
 
-Proceed only if the root filesystem is **ext4**. If it is another filesystem, skip this step.
+This reports its source, type and currently active mount options. **Only proceed if the filesystem type is `ext4`.** If you installed a different filesystem, skip this step.
 
-Back up the mount table:
-
-This makes a backup of `/etc/fstab`, which defines boot-time mounts. It preserves your working root and EFI entries in case the manual edit needs to be reversed.
+Back up the mount table before editing it:
 
 ~~~sh
 sudo cp -a /etc/fstab /etc/fstab.before-tweaks
 ~~~
 
-Open it:
+This saves the existing mount instructions to a separate file. It does not change active mounts.
 
-This opens `/etc/fstab` for a **manual change to only the root ext4 entry**. Adjust just its comma-separated options; an incorrect device, UUID or mount point could stop the system booting.
+Open `/etc/fstab` in a text editor **with administrator privileges**. Find the entry whose mount point is `/` and filesystem type is `ext4`. In **that entry's option field only**:
 
-~~~sh
-sudo nano /etc/fstab
-~~~
+1. Add `noatime`, reducing filesystem access-time writes.
+2. Add `errors=panic`, instructing ext4 to panic when it detects a filesystem error.
+3. Remove conflicting access-time settings and previous `errors=...` options.
+4. Preserve every unrelated option, the root filesystem's identity and all other entries.
 
-Find the line whose mount point is `/` and filesystem type is `ext4`. In its comma-separated options field:
+Save the file. Incorrect `fstab` entries can prevent booting; do not change the EFI or NAS data-drive entries.
 
-1. Add `noatime` (reduces access-time writes).
-2. Add `errors=panic` (causes a kernel panic on detected ext4 errors).
-3. Remove conflicting `atime` or `errors=...` options **from that root entry only**.
-4. Preserve other options and every other mount.
+## Step 3 — Disable root SSH, but keep normal-user SSH
 
-Save the file. Do not change the root filesystem's device or UUID.
+Make sure you can already sign in over SSH using the regular sudo administrator from Chapter 01. **Keep that existing session open** while changing SSH configuration.
 
-## Step 3 — Deny root login over SSH
-
-Skip this step if you did **not** install OpenSSH. Make sure you can already log in remotely using a normal administrator account.
-
-Create the SSH configuration directory if necessary:
-
-This creates the SSH drop-in configuration directory if necessary. It does **not** change SSH permissions or reload the server on its own.
+Ensure the dedicated SSH configuration directory exists:
 
 ~~~sh
 sudo mkdir -p /etc/ssh/sshd_config.d
 ~~~
 
-Open a separate configuration file:
+This creates a directory only if needed; it does not change the running SSH daemon.
 
-This opens a new SSH settings file. Its only intended setting is the `PermitRootLogin no` line shown below; it blocks **remote root SSH**, not local root recovery.
-
-~~~sh
-sudo nano /etc/ssh/sshd_config.d/01-home-server-root.conf
-~~~
-
-Put **one line** in it:
+Open `/etc/ssh/sshd_config.d/01-home-server-root.conf` in a text editor **with administrator privileges**, enter this single configuration line, and save:
 
 ~~~text
 PermitRootLogin no
 ~~~
 
-Save and check for configuration errors:
+This denies **SSH connections directly as root** while preserving the local root password for physical-console and emergency recovery.
 
-This checks SSH configuration syntax without reloading the service. **No output and a successful return normally mean the syntax is valid.** If errors appear, correct them before continuing.
+Check the configuration syntax **without reloading SSH**:
 
 ~~~sh
 sudo /usr/sbin/sshd -t
 ~~~
 
-If the command reports an error, fix it **before** reloading SSH.
+No output and a successful return normally mean the syntax is valid. If an error appears, fix it before continuing.
 
-Show the effective SSH settings:
-
-This displays SSH’s effective configuration, including options from other configuration files. Find **`permitrootlogin no`**; if you instead see `yes`, `prohibit-password` or another value, investigate why your change is not effective.
+Now display the daemon's effective options:
 
 ~~~sh
 sudo /usr/sbin/sshd -T
 ~~~
 
-Find `permitrootlogin no`. If another rule overrides it, investigate before moving on.
+Find `permitrootlogin no`. If another value appears, investigate other SSH configuration files before reloading.
 
-Finally, reload SSH:
-
-This tells an already-running SSH service to reload its configuration without stopping current sessions. Confirm a **new login as the normal administrator** works before closing the existing one.
+Apply the change to the running SSH daemon:
 
 ~~~sh
 sudo systemctl reload ssh
 ~~~
 
-Open a **second** SSH login as your normal administrator to verify you will not be locked out.
+This rereads SSH configuration. **Open a second SSH session as your normal user**, confirm it works, and only then close the first.
 
-## Step 4 — Keep package updates manual
+## Step 4 — Check the actual automatic-update policy
 
-Look at the current APT settings:
+Debian's **`unattended-upgrades` package** is responsible for automatic package installation. The Debian Installer may install and enable it depending on the chosen update policy. **Do not assume it is always present or always absent.** Downloading APT package lists is not the same as installing upgrades automatically.
 
-This displays APT’s effective configuration, including periodic update settings. Locate `APT::Periodic::Update-Package-Lists` and `APT::Periodic::Unattended-Upgrade`; if they are already off, you do not need to add a duplicate override.
+Check whether this package is actually installed:
+
+~~~sh
+dpkg -s unattended-upgrades
+~~~
+
+This displays the package's status and description. Look for **`Status: install ok installed`**. If the package is not installed, the command may report it as unknown; **no unattended-upgrades configuration change is necessary**.
+
+If the package **is** installed, inspect the current APT periodic settings:
 
 ~~~sh
 apt-config dump
 ~~~
 
-If automatic upgrades and periodic package-list refreshes are already disabled, no new file is needed.
+This displays effective APT configuration. Look for the line `APT::Periodic::Unattended-Upgrade`. The value **`"1"`** (or another nonzero value) enables periodic automatic installation; **`"0"`** or no enabled setting means unattended upgrades are not currently requested by this option.
 
-Otherwise, edit a dedicated APT configuration file:
-
-This opens a new APT configuration override. The two lines shown below disable **automatic package-list refreshes and unattended upgrades**, including automatic security updates; they do not prevent manual APT use.
+For this project's **manual-only update policy**, **only if automatic upgrades are enabled**, use the package's interactive configuration:
 
 ~~~sh
-sudo nano /etc/apt/apt.conf.d/99-home-server-manual-updates
+sudo dpkg-reconfigure unattended-upgrades
 ~~~
 
-Paste these **file contents**:
+This opens Debian's own configuration question. Choose **No** when asked whether to automatically download and install updates. Review any additional prompt before accepting. No custom script or unexplained APT override is needed for this normal Debian workflow.
 
-~~~text
-APT::Periodic::Update-Package-Lists "0";
-APT::Periodic::Unattended-Upgrade "0";
-~~~
+Recheck the effective configuration using `apt-config dump`. Confirm automatic installation is disabled. If it still shows a nonzero value, an additional local setting may override your choice; review the files in `/etc/apt/apt.conf.d/` before proceeding.
 
-Save, then check `apt-config dump` again. This deliberately disables automatic updates, **including security upgrades**. Remember to run `sudo apt update` and `sudo apt upgrade` yourself regularly.
+**Important:** choosing manual-only updates means **security updates will not install themselves**. Maintain a routine to run `sudo apt update` and review `sudo apt upgrade`. These operations remain available.
 
-## Step 5 — Reboot and check
+The custom netinst implementation makes this same check **inside the installed target** and creates an override **only if the package exists and automatic installations are enabled**. OMV later also has its **own independent update/notification policy**.
 
-This reboots to apply the new boot arguments and root mount options. Save your work and ensure console recovery access, because a wrong `/etc/fstab` entry can prevent normal startup.
+## Step 5 — Reboot and confirm the changes
+
+Save your work and make sure you have console or recovery access. Reboot to apply the root mount and boot-argument changes:
 
 ~~~sh
 sudo reboot
 ~~~
 
-Then verify the boot parameters:
-
-This prints the kernel command line used for the **current** boot. Check for `fsck.repair=no` and absence of `quiet`; it also lets you see whether earlier ZRAM parameters were preserved.
+After boot, inspect the actual kernel command line:
 
 ~~~sh
 cat /proc/cmdline
 ~~~
 
-You should see `fsck.repair=no` and no `quiet` parameter.
+Look for `fsck.repair=no` and no standalone `quiet` option; this confirms which parameters the **running kernel** received.
 
-Check the actual root mount options:
-
-This displays the root filesystem’s **effective mounted options** after reboot. If root is ext4, verify `noatime` and `errors=panic`; if they are absent, check the root entry you edited.
+Check the active root mount again:
 
 ~~~sh
 findmnt /
 ~~~
 
-When the root filesystem is ext4, look for `noatime` and `errors=panic`.
+For ext4, verify `noatime` and `errors=panic` are present. Confirm you can still use sudo over SSH and that the root account remains usable **locally**, not over SSH.
 
-**Done when:** only the changes you deliberately selected are active, SSH administration still works and you have a working recovery route.
+**Done when:** the selected changes are active and you have not lost administration or local recovery access.
+
+**Next:** [03 — Backports](../03_backports/README.md) if you want newer Debian packages.

@@ -1,54 +1,51 @@
 # home_server — Debian 13 NAS and home server
 
-A step-by-step guide for a **fresh Debian 13 (Trixie) server**, with an optional custom installer for reproducing the same result.
+This repository is a **step-by-step guide for a Debian 13 (Trixie) NAS/home server**. Every numbered chapter describes how to apply its feature **yourself on a normally installed Debian system**. Only the final custom-netinst chapter explains how to build the equivalent Debian Installer automation.
 
-Each numbered chapter can be followed independently on an already installed Debian server using ordinary system tools. Select only the features you want; none silently enables another.
+The recommended order is:
 
-| Chapter | Function |
+| Chapter | Why it belongs here |
 | --- | --- |
-| [01 — Base Debian]( 01_base_debian/README.md) | Minimal headless Debian 13, accounts and disks |
-| [02 — Backports]( 03_backports/README.md) | Signed Backports at Debian priority 100, reviewed upgrades |
-| [03 — Kernel 7.x]( 04_kernel_7x/README.md) | An eligible moving 7.x kernel and matching headers |
-| [04 — Extended device support]( 05_extended_device_support/README.md) | Broad firmware inventory and both CPU microcode packages |
-| [05 — ZSTD ZRAM writeback]( 06_zram_writeback/README.md) | Compressed swap backed by an approved raw partition |
-| [06 — Debian tweaks]( 02_debian_tweaks/README.md) | Boot, ext4, SSH and manual-update policy |
-| [07 — OpenMediaVault 8]( 07_openmediavault/README.md) | NAS management without OMV-Extras or Compose |
-| [08 — Docker]( 08_docker/README.md) | Official Docker Engine and Compose, independent of OMV |
-| [99 — Custom netinst]( 99_custom_netintst/README.md) | Simple-CDD build, udeb limitations, installer integration |
+| [01 — Base Debian](01_base_debian/README.md) | Install headless Debian, create a sudo administrator and enable local root recovery |
+| [02 — Debian tweaks](02_debian_tweaks/README.md) | Configure boot messages, root ext4, SSH and the conditional update policy first |
+| [03 — Backports](03_backports/README.md) | Add signed optional newer Debian packages |
+| [04 — Linux 7.x](04_kernel_7x/README.md) | Install an eligible Linux 7.x image and matching headers |
+| [05 — Extended device support](05_extended_device_support/README.md) | Install broad firmware and Intel/AMD microcode |
+| [06 — ZSTD ZRAM writeback](06_zram_writeback/README.md) | Configure compressed swap using a separately approved partition |
+| [07 — OpenMediaVault 8](07_openmediavault/README.md) | Add NAS management without OMV-Extras or Compose |
+| [08 — Docker](08_docker/README.md) | Install official Docker Engine and Compose independently |
+| [99 — Custom netinst construction](99_custom_netintst/README.md) | Build the corresponding optional installer profiles and ISO |
 
-## How to follow the guides
+## How to follow a guide
 
-Each chapter is written for a person working at a terminal, **one command at a time**. Text shown as a configuration file belongs **inside that file**, not in the terminal. When a command contains a name such as `YOUR_PARTITION` or `YOUR_USERNAME`, replace it with the value from your own machine before running it. Do not use sample disk names verbatim.
+Start with [01](01_base_debian/README.md). Then apply only the optional chapters you want. **02 is recommended immediately after 01**, because it establishes fundamental boot and SSH settings before other installations.
 
-The instructions use the `nano` text editor, which you can install with `sudo apt install nano` if it is not already available. To save in nano, press **Ctrl+O**, Enter and **Ctrl+X**. When APT shows proposed package changes, read them before confirming.
+The numbered order describes **dependencies and a safe working sequence**, not a requirement to install every feature. In particular, the intended ZRAM writeback configuration requires a compatible Linux 7.x kernel, so [04](04_kernel_7x/README.md) must be completed before [06](06_zram_writeback/README.md).
 
-**Do not run every optional chapter just because it is numbered.** Choose the features you actually want.
+Each command is preceded by an explanation of its purpose, what it changes or reports, and what you should check. Follow commands **one at a time**. Instructions to **open a configuration file in a text editor** are deliberately editor-neutral: read what the file currently contains, make only the described change, save it and preserve any other settings. When a command contains placeholders such as `YOUR_PARTITION` or `YOUR_USERNAME`, identify the correct value on your own system before executing it.
 
-## Usage
-
-To keep a copy of these guides on the server, first install **Git** (the tool used to download and update a repository). APT shows its intended package changes before asking for approval:
+If you want a local copy of these guides, first install Git. This installs the repository client, not any NAS service:
 
 ~~~sh
-sudo apt-get install git
+sudo apt install git
 ~~~
 
-Next, copy the repository into a new `home_server` directory. This downloads the guides and source files; **it does not install or configure NAS services**:
+Then download the repository (without running its installer code):
 
 ~~~sh
 git clone https://github.com/dcf1007/home_server.git
 ~~~
 
-Finally, enter the downloaded directory so the relative paths in the guides make sense. This changes only your terminal's working directory:
+Change into the downloaded directory so relative file paths resolve:
 
 ~~~sh
 cd home_server
 ~~~
 
-1. Install Debian 13 amd64, then review [01]( 01_base_debian/README.md). The reference 256 GB system SSD and 32 GB RAM are examples, not fixed values.
-2. Apply whichever optional chapters you choose. When combining them, the numbered order is recommended. The specific ZRAM writeback design requires a supported **Linux 7.x** kernel first, so complete [03]( 04_kernel_7x/README.md) before [05]( 06_zram_writeback/README.md).
-3. Confirm package changes and disk targets yourself. Don't run destructive commands on guessed devices.
-4. Use [99]( 99_custom_netintst/README.md) only when you need the same features implemented **inside Debian Installer**. Its additional complexity is for udeb/boot-media compatibility, not for an ordinary installed server.
+## The custom installer is a separate construction project
 
-**Validation:** These documents specify procedures and source decisions; they do not claim a completed end-to-end server deployment. The custom ISO's installer and first-boot tests remain open. See [validation]( 99_custom_netintst/validation_and_pending.md) and [provenance]( GUIDE_PROVENANCE.md).
+The [99_custom_netintst](99_custom_netintst/README.md) documentation teaches you **how to write and connect** the Simple-CDD installer components, including complete source files, package inventories, udeb-only workarounds and verification. These are **not commands to run on an already installed server**.
 
-The original `01_custom_netinst` guide and build tree was moved to the requested `99_custom_netintst` path on 2026-11-16.
+**Synchronization rule:** whenever a feature changes in an ordinary Debian chapter, review the corresponding custom-netinst construction chapter **and installer implementation** in the same change. If the installer must behave differently because Debian Installer lacks ordinary system tools or services, document the reason explicitly. Also update the embedded complete source listings, expected Git blob hashes, links and [provenance](GUIDE_PROVENANCE.md).
+
+The custom ISO's full Debian Installer, ZRAM first-boot and service integration checks are **not yet complete**. The latest VM test reached ZRAM conversion and package installation but stopped at an OpenSSH test during Debian tweaks. See [validation](99_custom_netintst/validation_and_pending.md) for that observed result and the required retest.
