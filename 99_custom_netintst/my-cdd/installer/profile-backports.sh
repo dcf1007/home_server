@@ -17,7 +17,16 @@ profile_backports() {
         cat "$WORK/pin-errors" >> "$LOG"
         fatal 'Backports repository has an unexpected effective priority'
     fi
-    reviewed_upgrade
+    # Review this profile's complete Backports upgrade, then execute it.
+    simulate_target dist-upgrade
+    check_critical_removals
+    review_plan 'Backports: complete eligible-package full-upgrade' "$WORK/plan"
+    run_target apt-get -y dist-upgrade
+    run_target dpkg --audit
+    simulate_target dist-upgrade
+    if grep -E '^Inst |^Remv ' "$WORK/plan" >/dev/null; then
+        fatal 'Eligible upgrades/removals remain following approved full-upgrade'
+    fi
     simulate_target autoremove --purge
     check_critical_removals
     if grep -E '^Remv |^Purg ' "$WORK/plan" >/dev/null; then
