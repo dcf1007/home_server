@@ -35,7 +35,11 @@ profile_omv() {
     cat > /target/etc/apt/sources.list.d/openmediavault.list <<'EOF'
 deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] http://packages.openmediavault.org/public/ synchrony main
 EOF
-    run_target apt-get update
+    update_signed_apt
+    capture in-target apt-cache policy openmediavault ||
+        fatal 'Cannot inspect official OMV package origin'
+    grep -F 'packages.openmediavault.org/public' "$WORK/output" >/dev/null ||
+        fatal 'Official signed OMV repository is unavailable'
 
     # Preserve full default-No APT approval, but do not accept upstream's
     # unreviewed --allow-downgrades/--allow-change-held-packages flags.
