@@ -1,5 +1,21 @@
 # Guide provenance and scope
 
+## Remove unapproved installer policy restrictions — 2026-11-17
+
+**Nearest user instruction:** “it's none of your business what you consider risky or unexpectedd. If i have not asked something and approved it, you should not do it. remove them all. the user can see what the installer is going to do and decide on its own. keep only the things i asked and authorised”.
+
+**Immediate evidence:** The latest Debian 13 VM reached OMV's APT simulation, which proposed removing `systemd-timesyncd` as part of installing OMV, but our project-defined `check_critical_removals` blocked approval. This was not a failure of APT's own dependency resolution. Proposed PR #23 added a package-specific exception, contrary to the user's requirement; it was **closed without merging**. The current branch replaces it with removal of the entire unrequested blacklist.
+
+**Source corrections:** The shared package-removal blacklist and every call are deleted; kernel/firmware candidate selection no longer rejects APT-resolved transactions due to package-name filters. `run_target` and `simulate_target` no longer apply custom command-operation whitelists, but preserve the native Debian Installer progress UI, complete APT simulation, and explicit default-No user approval. Removed redundant service-start suppression preflight, speculative Deb822 CD-ROM source rejection/recheck, Backports old-pin and effective-priority refusal gates, and Backports extra post-upgrade/post-cleanup “nothing remains” simulations. The original minimal legacy installer CD-ROM source adjustment remains to address a previously observed APT failure. APT continues to enforce its own dependency/signature rules.
+
+**Selected partition scope:** ZRAM preserves other swap entries in the target's `fstab` rather than vetoing the install because they exist; it also no longer rejects unrelated `PARTLABEL` swap references. Its exact selected-device identity checks, mount/holder validation, separate destructive confirmation, bounded first-1-MiB signature erase, targeted swapoff and approved generator/pressure monitor remain. The selected partition's corresponding old swap entry alone is removed.
+
+**Base-only correction:** Root emergency-password preflight now executes only when at least one custom profile is explicitly selected, rather than changing credentials in an ordinary base-only install.
+
+**Explicitly retained:** Selected-profile summary and consent, complete real APT transaction review and default-No approval, firmware vendor-license and omission consent, separately selected Linux 7.x prerequisite for ZRAM, local root recovery for selected profiles, exact partition identity and destructive confirmations, and genuine operation failure reporting. No OMV/Docker-specific SSH, groups, automatic-update, mirror or plugin policy is added.
+
+**Source and runtime distinction:** The eight previously identified discretionary restriction categories are removed from this branch. No new ISO/VM test is claimed: OMV, Docker and compressed-writeback first boot still require verification. Updated the complete 99 construction guide listings/hashes to match the changed executable files.
+
 ## Official OMV signing keyring read permission — 2026-11-16
 
 **Nearest user prompt:** Two screenshots of the Debian Installer GTK failure dialog showing `apt-get update` exit status 100 and `Permission denied (os error 13)` when `sqv` reads `/usr/share/keyrings/openmediavault-archive-keyring.gpg`.
