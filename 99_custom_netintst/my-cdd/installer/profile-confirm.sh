@@ -9,24 +9,29 @@ CDDIR=/cdrom/simple-cdd
 ORDER_HELPER="$CDDIR/ordered-selection.sh"
 TEMPLATE_SIMPLE="$CDDIR/simple-cdd.templates"
 TEMPLATE_CONFIRM="$CDDIR/profile-confirm.templates"
+FINISH_RUNNER="$CDDIR/run-selected.sh"
 FINISH_GUARD="$CDDIR/15my-cdd-status"
 
 stop() {
     printf >&2 'my-cdd early profile gate: STOP: %s\n' "$*"
     exit 1
 }
-for required in "$ORDER_HELPER" "$TEMPLATE_SIMPLE" "$TEMPLATE_CONFIRM" "$FINISH_GUARD"; do
+for required in "$ORDER_HELPER" "$TEMPLATE_SIMPLE" "$TEMPLATE_CONFIRM" "$FINISH_RUNNER" "$FINISH_GUARD"; do
     [ -r "$required" ] || stop "missing installer-media source: $required"
 done
 command -v debconf-loadtemplate >/dev/null 2>&1 ||
     stop 'debconf-loadtemplate is not available in the installer'
 
-# Register the project's status gate before finish-install enumerates its
-# hooks. 07preseed runs our late command; 14simple-cdd runs completion
-# verifiers; this 15 hook stops success reporting unless all actually finish.
-# No upstream udeb or installed target-system hook is patched.
+# Use Debian Installer's existing finish-install hook order:
+# 10apt-cdrom-setup -> 11my-cdd -> 14simple-cdd -> 15my-cdd-status.
+# Register the selected-profile runner and final completion gate here,
+# before finish-install enumerates its hooks. Do not patch upstream scripts.
 mkdir -p /usr/lib/finish-install.d ||
     stop 'Cannot locate Debian Installer finish-install hook directory'
+cp "$FINISH_RUNNER" /usr/lib/finish-install.d/11my-cdd ||
+    stop 'Cannot register selected-profile finish-install hook'
+chmod 755 /usr/lib/finish-install.d/11my-cdd ||
+    stop 'Cannot make selected-profile hook executable'
 cp "$FINISH_GUARD" /usr/lib/finish-install.d/15my-cdd-status ||
     stop 'Cannot register custom finish-install completion gate'
 chmod 755 /usr/lib/finish-install.d/15my-cdd-status ||
