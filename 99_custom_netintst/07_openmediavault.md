@@ -64,7 +64,7 @@ The OMV handler runs **only when selected**. It uses the same signed-APT install
 
 1. Confirm Debian Trixie, supported architecture and no installed desktop display manager.
 2. Install the signing/download tools with reviewed APT approval, retrieve the official public key, set its keyring to mode `0644` so APT's `_apt` signature verifier can read it despite the installer's private umask, and configure the first signed APT repository listed in [OMV's manual Debian installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html), without extra suites.
-3. Refresh signed APT metadata, verify the official package origin, show the entire `openmediavault` transaction (including proposed package removals) and require **default-No approval** before installation. The profile does not impose its own package-removal blacklist. The official script's permissive downgrade/held-package flags remain omitted; APT's ordinary dependency and confirmation semantics apply.
+3. Refresh signed APT metadata, show the entire `openmediavault` transaction (including proposed package removals) and require **default-No approval** before installation. The profile does not impose its own package-removal blacklist. The official script's permissive downgrade/held-package flags remain omitted; APT's ordinary dependency and confirmation semantics apply.
 4. Check that OMV 8 was installed and run the two official initialization commands: `omv-confdbadm populate` and `omv-salt deploy run hosts`.
 
 **Not allowed in the OMV CDD profile:** SSH configuration, user/group changes, automatic-update or notification policy, extra services, OMV-Extras, Docker, plugins or NAS configuration. OMV's own package maintainer scripts may modify services as part of normal installation; the CDD adds no further policy. OMV's manual guide additionally warns that `systemd-resolved` and DNS must be configured before installation; verify this independently rather than silently changing network policy in the OMV handler.
@@ -83,7 +83,7 @@ sh -n profiles/openmediavault.postinst
 
 This checks the post-install verifier's syntax. For byte-for-byte checking, `git hash-object <path>` prints a Git blob SHA; compare it with the SHA printed in the complete file heading below.
 
-Once the entire shared framework is assembled, run `./build.sh`. Boot a **disposable VM** and test selected/unselected, the single signed APT repository and package origin, refused package approval, OMV 8 version, database population, hosts deployment and first-boot reachability. Confirm the OMV module made **no SSH, account, update or notification changes**. **None of these runtime tests are claimed as passed.**
+Once the entire shared framework is assembled, run `./build.sh`. Boot a **disposable VM** and test selected/unselected, APT's signature verification of the single signed source, refused package approval, OMV 8 version, database population, hosts deployment and first-boot reachability. Confirm the OMV module made **no SSH, account, update or notification changes**. **None of these runtime tests are claimed as passed.**
 
 ## Exact source files
 
@@ -127,7 +127,7 @@ fi
 </details>
 
 <details>
-<summary><strong>installer/profile-omv.sh</strong> — complete file (61 lines; Git blob <code>e27d37eda5ec2b27422026b456d48dc82e8ed2ad</code>)</summary>
+<summary><strong>installer/profile-omv.sh</strong> — complete file (56 lines; Git blob <code>9ce6dd3f9373e838b8abf86a996337b99b883347</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -170,11 +170,6 @@ profile_omv() {
 deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] http://packages.openmediavault.org/public/ synchrony main
 EOF
     update_signed_apt
-    capture in-target apt-cache policy openmediavault ||
-        fatal 'Cannot inspect official OMV package origin'
-    grep -F 'packages.openmediavault.org/public' "$WORK/output" >/dev/null ||
-        fatal 'Official signed OMV repository is unavailable'
-
     # Preserve full default-No APT approval, but do not accept upstream's
     # unreviewed --allow-downgrades/--allow-change-held-packages flags.
     simulate_target install --no-install-recommends openmediavault
