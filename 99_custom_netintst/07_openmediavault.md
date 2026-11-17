@@ -14,7 +14,6 @@ The optional profile ID is `openmediavault`. Its source file is `installer/profi
 | --- | --- |
 | `profiles/openmediavault.description` | The OMV 8 checkbox label. |
 | `profiles/openmediavault.extra` | Stages the OMV installer-side module onto the ISO. |
-| `profiles/openmediavault.postinst` | Verifies completion; it must be executable and must not reinstall OMV. |
 | `installer/profile-omv.sh` | Official OMV 8 installation scope: single official signed APT source, reviewed installation and two upstream initialization commands. |
 
 Create source directories if absent:
@@ -37,26 +36,18 @@ Open `profiles/openmediavault.extra` in a text editor, paste the indicated conte
 
 Use the matching complete listing below and save it at this path; editing does not execute installer code.
 
-**3. Create `profiles/openmediavault.postinst`.** Verifies completion; it must be executable and must not reinstall OMV.
-
-Open `profiles/openmediavault.postinst` in a text editor, paste the indicated contents and save it at that path.
-
-Use the matching complete listing below and save it at this path; editing does not execute installer code.
-
-**4. Create `installer/profile-omv.sh`.** Official OMV 8 installation scope: single official signed APT source, reviewed installation and two upstream initialization commands.
+**3. Create `installer/profile-omv.sh`.** Official OMV 8 installation scope: single official signed APT source, reviewed installation and two upstream initialization commands.
 
 Open `installer/profile-omv.sh` in a text editor, paste the indicated contents and save it at that path.
 
 Use the matching complete listing below and save it at this path; editing does not execute installer code.
 
 
-The postinst is a marker verifier and needs execute permission:
 
-~~~sh
-chmod +x profiles/openmediavault.postinst
-~~~
 
 Do **not** mark the imported OMV module as a standalone installer and execute it on the build machine.
+
+Only the native Debian Installer `11my-cdd` runner executes these selected-profile functions; `15my-cdd-status` verifies one overall completion state. Simple-CDD's own stage 14 is left unchanged.
 
 ## Step 3 — Understand the limited installer scope
 
@@ -77,9 +68,6 @@ sh -n installer/profile-omv.sh
 
 This parses the handler's POSIX shell syntax without installing anything.
 
-~~~sh
-sh -n profiles/openmediavault.postinst
-~~~
 
 This checks the post-install verifier's syntax. For byte-for-byte checking, `git hash-object <path>` prints a Git blob SHA; compare it with the SHA printed in the complete file heading below.
 
@@ -107,24 +95,7 @@ installer/profile-omv.sh
 
 </details>
 
-<details>
-<summary><strong>profiles/openmediavault.postinst</strong> — complete file (11 lines; Git blob <code>4db0e01874e0b99b8b910a8919a52d8acb3d6f72</code>)</summary>
 
-````sh
-#!/bin/sh
-# Simple-CDD finish-install verification only.
-# The selected profile was performed beforehand by the native Debian
-# Installer late command, where its Debconf approvals were visible.
-# Never execute the profile twice or claim success from mere selection.
-set -eu
-marker="/var/log/installer/my-cdd-completed/openmediavault"
-if [ ! -f "$marker" ]; then
-    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'openmediavault'
-    exit 1
-fi
-````
-
-</details>
 
 <details>
 <summary><strong>installer/profile-omv.sh</strong> — complete file (56 lines; Git blob <code>9ce6dd3f9373e838b8abf86a996337b99b883347</code>)</summary>
