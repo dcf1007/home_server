@@ -1,5 +1,13 @@
 # my-cdd source manifest and provenance
 
+## OMV one-time job cleans up after itself — 2026-11-17
+
+**Nearest user prompt:** “i agree with the suggestion”, after requesting that the one-shot script, service and all state markers disappear after execution, leaving only logs.
+
+**Revision of PR #25:** `installer/openmediavault.sh` still stages and enables a temporary job after approved OMV 8 package installation. The updated `installer/openmediavault-firstboot.sh` creates `/var/log/installer/my-cdd-omv-firstboot.log` before any initialization, runs only `omv-confdbadm populate` and `omv-salt deploy run hosts` on the real first boot, then disables/deletes its service, enablement symlink and itself on both success and failure. `installer/openmediavault-firstboot.service` has no persistent-state condition or MOTD. A prior log forces cleanup-only after interruption, with no automatic command retry. The OMV `.extra` manifest, Docker handler, selected-profile dispatcher and native completion guard do not change.
+
+**Observability boundary:** Log and boot console/systemd journal are retained reporting channels; no persistent login notice/status file is installed. If a sudden power loss interrupts cleanup the next boot can recover it, provided the attempt log reached storage. Six isolated mock cases passed; full ISO and first-boot validation remain outstanding. Full current source listings and Git hashes are in the OMV construction guide.
+
 ## Latest user-approved Route A and canonical naming — 2026-11-17
 
 **Nearest user prompt:** “i agree. use A”, after expressly approving identical profile filename stems and unchanged feature-installation scope.
@@ -411,6 +419,8 @@ Current source filenames on the review branch; historical SHA-specific inventori
 - `installer/docker.sh`
 - `installer/extended-device-support.sh`
 - `installer/ensure-7x-kernel.sh`
+- `installer/openmediavault-firstboot.service`
+- `installer/openmediavault-firstboot.sh`
 - `installer/openmediavault.sh`
 - `installer/debian-tweaks.sh`
 - `installer/zram-writeback.sh`

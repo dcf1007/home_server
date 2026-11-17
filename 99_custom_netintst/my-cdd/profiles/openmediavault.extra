@@ -1,2 +1,4 @@
 # openmediavault: source assets copied by Simple-CDD (not automatically installed).
 installer/openmediavault.sh
+installer/openmediavault-firstboot.sh
+installer/openmediavault-firstboot.service

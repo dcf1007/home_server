@@ -1,5 +1,15 @@
 # Guide provenance and scope
 
+## Approved self-cleaning OMV first boot — 2026-11-17
+
+**Nearest user prompt:** “i agree with the suggestion”, following the explicit request for a one-time script which leaves only logs and cleans up its own systemd files on success and failure.
+
+**Observed cause:** The 2026-11-17 VM reached successful OMV 8 package installation then failed when the in-target `omv-confdbadm populate` called `timedatectl` without system D-Bus. The two OMV upstream commands and their original order remain unchanged.
+
+**Implemented:** OMV package stage installs and registers a one-time first-boot service. It creates the private log before executing either command, records stdout/stderr, progress, final command/exit status, and then disables/removes its service, symlink and runner, retaining only `/var/log/installer/my-cdd-omv-firstboot.log`. On a later boot after an interrupted attempt, the existing log causes cleanup only. No status/attempt/MOTD files are retained. Console/journal reporting is transient; persistent failure details are in the log. Native completion markers still verify package+registration success rather than actual OMV runtime readiness.
+
+**Boundaries:** No Docker modifications, extra OMV commands, NAS policies, APT changes or shared installer hook changes. Six isolated mocked shell cases passed; full ISO, Debian Installer and real first-boot verification are not yet established.
+
 ## Native per-profile verification restoration and naming — 2026-11-17
 
 **Nearest user authorization:** “i agree. use A”, following explicit agreement on canonical installer filenames and unchanged feature scope.

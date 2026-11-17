@@ -10,10 +10,11 @@ This directory contains **Debian Installer integration**, not generic post-insta
 - `profile-common.sh`: shared suite/version lookup, profile selection context, and signed APT refresh, without extra package-removal or priority restrictions.
 - `backports.sh`, `ensure-7x-kernel.sh`, `extended-device-support.sh`, `zram-writeback.sh`, `debian-tweaks.sh`, `openmediavault.sh`, `docker.sh`: selected-only installer adaptations of the corresponding feature guides; filenames now match the native Simple-CDD profile IDs.
 - `zram-writeback-selection.sh`: installer-native GPT selection using `util-linux-udeb` `blkid`, sysfs, /proc mount/swap state and BusyBox, with separate exact-device approvals.
+- `openmediavault-firstboot.sh` and `openmediavault-firstboot.service`: OMV-only native systemd oneshot job staged by the selected profile; runs upstream `omv-confdbadm populate` and `omv-salt deploy run hosts` on first boot, logs output and final status, shows console/journal progress and errors, and deletes the unit, enablement symlink and own script on success or failure. The log remains as the only permanent artifact and prevents reruns.
 - `15my-cdd-status`: native finish-install stage 15, checks final `COMPLETE` plus each explicitly selected profile's individual completion record, returning exit 10 when any required check fails.
 - `IMPLEMENTATION_GATES.md`: actual runtime and first-boot issues still requiring testing.
 
-Simple-CDD's unmodified native `14simple-cdd` hook runs seven possible verification-only `profiles/<name>.postinst` scripts **only when those profiles were selected**. The stage-11 runner installs selected features once and writes their individual records; stage 15 performs the final check. The ZRAM helper uses the matching profile stem with a `-selection` suffix.
+Simple-CDD's unmodified native `14simple-cdd` hook runs seven possible verification-only `profiles/<name>.postinst` scripts **only when those profiles were selected**. The stage-11 runner installs selected packages and writes individual records; stage 15 checks the approved selection and those records. For OMV, the record means the approved packages were installed and the one-time first-boot job was registered—not that OMV initialization has already completed. The ZRAM helper uses the matching profile stem with a `-selection` suffix.
 
 ## Invariants
 
@@ -21,6 +22,6 @@ The seven optional profiles start unchecked, no disk is chosen by device-name gu
 
 Installer udebs are not interchangeable with full util-linux binaries. The installed-system [ZRAM chapter](../../../06_zram_writeback/README.md) deliberately uses the simpler full-Debian tools.
 
-**Not yet established:** reliable early confirmation and stage-11 Debconf behavior, native partition metadata probing, approved BusyBox erase, full ZRAM first boot and OMV network/Salt behavior. Use disposable VM disks to validate. See [active release checklist](../../validation_and_pending.md).
+**Not yet established:** the revised OMV one-shot behavior in a booted Debian VM, complete OMV network/Salt configuration, full ZRAM first boot, and every installer combination. Isolated first-boot shell tests passed for both success and failure cases, but no complete VM first-boot test has passed. Use disposable VM disks to validate. See [active release checklist](../../validation_and_pending.md).
 
 The former long installer README, including observed screenshot failures and earlier workarounds, is preserved in [history](../../history/installer-README-20261115.md).
