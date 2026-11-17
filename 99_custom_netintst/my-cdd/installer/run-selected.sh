@@ -12,6 +12,8 @@ CONFIRMED=/tmp/my-cdd-confirmed-profiles
 mkdir -p "$WORK"
 chmod 700 "$WORK"
 [ -d /target/etc ] || { echo 'my-cdd: target missing' >&2; exit 1; }
+mkdir -p "$LOG_DIR/my-cdd-completed"
+chmod 700 "$LOG_DIR/my-cdd-completed"
 touch "$LOG"
 chmod 600 "$LOG"
 printf "INCOMPLETE\n" > "$STATUS"
@@ -294,18 +296,20 @@ ensure_root_recovery
 for profile in $ordered; do
     log "PROFILE BEGIN: $profile"
     case "$profile" in
-        debian-tweaks) module=tweaks; handler=profile_tweaks ;;
+        debian-tweaks) module=debian-tweaks; handler=profile_tweaks ;;
         backports) module=backports; handler=profile_backports ;;
-        ensure-7x-kernel) module=kernel; handler=profile_kernel ;;
-        extended-device-support) module=firmware; handler=profile_firmware ;;
-        zram-writeback) module=zram; handler=profile_zram ;;
-        openmediavault) module=omv; handler=profile_omv ;;
+        ensure-7x-kernel) module=ensure-7x-kernel; handler=profile_kernel ;;
+        extended-device-support) module=extended-device-support; handler=profile_firmware ;;
+        zram-writeback) module=zram-writeback; handler=profile_zram ;;
+        openmediavault) module=openmediavault; handler=profile_omv ;;
         docker) module=docker; handler=profile_docker ;;
         *) fatal "Unknown selected profile: $profile" ;;
     esac
-    [ -r "$MEDIA/profile-$module.sh" ] || fatal "Missing selected module: $module"
-    . "$MEDIA/profile-$module.sh"
+    [ -r "$MEDIA/$module.sh" ] || fatal "Missing selected module: $module"
+    . "$MEDIA/$module.sh"
     "$handler"
+    printf 'Completed: %s\n' "$profile" > "$LOG_DIR/my-cdd-completed/$profile"
+    chmod 600 "$LOG_DIR/my-cdd-completed/$profile"
     log "PROFILE COMPLETE: $profile"
 done
 log 'All selected optional profiles completed.'

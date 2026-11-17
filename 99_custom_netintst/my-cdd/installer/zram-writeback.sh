@@ -7,9 +7,9 @@ profile_zram() {
     # prevents reaching this handler; no duplicate completion marker needed.
     [ -r "$MEDIA/zram-generator.conf.template" ] ||
         fatal 'Original ZRAM generator source missing'
-    [ -r "$MEDIA/zram-selection.sh" ] ||
+    [ -r "$MEDIA/zram-writeback-selection.sh" ] ||
         fatal 'Installer ZRAM selection helper missing'
-    . "$MEDIA/zram-selection.sh"
+    . "$MEDIA/zram-writeback-selection.sh"
     # The installer is a minimal udeb environment. The official parted-udeb
     # supplies the installer-native GPT editing CLI and matching udeb libraries.
     # Simple-CDD stages it via the build-only installer-media.udebs profile;

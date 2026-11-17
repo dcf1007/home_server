@@ -1,18 +1,24 @@
 #!/bin/sh
-# Debian Installer finish-install stage 15, after our stage-11 runner and
-# Simple-CDD's unmodified stage-14 hook. The native finish-install loop only
-# backs up on exit 10; ordinary nonzero hook failures may be logged and skipped.
-# Use the single runner completion status, not redundant per-profile markers.
+# Debian Installer finish-install stage 15, after native Simple-CDD stage 14.
+# Keep native per-profile postinst checks and independently check each approved
+# profile's completion marker. Exit 10 stops a misleading success screen.
 set -eu
 status=/target/var/log/installer/my-cdd-status
 confirmed=/tmp/my-cdd-confirmed-profiles
+markers=/target/var/log/installer/my-cdd-completed
 
-if [ -r "$confirmed" ] && [ -f "$status" ] &&
-   [ "$(cat "$status")" = COMPLETE ]; then
-    exit 0
+if [ -f "$status" ] && [ "$(cat "$status")" = COMPLETE ] &&
+   [ -r "$confirmed" ]; then
+    valid=true
+    for profile in $(cat "$confirmed"); do
+        [ -f "$markers/$profile" ] || valid=false
+    done
+    if [ "$valid" = true ]; then
+        exit 0
+    fi
 fi
 
-logger -t my-cdd 'Approved custom installation did not complete; returning to main menu' || :
-printf >&2 '%s\n' 'my-cdd: approved installation did not complete. See /target/var/log/installer/my-cdd.log and my-cdd-status.' \
+logger -t my-cdd 'Selected profiles did not all complete; returning to main menu' || :
+printf >&2 '%s\n' 'my-cdd: selected profiles did not all complete. See /target/var/log/installer/my-cdd.log and my-cdd-status.' \
     'Returning to Debian Installer main menu instead of reporting Installation complete.'
 exit 10
