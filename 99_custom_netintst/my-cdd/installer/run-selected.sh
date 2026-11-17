@@ -290,6 +290,17 @@ ordered="$(/bin/sh "$MEDIA/ordered-selection.sh" "$RET")" ||
 db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 [ "$RET" = true ] || fatal 'The early profile summary was not approved'
 log "CONFIRMED SELECTION: $ordered"
+
+# Unconditionally disable installer CD-ROM APT entries in the installed target
+# BEFORE root recovery and every custom profile/APT transaction. Debian's
+# native finish-install CD-ROM cleanup occurs too late for these profiles.
+# Leave all non-CD-ROM sources unchanged.
+for source in /target/etc/apt/sources.list /target/etc/apt/sources.list.d/*.list; do
+    [ -f "$source" ] || continue
+    sed -i -E '/^[[:space:]]*deb(-src)?[[:space:]]+(\\[[^]]*\\][[:space:]]+)?cdrom:/s/^/# my-cdd: installer CD-ROM source disabled: /' "$source" ||
+        fatal "Cannot disable installer CD-ROM APT entries in $source"
+done
+
 ensure_root_recovery
 
 for profile in $ordered; do
