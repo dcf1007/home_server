@@ -6,7 +6,7 @@
 
 Complete [Build project](build_project.md), [Shared profile helpers](profile_construction.md) and [Installer framework](installer_framework.md), then work inside `99_custom_netintst/my-cdd/` on a **test branch or scratch copy**. This profile uses `in-target` and native Debconf; it is not a general Debian installation script.
 
-The profile ID is `docker`, its file is `installer/profile-docker.sh`, and its dispatcher function is `profile_docker()`. The first is the checkbox name; the last is the code that actually runs. Docker and [OMV](07_openmediavault.md) both use official signed APT sources and the same shared simulation/default-No approval helpers; their package sets and vendor-specific completion steps remain independent.
+The profile ID is `docker`, its file is `installer/docker.sh`, and its dispatcher function is `profile_docker()`. The first is the checkbox name; the last is the code that actually runs. Docker and [OMV](07_openmediavault.md) both use official signed APT sources and the same shared simulation/default-No approval helpers; their package sets and vendor-specific completion steps remain independent.
 
 ## Step 2 — Create each file
 
@@ -14,7 +14,8 @@ The profile ID is `docker`, its file is `installer/profile-docker.sh`, and its d
 | --- | --- |
 | `profiles/docker.description` | The text shown next to the separate Docker checkbox. |
 | `profiles/docker.extra` | Makes the Docker module available on the ISO. |
-| `installer/profile-docker.sh` | Full selected-only target Docker installation: prerequisites, HTTPS key, signed repository, complete APT review and audit. |
+| `profiles/docker.postinst` | Native Simple-CDD completion verifier; checks a marker without rerunning feature installation. |
+| `installer/docker.sh` | Full selected-only target Docker installation: prerequisites, HTTPS key, signed repository, complete APT review and audit. |
 
 Make the folders if needed:
 
@@ -36,9 +37,9 @@ Open `profiles/docker.extra` in a text editor, paste the indicated contents and 
 
 The editor opens the file without executing it. Expand the **full listing with the same filename below**, Save the document after reviewing the pasted contents. Do not use an abbreviated snippet instead.
 
-**3. Open `installer/profile-docker.sh`.** Full selected-only target Docker installation: prerequisites, HTTPS key, signed repository, complete APT review and audit.
+**3. Open `installer/docker.sh`.** Full selected-only target Docker installation: prerequisites, HTTPS key, signed repository, complete APT review and audit.
 
-Open `installer/profile-docker.sh` in a text editor, paste the indicated contents and save it at that path.
+Open `installer/docker.sh` in a text editor, paste the indicated contents and save it at that path.
 
 The editor opens the file without executing it. Expand the **full listing with the same filename below**, Save the document after reviewing the pasted contents. Do not use an abbreviated snippet instead.
 
@@ -47,7 +48,7 @@ The editor opens the file without executing it. Expand the **full listing with t
 
 This changes permissions only. The main module is sourced by the confirmed installer dispatcher and should not be launched directly.
 
-Only the native Debian Installer `11my-cdd` runner executes these selected-profile functions; `15my-cdd-status` verifies one overall completion state. Simple-CDD's own stage 14 is left unchanged.
+Native Debian Installer stage `11my-cdd` runs each approved selected handler **once**, then writes that profile's success marker. Unmodified Simple-CDD stage `14simple-cdd` executes the selected profile's verification-only `.postinst` **in-target**. Stage `15my-cdd-status` independently checks all approved markers and overall `COMPLETE`, returning native exit 10 rather than falsely reporting success.
 
 ## Step 3 — Understand the exact installer sequence
 
@@ -61,13 +62,13 @@ Only the native Debian Installer `11my-cdd` runner executes these selected-profi
 ## Step 4 — Check and test the rebuilt files
 
 ~~~sh
-sh -n installer/profile-docker.sh
+sh -n installer/docker.sh
 ~~~
 
 This checks only shell syntax; it does not download Docker.
 
 
-This parses the verifier without running it. Verify exact copies using `git hash-object <path>` compared with the original Git blob SHA shown below; the command reads content only.
+This parses the selected handler without running it. Verify exact copies using `git hash-object <path>` compared with the original Git blob SHA shown below; the command reads content only.
 
 When the shared framework and other required profile manifests are complete, run `./build.sh`. In a **disposable VM**, test unchecked Docker, selected+approved, refused APT plan, signed repository refresh, installation and first boot. `docker --version` and `docker compose version` prove only the client tools exist; also check Docker/containerd services.
 
@@ -84,11 +85,11 @@ Docker Engine and Compose; normal Debian service startup at first boot
 </details>
 
 <details>
-<summary><strong>profiles/docker.extra</strong> — complete file; 2 lines; Git blob <code>c76b0e5be771e9dfb7c648c14ed6d3b5e21dfaca</code></summary>
+<summary><strong>profiles/docker.extra</strong> — complete file; 2 lines; Git blob <code>21936aae190593b35906634128adb0454c3b6e8d</code></summary>
 
 ````text
 # docker: source assets copied by Simple-CDD (not automatically installed).
-installer/profile-docker.sh
+installer/docker.sh
 ````
 
 </details>
@@ -96,7 +97,7 @@ installer/profile-docker.sh
 
 
 <details>
-<summary><strong>installer/profile-docker.sh</strong> — complete file; 31 lines; Git blob <code>110db356d9590cd3a12b0211ca0192a19757ceed</code></summary>
+<summary><strong>installer/docker.sh</strong> — complete file; 31 lines; Git blob <code>110db356d9590cd3a12b0211ca0192a19757ceed</code></summary>
 
 ````sh
 #!/bin/sh
@@ -131,6 +132,36 @@ EOT
     log 'Docker packages installed; service activation is governed by native package defaults'
 }
 
+````
+
+</details>
+
+## Native Simple-CDD completion verifier
+
+Create `profiles/docker.postinst` from the full source below, alongside its `.description` and `.extra` files. The stage-11 runner writes its record after successful handler execution; the original `14simple-cdd` hook runs this verifier in-target without installing the feature twice.
+
+~~~sh
+chmod +x profiles/docker.postinst
+sh -n profiles/docker.postinst
+~~~
+
+The syntax check is read-only. The final `15my-cdd-status` guard also checks this selected profile's record, returning exit 10 if any required record is missing.
+
+<details>
+<summary><strong>profiles/docker.postinst</strong> — complete native verifier (11 lines; Git blob <code>339f0fc713f013663b519aaadd3350f5125ce3f6</code>)</summary>
+
+````sh
+#!/bin/sh
+# Simple-CDD finish-install verification only.
+# The selected profile was performed beforehand by the native Debian
+# Installer stage-11 runner, where its Debconf approvals were visible.
+# Never execute the profile twice or claim success from mere selection.
+set -eu
+marker="/var/log/installer/my-cdd-completed/docker"
+if [ ! -f "$marker" ]; then
+    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'docker'
+    exit 1
+fi
 ````
 
 </details>

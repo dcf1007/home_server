@@ -12,7 +12,8 @@ Complete the shared [Build project](build_project.md), [Shared profile helpers](
 | --- | --- |
 | `profiles/backports.description` | The checkbox's plain-language label. |
 | `profiles/backports.extra` | Which Backports module and source template must be copied to installer media. |
-| `installer/profile-backports.sh` | The complete selected-only function: signed source, reviewed upgrade, individual cleanup consent and audit. |
+| `profiles/backports.postinst` | Native Simple-CDD completion verifier; checks a marker without rerunning feature installation. |
+| `installer/backports.sh` | The complete selected-only function: signed source, reviewed upgrade, individual cleanup consent and audit. |
 | `scripts/debian-backports.sources` | The signed Trixie Backports configuration installed in the target only when selected. |
 
 ## Step 2 — Create those exact files
@@ -37,9 +38,9 @@ Open `profiles/backports.extra` in a text editor, paste the indicated contents a
 
 Expand the **matching complete file listing below**, Save the document after reviewing the pasted contents. This editor command does not execute the file.
 
-**3. Open `installer/profile-backports.sh`.** The complete selected-only function: signed source, reviewed upgrade, individual cleanup consent and audit.
+**3. Open `installer/backports.sh`.** The complete selected-only function: signed source, reviewed upgrade, individual cleanup consent and audit.
 
-Open `installer/profile-backports.sh` in a text editor, paste the indicated contents and save it at that path.
+Open `installer/backports.sh` in a text editor, paste the indicated contents and save it at that path.
 
 Expand the **matching complete file listing below**, Save the document after reviewing the pasted contents. This editor command does not execute the file.
 
@@ -52,15 +53,15 @@ Expand the **matching complete file listing below**, Save the document after rev
 
 
 
-This sets the permission expected by Simple-CDD. `installer/profile-backports.sh` is **sourced** by the dispatcher and should not be run directly.
+This sets the permission expected by Simple-CDD. `installer/backports.sh` is **sourced** by the dispatcher and should not be run directly.
 
-Only the native Debian Installer `11my-cdd` runner executes these selected-profile functions; `15my-cdd-status` verifies one overall completion state. Simple-CDD's own stage 14 is left unchanged.
+Native Debian Installer stage `11my-cdd` runs each approved selected handler **once**, then writes that profile's success marker. Unmodified Simple-CDD stage `14simple-cdd` executes the selected profile's verification-only `.postinst` **in-target**. Stage `15my-cdd-status` independently checks all approved markers and overall `COMPLETE`, returning native exit 10 rather than falsely reporting success.
 
 ## Step 3 — Understand how the code works
 
 1. `simple-cdd.conf` offers `backports` as a **user-selected checkbox**; `auto_profiles` remains empty.
 2. The `.extra` file places the complete handler and signed source on the ISO. Staging is **not** installing.
-3. The dispatcher maps the selected ID `backports` to `profile_backports()` inside `installer/profile-backports.sh`.
+3. The dispatcher maps the selected ID `backports` to `profile_backports()` inside `installer/backports.sh`.
 4. The function adds the signed source to `/target` and refreshes package indexes. Debian APT applies repository priorities and resolves dependencies; the profile does not create its own priority-refusal policy.
 5. It performs its own full-upgrade simulation and obtains default-No native Debconf approval directly in `profile_backports()`. The complete plan, including any removals, is reviewed by the user; the profile adds no package blacklist.
 6. Cleanup is reviewed **per named package** before removal. The module finishes with package audits.
@@ -68,13 +69,13 @@ Only the native Debian Installer `11my-cdd` runner executes these selected-profi
 ## Step 4 — Check the files, then build
 
 ~~~sh
-sh -n installer/profile-backports.sh
+sh -n installer/backports.sh
 ~~~
 
 This checks the handler's POSIX syntax **without running APT**.
 
 
-This checks the verifier's syntax. For every file below, `git hash-object <file>` prints the **Git blob SHA**; compare it with the value in the listing heading to detect omissions or accidental edits. This is read-only.
+This checks the selected handler's syntax. For every file below, `git hash-object <file>` prints the **Git blob SHA**; compare it with the value in the listing heading to detect omissions or accidental edits. This is read-only.
 
 After all shared files and the other expected Simple-CDD profile inputs are in place, run `./build.sh` from `my-cdd`. **Do not run the handler on your Debian host.** Boot a disposable VM and test unchecked, accepted, declined, full APT removal-plan review and cleanup-approval cases. An ISO build alone does not prove runtime behavior.
 
@@ -91,11 +92,11 @@ Enable Debian Backports (priority 100) with reviewed upgrade and cleanup
 </details>
 
 <details>
-<summary><strong>Complete profiles/backports.extra</strong> (3 lines; original blob <code>2f1be9aab59ffd224af6624024eb70fa28b6b297</code>)</summary>
+<summary><strong>Complete profiles/backports.extra</strong> (3 lines; original blob <code>088721f50462951be7f6a4a97669f88b84283d35</code>)</summary>
 
 ````text
 # backports: source assets copied by Simple-CDD (not automatically installed).
-installer/profile-backports.sh
+installer/backports.sh
 scripts/debian-backports.sources
 ````
 
@@ -104,7 +105,7 @@ scripts/debian-backports.sources
 
 
 <details>
-<summary><strong>Complete installer/profile-backports.sh</strong> (49 lines; original blob <code>f8ac2e847636e5eb367afdde23d5b3283851ffeb</code>)</summary>
+<summary><strong>Complete installer/backports.sh</strong> (49 lines; original blob <code>f8ac2e847636e5eb367afdde23d5b3283851ffeb</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -173,6 +174,36 @@ URIs: https://deb.debian.org/debian
 Suites: trixie-backports
 Components: main contrib non-free non-free-firmware
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+````
+
+</details>
+
+## Native Simple-CDD completion verifier
+
+Create `profiles/backports.postinst` from the full source below, alongside its `.description` and `.extra` files. The stage-11 runner writes its record after successful handler execution; the original `14simple-cdd` hook runs this verifier in-target without installing the feature twice.
+
+~~~sh
+chmod +x profiles/backports.postinst
+sh -n profiles/backports.postinst
+~~~
+
+The syntax check is read-only. The final `15my-cdd-status` guard also checks this selected profile's record, returning exit 10 if any required record is missing.
+
+<details>
+<summary><strong>profiles/backports.postinst</strong> — complete native verifier (11 lines; Git blob <code>bd9f5388acaff6a133665e46de7bfa041779300a</code>)</summary>
+
+````sh
+#!/bin/sh
+# Simple-CDD finish-install verification only.
+# The selected profile was performed beforehand by the native Debian
+# Installer stage-11 runner, where its Debconf approvals were visible.
+# Never execute the profile twice or claim success from mere selection.
+set -eu
+marker="/var/log/installer/my-cdd-completed/backports"
+if [ ! -f "$marker" ]; then
+    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'backports'
+    exit 1
+fi
 ````
 
 </details>

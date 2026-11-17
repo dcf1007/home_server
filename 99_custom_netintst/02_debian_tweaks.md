@@ -6,15 +6,16 @@
 
 Finish the shared [Build project](build_project.md), [Shared profile helpers](profile_construction.md) and [Installer framework](installer_framework.md). Work from `99_custom_netintst/my-cdd/` in a test branch or disposable copy. This optional profile shares the common dispatcher; it is **not a standalone shell script**.
 
-## Step 1 — Make the three feature files
+## Step 1 — Make the four feature files
 
 | File | What it contributes |
 | --- | --- |
 | `profiles/debian-tweaks.description` | The label shown only when the optional tweaks checkbox is offered. |
 | `profiles/debian-tweaks.extra` | Stages the selected-only tweaks module on the ISO. |
-| `installer/profile-tweaks.sh` | Complete code that edits target GRUB, root filesystem fstab, SSH and the manual APT-update policy. |
+| `profiles/debian-tweaks.postinst` | Native Simple-CDD completion verifier; checks a marker without rerunning feature installation. |
+| `installer/debian-tweaks.sh` | Complete code that edits target GRUB, root filesystem fstab, SSH and the manual APT-update policy. |
 
-The choice ID is `debian-tweaks`; the dispatcher sources `installer/profile-tweaks.sh` and calls `profile_tweaks()`.
+The choice ID is `debian-tweaks`; the dispatcher sources `installer/debian-tweaks.sh` and calls `profile_tweaks()`.
 
 ## Step 2 — Copy the complete source into each file
 
@@ -38,18 +39,18 @@ Open `profiles/debian-tweaks.extra` in a text editor, paste the indicated conten
 
 This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, Save the document after reviewing the pasted contents.
 
-**3. Create `installer/profile-tweaks.sh`.** Complete code that edits target GRUB, root filesystem fstab, SSH and the manual APT-update policy.
+**3. Create `installer/debian-tweaks.sh`.** Complete code that edits target GRUB, root filesystem fstab, SSH and the manual APT-update policy.
 
-Open `installer/profile-tweaks.sh` in a text editor, paste the indicated contents and save it at that path.
+Open `installer/debian-tweaks.sh` in a text editor, paste the indicated contents and save it at that path.
 
 This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, Save the document after reviewing the pasted contents.
 
 
 
 
-The installer `profile-tweaks.sh` module is *sourced*, not independently executed.
+The installer `debian-tweaks.sh` module is *sourced*, not independently executed.
 
-Only the native Debian Installer `11my-cdd` runner executes these selected-profile functions; `15my-cdd-status` verifies one overall completion state. Simple-CDD's own stage 14 is left unchanged.
+Native Debian Installer stage `11my-cdd` runs each approved selected handler **once**, then writes that profile's success marker. Unmodified Simple-CDD stage `14simple-cdd` executes the selected profile's verification-only `.postinst` **in-target**. Stage `15my-cdd-status` independently checks all approved markers and overall `COMPLETE`, returning native exit 10 rather than falsely reporting success.
 
 ## Step 3 — Understand each operation before building
 
@@ -65,7 +66,7 @@ The full source below includes the validations, error handling and file-editing 
 ## Step 4 — Validate and build
 
 ~~~sh
-sh -n installer/profile-tweaks.sh
+sh -n installer/debian-tweaks.sh
 ~~~
 
 This reads and syntax-checks the module without changing any GRUB or filesystem settings.
@@ -89,11 +90,11 @@ Optional Debian filesystem, boot, SSH and update-policy changes
 </details>
 
 <details>
-<summary><strong>Complete profiles/debian-tweaks.extra</strong> — 2 lines; Git blob <code>1526ae3366f73ec5adcd386361f5ae79bc58b0e0</code></summary>
+<summary><strong>Complete profiles/debian-tweaks.extra</strong> — 2 lines; Git blob <code>e8d508af94f5f133ebf5652cfb27318f8e4d2b7c</code></summary>
 
 ````text
 # debian-tweaks: source assets copied by Simple-CDD (not automatically installed).
-installer/profile-tweaks.sh
+installer/debian-tweaks.sh
 ````
 
 </details>
@@ -101,7 +102,7 @@ installer/profile-tweaks.sh
 
 
 <details>
-<summary><strong>Complete installer/profile-tweaks.sh</strong> — 76 lines; Git blob <code>6b363c62770cb6536179ea9111c38b937443f8dc</code></summary>
+<summary><strong>Complete installer/debian-tweaks.sh</strong> — 76 lines; Git blob <code>6b363c62770cb6536179ea9111c38b937443f8dc</code></summary>
 
 ````sh
 #!/bin/sh
@@ -180,6 +181,36 @@ profile_tweaks() {
         fi
     fi
 }
+````
+
+</details>
+
+## Native Simple-CDD completion verifier
+
+Create `profiles/debian-tweaks.postinst` from the full source below, alongside its `.description` and `.extra` files. The stage-11 runner writes its record after successful handler execution; the original `14simple-cdd` hook runs this verifier in-target without installing the feature twice.
+
+~~~sh
+chmod +x profiles/debian-tweaks.postinst
+sh -n profiles/debian-tweaks.postinst
+~~~
+
+The syntax check is read-only. The final `15my-cdd-status` guard also checks this selected profile's record, returning exit 10 if any required record is missing.
+
+<details>
+<summary><strong>profiles/debian-tweaks.postinst</strong> — complete native verifier (11 lines; Git blob <code>50857ab897f2bbdefc48555e6425bff553235508</code>)</summary>
+
+````sh
+#!/bin/sh
+# Simple-CDD finish-install verification only.
+# The selected profile was performed beforehand by the native Debian
+# Installer stage-11 runner, where its Debconf approvals were visible.
+# Never execute the profile twice or claim success from mere selection.
+set -eu
+marker="/var/log/installer/my-cdd-completed/debian-tweaks"
+if [ ! -f "$marker" ]; then
+    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'debian-tweaks'
+    exit 1
+fi
 ````
 
 </details>

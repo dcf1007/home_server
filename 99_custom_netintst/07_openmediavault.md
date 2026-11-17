@@ -6,7 +6,7 @@
 
 Complete [Build project](build_project.md), [Shared profile helpers](profile_construction.md) and [Installer framework](installer_framework.md), then work inside `99_custom_netintst/my-cdd/` on a test branch or scratch copy.
 
-The optional profile ID is `openmediavault`. Its source file is `installer/profile-omv.sh`, which defines `profile_omv()`. The existing dispatcher maps the ID to that function **only when selected**.
+The optional profile ID is `openmediavault`. Its source file is `installer/openmediavault.sh`, which defines `profile_omv()`. The existing dispatcher maps the ID to that function **only when selected**.
 
 ## Step 2 — Create these complete files
 
@@ -14,7 +14,8 @@ The optional profile ID is `openmediavault`. Its source file is `installer/profi
 | --- | --- |
 | `profiles/openmediavault.description` | The OMV 8 checkbox label. |
 | `profiles/openmediavault.extra` | Stages the OMV installer-side module onto the ISO. |
-| `installer/profile-omv.sh` | Official OMV 8 installation scope: single official signed APT source, reviewed installation and two upstream initialization commands. |
+| `profiles/openmediavault.postinst` | Native Simple-CDD completion verifier; checks a marker without rerunning feature installation. |
+| `installer/openmediavault.sh` | Official OMV 8 installation scope: single official signed APT source, reviewed installation and two upstream initialization commands. |
 
 Create source directories if absent:
 
@@ -36,9 +37,9 @@ Open `profiles/openmediavault.extra` in a text editor, paste the indicated conte
 
 Use the matching complete listing below and save it at this path; editing does not execute installer code.
 
-**3. Create `installer/profile-omv.sh`.** Official OMV 8 installation scope: single official signed APT source, reviewed installation and two upstream initialization commands.
+**3. Create `installer/openmediavault.sh`.** Official OMV 8 installation scope: single official signed APT source, reviewed installation and two upstream initialization commands.
 
-Open `installer/profile-omv.sh` in a text editor, paste the indicated contents and save it at that path.
+Open `installer/openmediavault.sh` in a text editor, paste the indicated contents and save it at that path.
 
 Use the matching complete listing below and save it at this path; editing does not execute installer code.
 
@@ -47,7 +48,7 @@ Use the matching complete listing below and save it at this path; editing does n
 
 Do **not** mark the imported OMV module as a standalone installer and execute it on the build machine.
 
-Only the native Debian Installer `11my-cdd` runner executes these selected-profile functions; `15my-cdd-status` verifies one overall completion state. Simple-CDD's own stage 14 is left unchanged.
+Native Debian Installer stage `11my-cdd` runs each approved selected handler **once**, then writes that profile's success marker. Unmodified Simple-CDD stage `14simple-cdd` executes the selected profile's verification-only `.postinst` **in-target**. Stage `15my-cdd-status` independently checks all approved markers and overall `COMPLETE`, returning native exit 10 rather than falsely reporting success.
 
 ## Step 3 — Understand the limited installer scope
 
@@ -63,13 +64,13 @@ The OMV handler runs **only when selected**. It uses the same signed-APT install
 ## Step 4 — Verify source and build
 
 ~~~sh
-sh -n installer/profile-omv.sh
+sh -n installer/openmediavault.sh
 ~~~
 
 This parses the handler's POSIX shell syntax without installing anything.
 
 
-This checks the post-install verifier's syntax. For byte-for-byte checking, `git hash-object <path>` prints a Git blob SHA; compare it with the SHA printed in the complete file heading below.
+This checks the selected handler's syntax. For byte-for-byte checking, `git hash-object <path>` prints a Git blob SHA; compare it with the SHA printed in the complete file heading below.
 
 Once the entire shared framework is assembled, run `./build.sh`. Boot a **disposable VM** and test selected/unselected, APT's signature verification of the single signed source, refused package approval, OMV 8 version, database population, hosts deployment and first-boot reachability. Confirm the OMV module made **no SSH, account, update or notification changes**. **None of these runtime tests are claimed as passed.**
 
@@ -86,11 +87,11 @@ OpenMediaVault 8 NAS installation; management services available after first boo
 </details>
 
 <details>
-<summary><strong>profiles/openmediavault.extra</strong> — complete file (2 lines; Git blob <code>181ac69fc9ceaa5a7dfbe368b6f4a502ff22f7cf</code>)</summary>
+<summary><strong>profiles/openmediavault.extra</strong> — complete file (2 lines; Git blob <code>2b56b838bece8a18b5627be6bcb39aabcb180daa</code>)</summary>
 
 ````text
 # openmediavault: source assets copied by Simple-CDD (not automatically installed).
-installer/profile-omv.sh
+installer/openmediavault.sh
 ````
 
 </details>
@@ -98,7 +99,7 @@ installer/profile-omv.sh
 
 
 <details>
-<summary><strong>installer/profile-omv.sh</strong> — complete file (56 lines; Git blob <code>9ce6dd3f9373e838b8abf86a996337b99b883347</code>)</summary>
+<summary><strong>installer/openmediavault.sh</strong> — complete file (56 lines; Git blob <code>9ce6dd3f9373e838b8abf86a996337b99b883347</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -157,6 +158,36 @@ EOF
     run_target omv-salt deploy run hosts
     log 'OMV 8 installed and initialized; no custom SSH, update, notification or plugin changes'
 }
+````
+
+</details>
+
+## Native Simple-CDD completion verifier
+
+Create `profiles/openmediavault.postinst` from the full source below, alongside its `.description` and `.extra` files. The stage-11 runner writes its record after successful handler execution; the original `14simple-cdd` hook runs this verifier in-target without installing the feature twice.
+
+~~~sh
+chmod +x profiles/openmediavault.postinst
+sh -n profiles/openmediavault.postinst
+~~~
+
+The syntax check is read-only. The final `15my-cdd-status` guard also checks this selected profile's record, returning exit 10 if any required record is missing.
+
+<details>
+<summary><strong>profiles/openmediavault.postinst</strong> — complete native verifier (11 lines; Git blob <code>56de86b591b15ce71f0a1ccd63f0a2522633d36d</code>)</summary>
+
+````sh
+#!/bin/sh
+# Simple-CDD finish-install verification only.
+# The selected profile was performed beforehand by the native Debian
+# Installer stage-11 runner, where its Debconf approvals were visible.
+# Never execute the profile twice or claim success from mere selection.
+set -eu
+marker="/var/log/installer/my-cdd-completed/openmediavault"
+if [ ! -f "$marker" ]; then
+    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'openmediavault'
+    exit 1
+fi
 ````
 
 </details>
