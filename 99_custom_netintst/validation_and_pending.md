@@ -1,5 +1,28 @@
 # Validation — Test the scripts and generated Debian installer
 
+## Native finish-install orchestration refactor — 2026-11-17
+
+**Nearest user prompt:** “implement”, in response to the source audit identifying duplicate custom lifecycle orchestration, marker-only Simple-CDD postinst checks, firmware-license template extraction, and manual local mirror edits.
+
+**Implemented source architecture:** `installer/profile-confirm.sh` still uses upstream Simple-CDD's real `simple-cdd/profiles` choice and the user's explicit pre-udeb confirmation. It now registers `run-selected.sh` as native `/usr/lib/finish-install.d/11my-cdd`, together with the one `15my-cdd-status` gate. The default preseed no longer sets `preseed/late_command`. With `apt-setup/disable-cdrom-entries=true`, native Debian Installer executes `10apt-cdrom-setup` **once before** the stage-11 custom runner; no bespoke source editor or second call exists. Upstream `14simple-cdd` remains unmodified. The seven redundant marker-only optional `profiles/*.postinst` files were deleted, as were the runner's per-profile marker writes and the ZRAM marker preflight. The final stage 15 checks only that a confirmed selection exists and the runner's overall status is `COMPLETE`; on failure it returns native finish-install **10**.
+
+**Preserved user requirements:** The same seven optional profiles and explicit selection summary/default-No approval; fixed approved order; separately reviewed full APT transactions including removals; vendor firmware licenses and individually approved omissions; exact selected ZRAM partition and destructive/swapoff confirmations; real diagnostic output; independent official OMV/Docker sources; previously approved root recovery and Debian tweaks conditional manual updates.
+
+**Native reuse boundaries:** Source inspection shows Simple-CDD's normal stage 14 executes optional postinst scripts **in-target**, where the early D-I disk-conversion environment and custom pre-install GTK/text approval workflow are not equivalent. The stage-11 runner therefore remains, but uses Debian's native hook scheduler rather than duplicating its lifecycle. The two firmware vendor licenses must be approved or individually omitted **before** the reviewed transaction, while ordinary APT/Debconf passthrough asks questions during installation; replacing the approved pre-transaction omission workflow is **not proven**. Simple-CDD 0.6.9's `mirror_reprepro.py` hard-codes `UDebComponents: main`, so no verified Simple-CDD configuration-only substitute for the extra installer udeb-component mirror stage exists. The manual mirror adaptation was retained, not silently deleted.
+
+**Source checks:** The 43 remaining complete source listings' Git blob SHA IDs match the current PR branch; the five changed executable/preseed listings match byte-for-byte. All seven deleted `.postinst` files are absent from the Git tree and developer source listings. These are source-level checks, not a successful ISO build.
+
+**New disposable-VM tests required:**
+
+- [ ] Early profile summary and default-No consent still appear once, before native Simple-CDD's selected-profile udeb work
+- [ ] Native `10apt-cdrom-setup` runs before stage `11my-cdd`, disables the observed CD-ROM source, and is **not invoked a second time** by our code
+- [ ] Stage 11 preserves the exact ordered profile set, full APT/GTK transactions, native firmware license and individually approved omission screens, and partition selections
+- [ ] An actual selected-profile failure results in the stage-15 status hook returning exit **10**, preventing an incorrect native installation-complete screen
+- [ ] A base-only install still establishes approved local root recovery and reaches COMPLETE with no optional profile side effects
+- [ ] A full approved OMV/Docker install and ZRAM compressed-writeback first boot succeed on a disposable virtual disk
+
+**No new ISO, successful installer run, firmware-passthrough test, or first boot is claimed.**
+
 ## Native apt-cdrom-setup early reuse — 2026-11-17
 
 **Nearest user instruction:** “isn't the early editor the one from cdd? just call the cdd one early and don't reinvent the wheel”.
@@ -120,7 +143,7 @@ Before making an ISO, reproduce the **file contents from the chapters**, on a sc
 
 1. Follow [Build project](build_project.md), [Shared profile helpers](profile_construction.md), [Installer framework](installer_framework.md) and each selected feature page. Keep the entire current seven-profile set when reconstructing the shipped configuration.
 2. For each created file, run `git hash-object <path>` from `my-cdd`. It **reads the file only** and prints a Git blob identifier. Compare that output with the expected blob SHA printed above the file's full listing. A mismatch means the copy differs.
-3. Confirm `build.sh`, `installer/profile-confirm.sh`, `installer/run-selected.sh`, `installer/15my-cdd-status` and every `profiles/*.postinst` have executable permissions. The imported feature modules should remain **sourced** files.
+3. Confirm `installer/profile-confirm.sh`, `installer/run-selected.sh` and `installer/15my-cdd-status` have executable permissions; there are no optional `.postinst` scripts. The imported feature modules should remain **sourced** files.
 4. Confirm every path in each `profiles/*.extra` exists before running the build. A module is not executed merely because it was staged.
 5. Do not run sourced installer modules on a host machine. Their behavior must be exercised in the **Debian Installer VM**.
 
@@ -140,7 +163,7 @@ sh -n installer/profile-zram.sh
 
 This is an example. Change the filename to the module you actually edited. `sh -n` checks POSIX shell syntax **without running disk writes or APT**.
 
-Check that the relevant `profiles/<name>.description`, `.extra` and `.postinst` exist. The source file must be listed in the appropriate media manifest; the postinst should verify a completion marker, not repeat installation.
+Check that each selected feature has its own `profiles/<name>.description` and `.extra`, and that its handler is staged by Simple-CDD. There are no optional `.postinst` files or completion markers; the runner's overall `COMPLETE` status is checked at stage 15.
 
 Confirm that `simple-cdd.conf` still has the seven offered profiles and **empty** `auto_profiles` and `default_profiles`. Verify that new code is inside a **selected function**, not executed when sourced unconditionally.
 
