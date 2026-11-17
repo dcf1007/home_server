@@ -290,7 +290,10 @@ ordered="$(/bin/sh "$MEDIA/ordered-selection.sh" "$RET")" ||
 db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 [ "$RET" = true ] || fatal 'The early profile summary was not approved'
 log "CONFIRMED SELECTION: $ordered"
-ensure_root_recovery
+# A base-only installation must not change root credentials or target policy.
+if [ -n "$ordered" ]; then
+    ensure_root_recovery
+fi
 
 # The installer may leave a legacy CD-ROM package source enabled before
 # finish-install's own cleanup. Disable only that source for selected profiles
