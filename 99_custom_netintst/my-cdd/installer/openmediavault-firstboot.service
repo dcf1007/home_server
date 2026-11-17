@@ -1,12 +1,8 @@
 [Unit]
-Description=One-time OpenMediaVault first-boot initialization
+Description=Self-cleaning one-time OpenMediaVault first-boot initialization
 Documentation=https://docs.openmediavault.org/en/8.x/installation/on_debian.html
-
 Wants=dbus.socket
 After=dbus.socket network.target
-
-ConditionPathExists=/var/lib/my-cdd/omv-firstboot.status
-ConditionPathExists=!/var/lib/my-cdd/omv-firstboot.attempted
 
 [Service]
 Type=oneshot

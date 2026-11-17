@@ -56,10 +56,7 @@ EOF
     [ -r "$MEDIA/openmediavault-firstboot.service" ] ||
         fatal 'OMV first-boot service missing from installer media'
 
-    mkdir -p /target/usr/local/sbin \
-        /target/etc/systemd/system \
-        /target/var/lib/my-cdd \
-        /target/etc/motd.d ||
+    mkdir -p /target/usr/local/sbin /target/etc/systemd/system ||
         fatal 'Cannot create OMV first-boot directories'
 
     cp "$MEDIA/openmediavault-firstboot.sh" \
@@ -75,35 +72,27 @@ EOF
         /target/etc/systemd/system/my-cdd-omv-firstboot.service ||
         fatal 'Cannot set OMV service file permissions'
 
-    # Pending is distinct from successful OMV runtime initialization.
-    printf 'PENDING\n' > /target/var/lib/my-cdd/omv-firstboot.status ||
-        fatal 'Cannot record pending OMV initialization'
-
-    cat > /target/etc/motd.d/90-my-cdd-omv <<'EOT'
-OpenMediaVault initialization is scheduled for the first boot.
-The system will run the official OMV initialization commands automatically.
-Check the login notice after boot for the result.
-EOT
-    chmod 0644 /target/etc/motd.d/90-my-cdd-omv ||
-        fatal 'Cannot configure OMV initialization notice'
-
-    # Offline systemd enabling registers the service, but does not start it.
+    # Only enable here: no OMV initialization in the installer chroot.
+    # The one-time service deletes its own files after the first attempt;
+    # only /var/log/installer/my-cdd-omv-firstboot.log remains.
     run_target systemctl enable my-cdd-omv-firstboot.service
 
     cat > "$WORK/omv-firstboot-info" <<'EOT'
 OpenMediaVault 8 packages were installed successfully.
 
-Final initialization will run automatically on the first boot:
+Final initialization runs automatically on first boot:
   1. omv-confdbadm populate
   2. omv-salt deploy run hosts
 
-Progress and errors will be recorded in the system journal and
-/var/log/installer/my-cdd-omv-firstboot.log.
-The login message will report the result.
+Progress, the result and any errors appear on the boot console and
+in /var/log/installer/my-cdd-omv-firstboot.log.
+
+After success or failure, the temporary service and script remove
+themselves. No automatic retry occurs. The log is retained.
 EOT
     show_note 'OpenMediaVault first-boot initialization' \
         "$WORK/omv-firstboot-info" ||
-        log 'Could not display OMV first-boot note; login notice remains'
+        log 'Could not display OMV first-boot note; installer log remains'
 
-    log 'OMV 8 packages installed; first-boot initialization PENDING'
+    log 'OMV 8 packages installed; one-time first-boot initialization scheduled'
 }
