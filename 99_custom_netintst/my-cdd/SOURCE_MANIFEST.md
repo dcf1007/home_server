@@ -1,5 +1,17 @@
 # my-cdd source manifest and provenance
 
+## User-directed removal of discretionary installer guards — 2026-11-17
+
+**Nearest user instruction:** “it's none of your business what you consider risky or unexpectedd. If i have not asked something and approved it, you should not do it. remove them all. the user can see what the installer is going to do and decide on its own. keep only the things i asked and authorised”.
+
+**Observed trigger:** The latest Debian Installer GTK failure showed a valid-looking OMV installation plan including `Remv systemd-timesyncd`, which a custom project blacklist rejected before the user's default-No package-transaction approval. A separate exception-only approach was opened as PR #23 and **closed unmerged**.
+
+**Removed executable rules:** (1) hard-coded essential-package removal filtering in the shared runner, firmware and kernel; (2) APT operation whitelist in `run_target`/`simulate_target`; (3) redundant `in-target` service-start suppression probe; (4) speculative rejection of nonlegacy CD-ROM APT sources and a redundant post-edit source scan (retain only the proven legacy CD-ROM adjustment); (5) old Backports pin, explicit priority-100 verification and other priority refusal rules; (6) repeated `dist-upgrade` post-install simulation requiring an empty plan; (7) repeated `autoremove` simulation requiring an empty plan; (8) unrelated conventional-swap or ambiguous `PARTLABEL` entry rejection in ZRAM's target `fstab`. Removed the cross-cutting unnecessary `apt-cache policy` inspection after repository refresh. Scope-limited the existing root recovery setup to nonempty selected profiles, leaving base-only Debian credentials unchanged.
+
+**Retained user contracts:** All feature profiles remain opt-in, with no profile automatically added. Full APT simulation and native default-No approval remain before user-approved installs/upgrades; Backports cleanup retains individual package approval. Debian/firmware vendor-license consent, explicit selected ZRAM GPT identity, swapoff/destructive confirmations, rollback-aware `fstab` preparation and fail-on-command-error behavior remain. OMV and Docker keep their own one official signed repository each; their install operations and vendor init are unchanged. No new one-use helper.
+
+**Reproducibility:** Full literal executable sources and SHA-1 Git blob IDs in 99's CDD construction chapters synchronized. Source review is not proof of a Debian Installer ISO build or successful VM first boot; repeat on a disposable disk.
+
 ## OMV keyring permission fix — 2026-11-16
 
 **Nearest user prompt:** Screenshot evidence from the newest Debian Installer VM, showing OMV `apt-get update` failed after key import with `/usr/bin/sqv` error `Failed to parse keyring ... Permission denied (os error 13)` and exit status 100.
