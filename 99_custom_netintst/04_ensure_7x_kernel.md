@@ -6,13 +6,12 @@
 
 Build the common Simple-CDD project in [Build project](build_project.md), shared code in [Shared profile helpers](profile_construction.md) and dispatcher/selection UI in [Installer framework](installer_framework.md). This feature cannot run without that framework. Work from the directory `99_custom_netintst/my-cdd/` on a test branch or scratch copy.
 
-## Step 1 — Identify your four files
+## Step 1 — Identify your three files
 
 | Path to create | Purpose |
 | --- | --- |
 | `profiles/ensure-7x-kernel.description` | User-visible description for the separate kernel checkbox. |
 | `profiles/ensure-7x-kernel.extra` | Copies the kernel installer module to the ISO. |
-| `profiles/ensure-7x-kernel.postinst` | Verifies the success marker, without executing the install twice. |
 | `installer/profile-kernel.sh` | The full suite-selection, 7.x dependency, package-consent and boot-verification code. |
 
 The **selection name** is `ensure-7x-kernel`. The **module file** is `installer/profile-kernel.sh`. The **function called by the dispatcher** is `profile_kernel()`. All three names are deliberately different; do not rename one without updating its dispatcher mapping.
@@ -39,13 +38,7 @@ Open `profiles/ensure-7x-kernel.extra` in a text editor, paste the indicated con
 
 This opens that file for editing. **Expand the complete listing with the identical path at the end of this guide** and paste the entire listing, including comments and final newline. Save the document after reviewing the pasted contents. Nothing runs merely because the file has been saved.
 
-**3. Create `profiles/ensure-7x-kernel.postinst`.** Verifies the success marker, without executing the install twice.
-
-Open `profiles/ensure-7x-kernel.postinst` in a text editor, paste the indicated contents and save it at that path.
-
-This opens that file for editing. **Expand the complete listing with the identical path at the end of this guide** and paste the entire listing, including comments and final newline. Save the document after reviewing the pasted contents. Nothing runs merely because the file has been saved.
-
-**4. Create `installer/profile-kernel.sh`.** The full suite-selection, 7.x dependency, package-consent and boot-verification code.
+**3. Create `installer/profile-kernel.sh`.** The full suite-selection, 7.x dependency, package-consent and boot-verification code.
 
 Open `installer/profile-kernel.sh` in a text editor, paste the indicated contents and save it at that path.
 
@@ -54,11 +47,10 @@ This opens that file for editing. **Expand the complete listing with the identic
 
 Set executable permission on only the completion verifier:
 
-~~~sh
-chmod +x profiles/ensure-7x-kernel.postinst
-~~~
 
 The main module is **sourced** by `run-selected.sh`; never execute it as a standalone installer.
+
+Only the native Debian Installer `11my-cdd` runner executes these selected-profile functions; `15my-cdd-status` verifies one overall completion state. Simple-CDD's own stage 14 is left unchanged.
 
 ## Step 3 — Follow the handler's logic
 
@@ -79,15 +71,9 @@ sh -n installer/profile-kernel.sh
 
 This checks shell grammar but does **not** install a kernel.
 
-~~~sh
-sh -n profiles/ensure-7x-kernel.postinst
-~~~
 
 This checks the verifier's shell syntax.
 
-~~~sh
-chmod +x profiles/ensure-7x-kernel.postinst
-~~~
 
 This only ensures the verifier has executable permission; it does not run it. You can use `git hash-object <filename>` to compare each recreated file with the original blob SHA in the listings below; differences mean the file content was not copied exactly.
 
@@ -115,24 +101,7 @@ installer/profile-kernel.sh
 
 </details>
 
-<details>
-<summary><strong>profiles/ensure-7x-kernel.postinst</strong> — complete file (11 lines; blob <code>09aa36918289732ea8b981191e2d524eee00d324</code>)</summary>
 
-````sh
-#!/bin/sh
-# Simple-CDD finish-install verification only.
-# The selected profile was performed beforehand by the native Debian
-# Installer late command, where its Debconf approvals were visible.
-# Never execute the profile twice or claim success from mere selection.
-set -eu
-marker="/var/log/installer/my-cdd-completed/ensure-7x-kernel"
-if [ ! -f "$marker" ]; then
-    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'ensure-7x-kernel'
-    exit 1
-fi
-````
-
-</details>
 
 <details>
 <summary><strong>installer/profile-kernel.sh</strong> — complete file (84 lines; blob <code>5b1d797f60e6e959fbd0816f37365f76e233903c</code>)</summary>
