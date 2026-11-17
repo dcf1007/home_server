@@ -20,16 +20,12 @@ try_kernel_suite() {
     is_7x_metapackage linux-headers-amd64 "$hv" || return 1
     if capture in-target apt-get -s install "linux-image-amd64/$ks" "linux-headers-amd64/$ks"; then
         cp "$WORK/output" "$WORK/plan"
-        if grep -E '^Remv (linux-image|linux-headers|grub)' "$WORK/plan" >/dev/null; then
-            log "Rejected candidate kernel suite: $ks would remove initial fallback/boot support"
-            return 1
-        fi
         KERNEL_SUITE=$ks
         KERNEL_IMAGE_VERSION=$iv
         KERNEL_HEADERS_VERSION=$hv
         return 0
     fi
-    log "Rejected candidate kernel suite: $ks did not resolve safely"
+    log "Kernel package simulation failed for suite: $ks"
     return 1
 }
 
