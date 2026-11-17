@@ -119,7 +119,7 @@ The main `installer/profile-zram.sh` handler is **sourced**; it is never invoked
 4. **Automatic choice is narrowly limited:** exactly one suitable conventional swap reference in the new target's `/target/etc/fstab` may be selected automatically. Otherwise the native Debconf chooser presents the exact candidates and initially offers **Stop**.
 5. **Independent destructive approval:** after selecting a candidate, the handler shows the exact partition device, parent disk, size, PARTUUID and planned **first-1-MiB erase**. The default is **No**.
 6. **Active swap safety:** used swap is identified in `/proc/swaps`. The handler requires enough available RAM for the used pages **plus a reserve**, asks another default-No confirmation for targeted `swapoff`, and revalidates the partition before touching it.
-7. **fstab preparation:** before writes, the helper prepares removal of only that partition's conventional swap entry. It must not delete unrelated root, EFI or NAS mounts.
+7. **fstab preparation:** before writes, the helper prepares removal of only the confirmed partition's conventional swap entry. Unrelated root, EFI, NAS, **other swap references and partitions** remain untouched. There is no separate whole-system swap policy.
 8. **Bounded signature erase:** once all checks pass, the handler runs BusyBox `dd` with `bs=4096 count=256` against the **verified partition**, not its parent disk. That writes exactly **1 MiB**.
 9. **GPT conversion without recreation:** native Parted changes that partition's **type** to standard Linux data (gdisk 8300, GUID `0FC63DAF-8483-4772-8E79-3D69D8477DE4`) and its **name** to `zram-writeback`. It does **not** format a filesystem, delete the partition or hardcode the machine's PARTUUID. Post-write checks must confirm correct identity and no residual swap signature.
 10. **Target provisioning:** an atomically staged `fstab` is installed; the user approves installing `systemd-zram-generator`; both template `YOUR_PARTUUID` placeholders are replaced with the **actual detected PARTUUID**. The generator, single setup override, pressure monitor and swappiness file are installed under `/target`; GRUB is updated for `zswap.enabled=0`.
@@ -391,7 +391,7 @@ profile_zram() {
 </details>
 
 <details>
-<summary><strong>installer/zram-selection.sh</strong> — complete file; 274 lines; original blob <code>760a7d4475f513bf08f2ea7bb0156930cf7d3d1a</code></summary>
+<summary><strong>installer/zram-selection.sh</strong> — complete file; 268 lines; original blob <code>2dade85359c624c0b5228103e19e12d084fbe069</code></summary>
 
 ````sh
 #!/bin/sh
@@ -636,7 +636,6 @@ zram_prepare_fstab() {
         zf_ref="$(printf '%s\n' "$zf_line" |
             awk '$0 !~ /^[[:space:]]*#/ && NF >= 3 && $3 == "swap" {print $1}')"
         case "$zf_ref" in
-            PARTLABEL=*) fatal 'Ambiguous PARTLABEL swap reference in target fstab; resolve it before ZRAM conversion' ;;
             UUID=*)
                 case "$former_uuid" in
                     '') ;;
@@ -661,12 +660,7 @@ zram_prepare_fstab() {
         fi
         printf '%s\n' "$zf_line" >> "$WORK/zram-safe-fstab"
     done < "$WORK/zram-original-fstab"
-    # Never leave a second conventionally activated swap configured in the
-    # new target; modifying or deactivating that other device is NOT approved.
-    if awk '$0 !~ /^[[:space:]]*#/ && NF >= 3 && $3 == "swap" {print $1}' \
-        "$WORK/zram-safe-fstab" | grep -q .; then
-        fatal 'Another target swap entry would remain; do not enable independent swap alongside required ZRAM'
-    fi
+
 }
 ````
 
