@@ -17,11 +17,12 @@ Work inside `99_custom_netintst/my-cdd/`, on a test branch or scratch copy.
 
 ## Step 2 — Know exactly which files make up the feature
 
+Nine source/configuration files make up the profile; no separate marker-only post-install verifier is required.
+
 | File to create | Reason |
 | --- | --- |
 | `profiles/zram-writeback.description` | Text of the opt-in ZRAM checkbox. |
 | `profiles/zram-writeback.extra` | All required sources and generator/monitor assets to stage on the installer ISO. |
-| `profiles/zram-writeback.postinst` | Executable completion-marker verifier (not a second partition conversion). |
 | `installer/profile-zram.sh` | The complete selected-only handler: inline utility preflight, confirmation, targeted swapoff, bounded erase, native Parted, fstab and target provisioning. |
 | `installer/zram-selection.sh` | The complete native GPT/sysfs/blkid candidate discovery, identity validation, mount/holder checks and fstab preparation; `blkid` is called directly. |
 | `scripts/zram-generator.conf.template` | ZSTD/ZRAM sizing and writeback config; dynamically replaced PARTUUID placeholders. |
@@ -30,7 +31,8 @@ Work inside `99_custom_netintst/my-cdd/`, on a test branch or scratch copy.
 | `scripts/zram-pressure.service` | Systemd service to supervise and restart the pressure monitor. |
 | `scripts/90-zram.conf` | Swappiness setting applicable only to the explicitly selected ZRAM feature. |
 
-All **ten** source/configuration files are included in full below. You do not need to invent any missing functions or generator scripts.
+
+Only the native Debian Installer `11my-cdd` runner executes these selected-profile functions; `15my-cdd-status` verifies one overall completion state. Simple-CDD's own stage 14 is left unchanged.
 
 ## Step 3 — Create each file
 
@@ -54,60 +56,50 @@ Open `profiles/zram-writeback.extra` in a text editor, paste the indicated conte
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**3. Create `profiles/zram-writeback.postinst`.** Executable completion-marker verifier (not a second partition conversion).
-
-Open `profiles/zram-writeback.postinst` in a text editor, paste the indicated contents and save it at that path.
-
-This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
-
-**4. Create `installer/profile-zram.sh`.** The complete selected-only handler: confirmation, targeted swapoff, bounded erase, native Parted, fstab and target provisioning.
+**3. Create `installer/profile-zram.sh`.** The complete selected-only handler: confirmation, targeted swapoff, bounded erase, native Parted, fstab and target provisioning.
 
 Open `installer/profile-zram.sh` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**5. Create `installer/zram-selection.sh`.** The complete installer-native GPT/sysfs/blkid candidate discovery, identity validation, mount/holder checks and fstab preparation.
+**4. Create `installer/zram-selection.sh`.** The complete installer-native GPT/sysfs/blkid candidate discovery, identity validation, mount/holder checks and fstab preparation.
 
 Open `installer/zram-selection.sh` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**6. Create `scripts/zram-generator.conf.template`.** ZSTD/ZRAM sizing and writeback config; dynamically replaced PARTUUID placeholders.
+**5. Create `scripts/zram-generator.conf.template`.** ZSTD/ZRAM sizing and writeback config; dynamically replaced PARTUUID placeholders.
 
 Open `scripts/zram-generator.conf.template` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**7. Create `scripts/override.conf`.** Single systemd drop-in for compressed writeback before initialization and emergency mode on setup failure.
+**6. Create `scripts/override.conf`.** Single systemd drop-in for compressed writeback before initialization and emergency mode on setup failure.
 
 Open `scripts/override.conf` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**8. Create `scripts/zram-pressure.sh`.** Complete script monitoring memory pressure and issuing writeback operations.
+**7. Create `scripts/zram-pressure.sh`.** Complete script monitoring memory pressure and issuing writeback operations.
 
 Open `scripts/zram-pressure.sh` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**9. Create `scripts/zram-pressure.service`.** Systemd service to supervise and restart the pressure monitor.
+**8. Create `scripts/zram-pressure.service`.** Systemd service to supervise and restart the pressure monitor.
 
 Open `scripts/zram-pressure.service` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**10. Create `scripts/90-zram.conf`.** Swappiness setting applicable only to the explicitly selected ZRAM feature.
+**9. Create `scripts/90-zram.conf`.** Swappiness setting applicable only to the explicitly selected ZRAM feature.
 
 Open `scripts/90-zram.conf` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
 
-Make the completion verifier executable:
 
-~~~sh
-chmod +x profiles/zram-writeback.postinst
-~~~
 
 The main `installer/profile-zram.sh` handler is **sourced**; it is never invoked as a standalone host program.
 
@@ -174,35 +166,19 @@ scripts/90-zram.conf
 
 </details>
 
-<details>
-<summary><strong>profiles/zram-writeback.postinst</strong> — complete file; 11 lines; original blob <code>f1b1bba87c3d2a53cc84ee2a9658348287a57d5f</code></summary>
 
-````sh
-#!/bin/sh
-# Simple-CDD finish-install verification only.
-# The selected profile was performed beforehand by the native Debian
-# Installer late command, where its Debconf approvals were visible.
-# Never execute the profile twice or claim success from mere selection.
-set -eu
-marker="/var/log/installer/my-cdd-completed/zram-writeback"
-if [ ! -f "$marker" ]; then
-    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'zram-writeback'
-    exit 1
-fi
-````
-
-</details>
 
 <details>
-<summary><strong>installer/profile-zram.sh</strong> — complete file; 165 lines; original blob <code>6e3da1e8b15bd2f43245198f87c1b981c6c7a79f</code></summary>
+<summary><strong>installer/profile-zram.sh</strong> — complete file; 166 lines; original blob <code>b57b5e8f203d5d7d1bf85281cabff5cd2713e8e9</code></summary>
 
 ````sh
 #!/bin/sh
 # Sourced by the approved installer dispatcher; no automatic execution.
 
 profile_zram() {
-    [ -f "$LOG_DIR/my-cdd-completed/ensure-7x-kernel" ] ||
-        fatal 'ZRAM cannot run without the separately completed Ensure 7.x kernel profile'
+    # ordered-selection requires the separately selected kernel profile,
+    # and the native stage-11 runner executes it before ZRAM. Any failure
+    # prevents reaching this handler; no duplicate completion marker needed.
     [ -r "$MEDIA/zram-generator.conf.template" ] ||
         fatal 'Original ZRAM generator source missing'
     [ -r "$MEDIA/zram-selection.sh" ] ||
