@@ -13,8 +13,7 @@ d-i preseed/include string defaults.preseed
 # Its failure MUST prevent anna-install from running.
 # The upstream simple-cdd-profiles component remains unmodified.
 d-i preseed/early_command string /bin/sh /cdrom/simple-cdd/profile-confirm.sh && anna-install simple-cdd-profiles
-# Force Debian Installer's native apt-cdrom-setup cleanup. Our late
-# runner invokes its unmodified finish-install hook before custom profiles;
-# Debian Installer also invokes the hook at its normal later stage.
+# Let Debian Installer's existing finish-install hook order handle this:
+# 10apt-cdrom-setup disables CD-ROM APT sources once; our registered
+# 11my-cdd hook then runs approved custom profiles before 14simple-cdd.
 d-i apt-setup/disable-cdrom-entries boolean true
-d-i preseed/late_command string /bin/sh /cdrom/simple-cdd/run-selected.sh
