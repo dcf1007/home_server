@@ -1,6 +1,6 @@
 #!/bin/sh
 # Debian Installer-side executor: native cdebconf, no patched udeb.
-# Called at the existing preseed/late_command stage before 14simple-cdd.
+# Registered at 11my-cdd in Debian Installer finish-install, after native CD-ROM cleanup.
 set -eu
 umask 077
 MEDIA=/cdrom/simple-cdd
@@ -12,8 +12,6 @@ CONFIRMED=/tmp/my-cdd-confirmed-profiles
 mkdir -p "$WORK"
 chmod 700 "$WORK"
 [ -d /target/etc ] || { echo 'my-cdd: target missing' >&2; exit 1; }
-mkdir -p "$LOG_DIR/my-cdd-completed"
-chmod 700 "$LOG_DIR/my-cdd-completed"
 touch "$LOG"
 chmod 600 "$LOG"
 printf "INCOMPLETE\n" > "$STATUS"
@@ -291,12 +289,6 @@ db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 [ "$RET" = true ] || fatal 'The early profile summary was not approved'
 log "CONFIRMED SELECTION: $ordered"
 
-# Use Debian Installer's own apt-cdrom-setup cleanup now, before any
-# custom profiles or their APT transactions. Its preseed setting is already
-# true; the normal finish-install hook would otherwise run after 07preseed.
-capture /usr/lib/finish-install.d/10apt-cdrom-setup ||
-    fatal 'Debian Installer CD-ROM APT source cleanup failed'
-
 ensure_root_recovery
 
 for profile in $ordered; do
@@ -314,8 +306,6 @@ for profile in $ordered; do
     [ -r "$MEDIA/profile-$module.sh" ] || fatal "Missing selected module: $module"
     . "$MEDIA/profile-$module.sh"
     "$handler"
-    printf 'Completed: %s\n' "$profile" > "$LOG_DIR/my-cdd-completed/$profile"
-    chmod 600 "$LOG_DIR/my-cdd-completed/$profile"
     log "PROFILE COMPLETE: $profile"
 done
 log 'All selected optional profiles completed.'
