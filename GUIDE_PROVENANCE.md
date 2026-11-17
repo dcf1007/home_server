@@ -1,5 +1,12 @@
 # Guide provenance and scope
 
+## Native per-profile verification restoration and naming — 2026-11-17
+
+**Nearest user authorization:** “i agree. use A”, following explicit agreement on canonical installer filenames and unchanged feature scope.
+
+In the open PR #24 branch, native Simple-CDD `.postinst` checks and seven per-profile completion markers were restored, along with the final selected-profile/overall-status exit-10 check. The seven installer handler filenames now match `profiles/` identifiers; ZRAM's dedicated selector uses the same stem with a `-selection` suffix. Corresponding complete source listings and Git blob hashes were synchronized in the current construction guides. Earlier dated records are retained as historical states. No successful fresh ISO build, disposable-VM end-to-end install or first boot is asserted.
+
+
 ## Reuse native finish-install and Simple-CDD lifecycle — 2026-11-17
 
 **Nearest user prompt:** “implement”, following the upstream-reuse audit that identified redundant orchestration, seven marker-only postinst verifiers, the firmware-license template workaround and the manual mirror-udeb adaptation.

@@ -1,5 +1,14 @@
 # my-cdd source manifest and provenance
 
+## Latest user-approved Route A and canonical naming — 2026-11-17
+
+**Nearest user prompt:** “i agree. use A”, after expressly approving identical profile filename stems and unchanged feature-installation scope.
+
+**Current revision:** The native Simple-CDD stage `14simple-cdd` executes seven possible selected-profile `profiles/*.postinst` verification-only scripts inside the target. The stage-11 runner writes per-profile success records only after each approved handler returns successfully, and the final stage-15 guard verifies **every selected marker** plus the overall `COMPLETE` status, returning native exit 10 when incomplete. The seven selected installer handler files now use exactly their matching profile IDs, with `zram-writeback-selection.sh` for the ZRAM-specific helper. No package, partitioning or service policy has been changed by this restoration. The complete developer source listings and SHA values were updated. No build, disposable-VM installer execution or first boot is claimed for this change.
+
+**Historical provenance boundary:** Earlier dated entries below that describe removal of the seven verifiers and marker files document an intermediate, superseded PR #24 revision, not the current source.
+
+
 ## Current source manifest: native lifecycle and reduced duplication — 2026-11-17
 
 **Nearest user prompt:** “implement”, following the audit of the native installer lifecycle, duplicate Simple-CDD postinst verifiers, firmware Debconf license handling and the custom build mirror mechanism.
@@ -395,18 +404,18 @@ Current source filenames on the review branch; historical SHA-specific inventori
 - `installer/IMPLEMENTATION_GATES.md`
 - `installer/README.md`
 - `installer/ordered-selection.sh`
-- `installer/profile-backports.sh`
+- `installer/backports.sh`
 - `installer/profile-common.sh`
 - `installer/profile-confirm.sh`
 - `installer/profile-confirm.templates`
-- `installer/profile-docker.sh`
-- `installer/profile-firmware.sh`
-- `installer/profile-kernel.sh`
-- `installer/profile-omv.sh`
-- `installer/profile-tweaks.sh`
-- `installer/profile-zram.sh`
+- `installer/docker.sh`
+- `installer/extended-device-support.sh`
+- `installer/ensure-7x-kernel.sh`
+- `installer/openmediavault.sh`
+- `installer/debian-tweaks.sh`
+- `installer/zram-writeback.sh`
 - `installer/run-selected.sh`
-- `installer/zram-selection.sh`
+- `installer/zram-writeback-selection.sh`
 - `profile_defaults.conf`
 - `profiles/README.md`
 - `profiles/backports.description`
