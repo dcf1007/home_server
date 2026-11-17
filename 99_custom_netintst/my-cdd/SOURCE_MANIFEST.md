@@ -1,5 +1,17 @@
 # my-cdd source manifest and provenance
 
+## Current source manifest: native lifecycle and reduced duplication — 2026-11-17
+
+**Nearest user prompt:** “implement”, following the audit of the native installer lifecycle, duplicate Simple-CDD postinst verifiers, firmware Debconf license handling and the custom build mirror mechanism.
+
+**Current Git source architecture:** The early selector `installer/profile-confirm.sh` preserves the native `simple-cdd/profiles` multiselect, explicit ordered summary and default-No consent before the original profile udeb is installed. It stages `installer/run-selected.sh` into `/usr/lib/finish-install.d/11my-cdd` and the single status guard into `/usr/lib/finish-install.d/15my-cdd-status`. `profiles/default.preseed` no longer defines `preseed/late_command`, retaining `apt-setup/disable-cdrom-entries=true`. Native order: `10apt-cdrom-setup` → `11my-cdd` → original `14simple-cdd` → `15my-cdd-status`. No direct CD-ROM hook double invocation or custom source editor remains.
+
+**Removed files:** `profiles/debian-tweaks.postinst`, `profiles/backports.postinst`, `profiles/ensure-7x-kernel.postinst`, `profiles/extended-device-support.postinst`, `profiles/zram-writeback.postinst`, `profiles/openmediavault.postinst` and `profiles/docker.postinst`. Removed all `my-cdd-completed` marker generation and status checks; ZRAM relies on explicit independent kernel-profile selection plus dispatcher ordering, not a marker. The final status hook checks only the confirmed profile-selection record and overall `COMPLETE` state, returning Debian's native exit 10 on incomplete execution.
+
+**Existing custom logic deliberately retained:** Full APT simulation, native default-No user transaction review, selected partition and separate destructive/swapoff consent, individual firmware/microcode omission and pre-install vendor-license confirmation, signed official OMV/Docker repositories and normal first-boot service defaults. The user did not authorize dropping these features. Native `apt-install`/`debconf-apt-progress` cannot be treated as an equivalent proven substitute for a *pre-install license decline/omit* procedure. The Debian Simple-CDD 0.6.9 mirror code hard-codes `UDebComponents: main`, so its documented mirror configuration is not yet a demonstrated substitute for the project's existing two-stage `reprepro` component adjustment. Both have been marked for runtime tests rather than speculatively replaced.
+
+**Exact documentation/validation contract:** The 99 construction guides now contain 43 full remaining source listings with matching current Git blob IDs; seven obsolete postinst listings are removed, and the five changed embedded executable/configuration listings were checked byte-for-byte. Historical entries below include pre-refactor source snapshots and are not current instructions. This PR is source-only, unmerged and not a claim of successful ISO/VM or first boot.
+
 ## Native Debian Installer CD-ROM source cleanup reuse — 2026-11-17
 
 **Nearest user instruction:** “isn't the early editor the one from cdd? just call the cdd one early and don't reinvent the wheel”.
