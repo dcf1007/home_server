@@ -7,7 +7,7 @@ This directory contains **Debian Installer integration**, not generic post-insta
 - `profile-confirm.sh`, `profile-confirm.templates`: native early preseed Debconf selection summary, with explicit default-No approval before selected-profile operations.
 - `ordered-selection.sh`: read-only seven-profile order/dependency parser.
 - `run-selected.sh`: selected-only late-command executor, target logging, approval/recovery preflight and ordered dispatch. Its native GTK/text failure note displays the failed command, exit status and real captured stdout/stderr; `in-target` stderr is redirected to stdout within the target to avoid syslog-only diagnostics.
-- `profile-common.sh`: shared signed APT and package-transaction checks.
+- `profile-common.sh`: shared suite/version lookup, profile selection context, and signed APT refresh, without extra package-removal or priority restrictions.
 - `profile-backports.sh`, `profile-kernel.sh`, `profile-firmware.sh`, `profile-zram.sh`, `profile-tweaks.sh`, `profile-omv.sh`, `profile-docker.sh`: specific installer adaptations of the numbered post-install guides.
 - `zram-selection.sh`: installer-native GPT selection using `util-linux-udeb` `blkid`, sysfs, /proc mount/swap state and BusyBox, with separate exact-device approvals.
 - `15my-cdd-status`: finish-install guard; refuses success when a selected profile did not finish.
