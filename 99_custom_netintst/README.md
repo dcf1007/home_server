@@ -12,7 +12,7 @@ For manual configuration of a **normally installed Debian system**, use the corr
 
 1. [Build project](build_project.md) — create Simple-CDD configuration, editable defaults, ISO media lists and the build wrapper.
 2. [Shared profile helpers](profile_construction.md) — create selection validation and target-APT helper functions.
-3. [Installer framework](installer_framework.md) — create native Debian Installer hooks, checkbox/confirmation templates, dispatcher, root recovery preflight and completion guard.
+3. [Installer framework](installer_framework.md) — create native Debian Installer hooks, checkbox/confirmation templates, stage-11 dispatcher, root recovery preflight and single completion guard.
 4. Create the **seven optional profile implementations**, in the logical order below. They are all offered but **none is selected automatically**.
 5. [Validation and VM testing](validation_and_pending.md) — compare complete source hashes, build the ISO, exercise approvals and failure paths in a disposable VM.
 
