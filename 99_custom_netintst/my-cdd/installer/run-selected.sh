@@ -297,7 +297,7 @@ log "CONFIRMED SELECTION: $ordered"
 # Leave all non-CD-ROM sources unchanged.
 for source in /target/etc/apt/sources.list /target/etc/apt/sources.list.d/*.list; do
     [ -f "$source" ] || continue
-    sed -i -E '/^[[:space:]]*deb(-src)?[[:space:]]+(\\[[^]]*\\][[:space:]]+)?cdrom:/s/^/# my-cdd: installer CD-ROM source disabled: /' "$source" ||
+    sed -i -E '/^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:/s/^/# my-cdd: installer CD-ROM source disabled: /' "$source" ||
         fatal "Cannot disable installer CD-ROM APT entries in $source"
 done
 
