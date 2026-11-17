@@ -14,7 +14,6 @@ The profile ID is `docker`, its file is `installer/profile-docker.sh`, and its d
 | --- | --- |
 | `profiles/docker.description` | The text shown next to the separate Docker checkbox. |
 | `profiles/docker.extra` | Makes the Docker module available on the ISO. |
-| `profiles/docker.postinst` | Verifies the Docker completion marker and must be executable. |
 | `installer/profile-docker.sh` | Full selected-only target Docker installation: prerequisites, HTTPS key, signed repository, complete APT review and audit. |
 
 Make the folders if needed:
@@ -37,26 +36,18 @@ Open `profiles/docker.extra` in a text editor, paste the indicated contents and 
 
 The editor opens the file without executing it. Expand the **full listing with the same filename below**, Save the document after reviewing the pasted contents. Do not use an abbreviated snippet instead.
 
-**3. Open `profiles/docker.postinst`.** Verifies the Docker completion marker and must be executable.
-
-Open `profiles/docker.postinst` in a text editor, paste the indicated contents and save it at that path.
-
-The editor opens the file without executing it. Expand the **full listing with the same filename below**, Save the document after reviewing the pasted contents. Do not use an abbreviated snippet instead.
-
-**4. Open `installer/profile-docker.sh`.** Full selected-only target Docker installation: prerequisites, HTTPS key, signed repository, complete APT review and audit.
+**3. Open `installer/profile-docker.sh`.** Full selected-only target Docker installation: prerequisites, HTTPS key, signed repository, complete APT review and audit.
 
 Open `installer/profile-docker.sh` in a text editor, paste the indicated contents and save it at that path.
 
 The editor opens the file without executing it. Expand the **full listing with the same filename below**, Save the document after reviewing the pasted contents. Do not use an abbreviated snippet instead.
 
 
-Make the completion verifier executable:
 
-~~~sh
-chmod +x profiles/docker.postinst
-~~~
 
 This changes permissions only. The main module is sourced by the confirmed installer dispatcher and should not be launched directly.
+
+Only the native Debian Installer `11my-cdd` runner executes these selected-profile functions; `15my-cdd-status` verifies one overall completion state. Simple-CDD's own stage 14 is left unchanged.
 
 ## Step 3 — Understand the exact installer sequence
 
@@ -75,9 +66,6 @@ sh -n installer/profile-docker.sh
 
 This checks only shell syntax; it does not download Docker.
 
-~~~sh
-sh -n profiles/docker.postinst
-~~~
 
 This parses the verifier without running it. Verify exact copies using `git hash-object <path>` compared with the original Git blob SHA shown below; the command reads content only.
 
@@ -105,24 +93,7 @@ installer/profile-docker.sh
 
 </details>
 
-<details>
-<summary><strong>profiles/docker.postinst</strong> — complete file; 11 lines; Git blob <code>3c612478514a65d79baa19c04344f521a46c287c</code></summary>
 
-````sh
-#!/bin/sh
-# Simple-CDD finish-install verification only.
-# The selected profile was performed beforehand by the native Debian
-# Installer late command, where its Debconf approvals were visible.
-# Never execute the profile twice or claim success from mere selection.
-set -eu
-marker="/var/log/installer/my-cdd-completed/docker"
-if [ ! -f "$marker" ]; then
-    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'docker'
-    exit 1
-fi
-````
-
-</details>
 
 <details>
 <summary><strong>installer/profile-docker.sh</strong> — complete file; 31 lines; Git blob <code>110db356d9590cd3a12b0211ca0192a19757ceed</code></summary>
