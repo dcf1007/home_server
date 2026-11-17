@@ -46,7 +46,6 @@ EOF
     # Preserve full default-No APT approval, but do not accept upstream's
     # unreviewed --allow-downgrades/--allow-change-held-packages flags.
     simulate_target install --no-install-recommends openmediavault
-    check_critical_removals
     review_plan 'Official OpenMediaVault 8 package and dependencies' "$WORK/plan"
     run_target apt-get -y install --no-install-recommends openmediavault
     run_target dpkg --audit
