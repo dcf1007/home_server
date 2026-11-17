@@ -1,5 +1,17 @@
 # Guide provenance and scope
 
+## Reuse native finish-install and Simple-CDD lifecycle — 2026-11-17
+
+**Nearest user prompt:** “implement”, following the upstream-reuse audit that identified redundant orchestration, seven marker-only postinst verifiers, the firmware-license template workaround and the manual mirror-udeb adaptation.
+
+**Source implementation:** Keep the original Simple-CDD selection question and its explicit user-approved early Debconf summary. Replace the custom `preseed/late_command` entrypoint with early registration of the single dispatcher as native `/usr/lib/finish-install.d/11my-cdd`. Debian Installer performs native `10apt-cdrom-setup` **first**, once, using the retained unconditional `apt-setup/disable-cdrom-entries=true` setting, then custom selected operations at 11, upstream `14simple-cdd`, and our sole final `15my-cdd-status` check. No direct second CD-ROM hook call. No Simple-CDD or Debian Installer vendor source patch. Selected module order and all explicit APT/destructive/license approvals are unchanged.
+
+**Removed duplication:** Delete all seven trivial `profiles/*.postinst` marker verifiers, per-profile marker writes, and the ZRAM `ensure-7x-kernel` marker check. The selection parser already enforces the independently selected kernel prerequisite; the approved dispatcher executes the successful kernel profile before ZRAM and aborts before ZRAM on any failure. Keep only the global runner status `INCOMPLETE`/ `COMPLETE` and the native exit-10 final completion gate, which is required because Debian Installer otherwise logs most nonzero finish-install script statuses and continues.
+
+**Native limitations confirmed, not silently bypassed:** `apt-install` and `debconf-apt-progress` use native Debconf passthrough for *during-install* package questions, but do not establish the required **pre-install named-license consent and individual package omission** workflow. An earlier VM did fail on the original package license passthrough. The existing native-template extraction/preapproval remains until a verified replacement meets both requirements. Simple-CDD 0.6.9's mirror builder hard-codes `UDebComponents: main`; the project's two-stage local `reprepro` component adjustment remains until a native-only build demonstrates equivalent udeb/firmware coverage. Neither workaround is represented as eliminated.
+
+**Verification boundary:** 43 surviving full source listings and Git blob SHA IDs in the construction guides match the current PR branch; the changed runner, early selector, preseed, final status hook and ZRAM handler match their embedded listings byte-for-byte. All seven deleted verifier listings were removed. No ISO build, full `sh -n`, Debconf VM test or first boot performed. Previous source/provenance entries below record historical stages and may mention deleted code; this section is the current state.
+
 ## Reuse Debian's native CD-ROM cleanup hook before profiles — 2026-11-17
 
 **Nearest user instruction:** “isn't the early editor the one from cdd? just call the cdd one early and don't reinvent the wheel”.
