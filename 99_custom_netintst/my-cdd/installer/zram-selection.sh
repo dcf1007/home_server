@@ -264,5 +264,4 @@ zram_prepare_fstab() {
         fi
         printf '%s\n' "$zf_line" >> "$WORK/zram-safe-fstab"
     done < "$WORK/zram-original-fstab"
-
 }
