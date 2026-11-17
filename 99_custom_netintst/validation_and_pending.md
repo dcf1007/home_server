@@ -1,15 +1,33 @@
 # Validation — Test the scripts and generated Debian installer
 
+## User-directed final simplification — 2026-11-17
+
+**Nearest instruction:** Remove OMV/Docker custom origin gates, ZRAM's duplicate root check, all additional build-time refusal checks, the conditional CD-ROM edit (keep the unconditional native Debian preseed), and ZRAM's installer-only RAM/swapoff threshold refusals. Explain, but do not modify, the selected Debian tweaks manual-updates behavior.
+
+**Implemented in PR #24:** OMV/Docker retain signed APT sources and complete user-approved transactions without additional `apt-cache policy` URL verification. ZRAM retains only the selected-partition confirmation, separate default-No targeted swapoff consent, actual `swapoff` execution and prohibition on overwriting active swap; no RAM reserve or memory-pressure refusal. The duplicate ZRAM root-account check is gone. The custom runner does not modify CD-ROM sources; `profiles/default.preseed` retains unconditional `d-i apt-setup/disable-cdrom-entries boolean true`. Custom build preflights and staged ISO/pkg-content gates are removed; native Simple-CDD/reprepro failures determine build success. Inert network method/keyboard variant build settings were deleted; both selections are still offered through Debian's normal installation screens. The earlier user-approved local root recovery setup is again performed on the base-only path.
+
+**Retained, unchanged:** The Debian tweaks policy checks whether `unattended-upgrades` is installed and currently enabled; only then sets `APT::Periodic::Unattended-Upgrade "0";` exactly once. It is not a restriction on manual APT commands or an OMV/Docker configuration step.
+
+**VM release gates:**
+
+- [ ] Verify native unconditional CD-ROM source removal occurs **before** the custom profiles' initial APT update. Earlier installer-source analysis placed the native `10apt-cdrom-setup` cleanup **after** the custom `07preseed` command; removing the early conditional edit may reproduce the known CD-ROM APT failure.
+- [ ] Validate correct operation and progress dialogs with OMV's signed repository and replacement of `systemd-timesyncd`, followed by Docker installation.
+- [ ] Confirm an installer-activated but unused selected ZRAM swap partitions can be deactivated with only the approved targeted `swapoff`, without arbitrary memory-reserve thresholds.
+- [ ] Confirm base-only root recovery behaves as originally approved, and optional Debian tweaks applies manual-update configuration at most once.
+- [ ] First boot: Linux 7.x matching headers, compressed ZRAM writeback, OMV and Docker services, network/SSH access.
+
+**Validation state:** Source changes only. No fresh ISO build or graphical/text VM test for this revision; the previous screenshot showed a custom OMV APT removal blacklist failure before the actual OMV package installation.
+
 ## Current review branch: user-owned installer policy — 2026-11-17
 
 **Latest observed VM outcome (2026-11-16):** The selected profiles progressed through Debian tweaks and the confirmed ZRAM backing conversion. OMV's signed repository and archive key worked; its APT simulation proposed `Remv systemd-timesyncd`. The *project's own package-removal blacklist* stopped the installer before the user could approve the plan. The actual OMV transaction, Docker and first boot were **not** reached. PR #23's package-specific exception was closed unmerged.
 
-**Current source changes (not ISO-tested):** Removed the shared and kernel/firmware package-name removal blacklists; APT command whitelist; unrequested installer service-start preflight; speculative CD-ROM source rejection/recheck while keeping the narrow source fix addressing an observed CD-ROM problem; Backports old-pin/priority refusals and both redundant empty-plan post-install tests; whole-system swap/`PARTLABEL` rejection unrelated to the chosen ZRAM backing. Removed the extra APT priority lookup after each signed update. Base-only installs no longer run the optional-profile root-password recovery setup.
+**Current source changes (not ISO-tested):** Removed the shared and kernel/firmware package-name removal blacklists; APT command whitelist; unrequested installer service-start preflight; speculative CD-ROM source rejection/recheck while keeping the narrow source fix addressing an observed CD-ROM problem; Backports old-pin/priority refusals and both redundant empty-plan post-install tests; whole-system swap/`PARTLABEL` rejection unrelated to the chosen ZRAM backing. Removed the extra APT priority lookup after each signed update. The later authorized-scope correction restored the previously approved root-recovery setup for base-only installs.
 
 **Required user-owned behavior retained:**
 
 - [ ] The seven profile checkboxes remain genuinely optional, with an unchanged approval summary and no automatically selected optional profile.
-- [ ] A base-only install does not alter root credentials or impose optional profiles' APT/system configuration.
+- [ ] A base-only install still establishes the previously approved local root recovery password, without applying other optional-profile changes.
 - [ ] Selected profiles display the complete simulated APT transaction, including removals, and require native default-No approval. A valid APT plan is not vetoed by a custom package blacklist.
 - [ ] The Backports profile performs the user-approved full upgrade and individually approved cleanup; APT status/error results govern completion rather than repeated “empty plan” tests.
 - [ ] The independent OMV/Docker profiles each use the single official signed repository with no additional policy changes.
