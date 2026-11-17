@@ -12,7 +12,7 @@ For manual configuration of a **normally installed Debian system**, use the corr
 
 1. [Build project](build_project.md) — create Simple-CDD configuration, editable defaults, ISO media lists and the build wrapper.
 2. [Shared profile helpers](profile_construction.md) — create selection validation and target-APT helper functions.
-3. [Installer framework](installer_framework.md) — create native Debian Installer hooks, checkbox/confirmation templates, dispatcher, root recovery preflight and completion guard.
+3. [Installer framework](installer_framework.md) — create native Debian Installer hooks, checkbox/confirmation templates, stage-11 dispatcher, root recovery preflight and single completion guard.
 4. Create the **seven optional profile implementations**, in the logical order below. They are all offered but **none is selected automatically**.
 5. [Validation and VM testing](validation_and_pending.md) — compare complete source hashes, build the ISO, exercise approvals and failure paths in a disposable VM.
 
@@ -42,8 +42,10 @@ After all required files exist, use the guarded `./build.sh` wrapper to create t
 
 ## Recent installer test and open blocker
 
-The latest Debian 13 VM (16 November 2026) progressed through the fixed Debian tweaks stage, the selected ZRAM swap conversion and generator installation, and OMV's signing-key import. The OMV profile then stopped at `apt-get update`; the native failure dialog omitted the actual APT error because `in-target` logged its stderr only to the installer syslog. Docker and first boot were not reached.
+The latest Debian 13 VM (16 November 2026) progressed through Debian tweaks and the approved ZRAM conversion to OMV's APT package simulation. The user-visible plan proposed replacing `systemd-timesyncd`; the project's unrequested hard-coded package blacklist incorrectly stopped the operation before user approval. The native GTK/text failure diagnostics are functioning, but OMV, Docker and first boot remain unverified.
 
-The current shared installer source redirects the target program's stderr to captured stdout **inside** `in-target`, and presents the failing command, exit code, recognized error lines and actual command output in the same GTK/text failure note. OMV's official repository and installation behavior are unchanged pending the actual error. **This logging fix is not yet VM-validated.**
+The revised source removes the unrequested package-removal blacklist, APT operation restrictions, duplicate service and package-origin checks, Backports post-transaction purity gates, profile-conditional CD-ROM source gate, build-time refusal checks and unrelated swap restrictions. The runner unconditionally calls **Debian Installer's existing `10apt-cdrom-setup` hook** before selected profiles, even if none are selected, rather than maintaining a separate CD-ROM source editor. The native unconditional preseed setting remains. Debian normally invokes that same hook again later in finish-install. ZRAM no longer imposes an installer-only RAM reserve on targeted swapoff. APT still displays complete transactions and requests approval; genuine command failures and selected-ZRAM destructive confirmations remain. This refactor requires a fresh disposable-VM test.
 
 Earlier design notes and test history remain under [history](history/). [Provenance](../GUIDE_PROVENANCE.md) records why the standalone and installer versions must be updated together.
+
+**Current selected-profile verification (approved 2026-11-17):** The runner records individual successful profile completion, unmodified Simple-CDD stage 14 invokes the matching executable `.postinst` verifier, and stage 15 checks every selected record and overall status with an exit-10 failure response. Installer handler filenames share their Simple-CDD profile names. These source changes require fresh ISO and disposable-VM validation.

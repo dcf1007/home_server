@@ -1,25 +1,23 @@
 # Simple-CDD 0.6.9 profile inputs
 
-**Recovery preflight:** The shared late installer runner verifies the installed root account before the selected-profile loop and securely requests a password only when root is locked/passwordless. OMV and Docker are separate selectable profiles and neither installs OMV-Extras/Compose.
+The seven optional checkbox names stay in `simple-cdd.conf` and start unchecked. The native `simple-cdd/profiles` Debconf question is reused and explicitly confirmed before the original `simple-cdd-profiles` udeb processes selections. No optional profile is selected automatically.
 
-**Current source layout (2026-11-15):** The seven profile IDs are stable, with clearer installer labels. Fixed and unselected base package policy is inherited from Simple-CDD. Selected operations live in separate `installer/profile-*.sh` modules. These changes are source-only until built and installer-tested.
-
-The working sources here define a **fixed menu of seven optional profiles**, all unchecked, plus a special always-present `default` profile.
-
-| Profile | Intended behavior |
+| Profile | Selected-only operation |
 |---|---|
-| `backports` | Enable signed trixie-backports at priority 100; reviewed eligible upgrade and cleanup |
-| `ensure-7x-kernel` | Backports-first moving 7.x kernel + headers if Backports was selected |
-| `extended-device-support` | Both CPU microcode packages and broad firmware, with explicit omissions |
-| `zram-writeback` | Confirmed raw writeback partition, ZSTD compressed ZRAM and monitor |
-| `debian-tweaks` | Optional nondefault ext4/boot/SSH/update changes |
-| `openmediavault` | OMV 8 package and update policy, preserve admin SSH/sudo |
-| `docker` | Official Docker packages and default daemon/socket startup behavior; no OMV integration |
+| `debian-tweaks` | Approved root filesystem, GRUB, SSH root-login and conditional manual-update settings |
+| `backports` | Signed Debian Backports, complete reviewed upgrade and individually approved cleanup |
+| `ensure-7x-kernel` | Linux 7.x moving image and matching headers |
+| `extended-device-support` | Broad firmware and both CPU microcode families, explicit licenses and omissions |
+| `zram-writeback` | Confirmed raw GPT backing, compressed ZRAM writeback and monitor |
+| `openmediavault` | Official OMV 8 installation and two vendor initialization commands |
+| `docker` | Official Docker Engine/Compose packages and native service defaults |
 
-**Actual source state:** The project intentionally customizes only `default.preseed` to preserve manual, editable Debian Installer questions and approved integration hooks. It no longer overrides `default.packages`: upstream Simple-CDD's original file (including `less`) supplies any default CDD package requests. SSH and standard tasks are editable tasksel suggestions; no unconditional custom sudo, root-password, SSH-policy or update-policy change runs for an unselected base. The project does **not** provide `default.downloads`, `default.udebs` or `default.packages`; Simple-CDD automatically falls back to its own complete copies in `/usr/share/simple-cdd/profiles/` (including GRUB, debootstrap, busybox, storage and installer tools, plus the upstream `simple-cdd-profiles` udeb). The custom `installer-media.downloads` is enabled through `build_profiles="installer-media"` and adds the separate `zstd` command-line package **to the ISO only**, without adding an eighth selectable profile or automatically installing it in the target. ZRAM's kernel compression algorithm is independent of the `zstd` CLI.
+All selected behavior is implemented by `installer/profile-*.sh` modules, sourced once in the approved order by `installer/run-selected.sh`. The original Debian Installer finish-install hook order performs CD-ROM APT cleanup at stage `10apt-cdrom-setup`, then runs the custom executor at registered stage `11my-cdd`, followed by the unmodified Simple-CDD stage `14simple-cdd`. One final `15my-cdd-status` checks the executor's overall completion state before the native success message.
 
-Each optional `*.description` is a real menu item. There are **no optional `.packages` files**, because CDD would queue their packages before required transaction reviews, source configuration and ZRAM conversion or Docker service suppression. Each profile owns a native `.extra` manifest with its source assets; common installer assets remain in `default.extra`. Every optional `*.postinst` verifies a completion record written by the ordered [`installer/run-selected.sh`](../installer/run-selected.sh); it does not perform a second installation.
+**All seven optional profiles have executable `.postinst` verifiers and per-profile completion markers.** Stage 11 writes the marker after its selected handler succeeds; the original Simple-CDD stage 14 runs that profile's verification-only `.postinst` in-target. The stage-15 final guard also checks every selected record and overall `COMPLETE`, returning exit 10 if incomplete. Optional profile `.extra` files stage only their selected handler source/asset inputs; the shared files are supplied by `default.extra`. There are deliberately no optional `.packages` files, because those would queue package installation before the user's complete per-transaction APT review.
 
-**Upstream behavior:** [the Simple-CDD 0.6.9 finish-install runner](https://sources.debian.org/src/simple-cdd/0.6.9/debian/14simple-cdd) executes only executable `*.postinst` files **inside the target**, in the order returned by the selected multiselect. The existing source dispatcher enforces Backports → Ensure 7.x → Extended support → ZRAM → tweaks → OMV → Docker rather than trusting UI selection order, but must still be validated in a running installer. [`../build.sh`](../build.sh) checks that every optional postinst is executable in the Git checkout; its tracked mode is already 100755.
+The native `apt-setup/disable-cdrom-entries=true` preseed option handles installation-CD entries before selected APT transactions, without a duplicate editor or second hook invocation. The build-only `installer-media` profile makes `zstd`, `parted-udeb` and `util-linux-udeb` available on the ISO; it is never a selectable installed-system profile.
 
-**Never embed:** passwords, fixed installation-disk paths, automatically selected profiles, forced filesystem writes or unreviewed APT transactions. See [the preparation guide](../../build_project.md).
+All root-password recovery, APT transaction approvals, firmware omissions and ZRAM destructive confirmations use the existing native Debian Installer GTK/text frontend. Neither OMV nor Docker changes custom SSH, groups or automatic-update policy. A fresh disposable-VM ISO and first-boot test are still required.
+
+**Canonical names:** `profiles/<name>.description`, `profiles/<name>.extra`, `profiles/<name>.postinst` and `installer/<name>.sh` use the identical profile identifier for all seven optional choices. The additional ZRAM helper is `installer/zram-writeback-selection.sh`; general shared framework scripts are not profile-specific.

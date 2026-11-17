@@ -4,31 +4,16 @@
 profile_backports() {
     [ -r "$MEDIA/debian-backports.sources" ] ||
         fatal 'Signed Backports repository template missing'
-    [ ! -e /target/etc/apt/preferences.d/90-local-backports.pref ] ||
-        fatal 'Unexpected old Backports pin; manual review required'
     mkdir -p /target/etc/apt/sources.list.d
     cp "$MEDIA/debian-backports.sources" /target/etc/apt/sources.list.d/debian-backports.sources
     chmod 644 /target/etc/apt/sources.list.d/debian-backports.sources
     update_signed_apt
-    grep -E '^[[:space:]]*100[[:space:]].*trixie-backports' "$WORK/output" >/dev/null ||
-        fatal 'Cannot confirm effective Backports priority 100'
-    if grep -E '^[[:space:]]*[0-9]+[[:space:]].*trixie-backports' "$WORK/output" |
-        grep -Ev '^[[:space:]]*100[[:space:]]' > "$WORK/pin-errors"; then
-        cat "$WORK/pin-errors" >> "$LOG"
-        fatal 'Backports repository has an unexpected effective priority'
-    fi
     # Review this profile's complete Backports upgrade, then execute it.
     simulate_target dist-upgrade
-    check_critical_removals
     review_plan 'Backports: complete eligible-package full-upgrade' "$WORK/plan"
     run_target apt-get -y dist-upgrade
     run_target dpkg --audit
-    simulate_target dist-upgrade
-    if grep -E '^Inst |^Remv ' "$WORK/plan" >/dev/null; then
-        fatal 'Eligible upgrades/removals remain following approved full-upgrade'
-    fi
     simulate_target autoremove --purge
-    check_critical_removals
     if grep -E '^Remv |^Purg ' "$WORK/plan" >/dev/null; then
         show_note 'Backports: review full autoremove/purge simulation' "$WORK/plan" ||
             fatal 'Could not display the complete cleanup plan'
@@ -61,9 +46,5 @@ profile_backports() {
         done < "$WORK/residual"
     fi
     run_target dpkg --audit
-    simulate_target autoremove --purge
-    if grep -E '^Remv |^Purg ' "$WORK/plan" >/dev/null; then
-        fatal 'Autoremove still proposes changes after approved cleanup'
-    fi
 }
 

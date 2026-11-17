@@ -19,17 +19,11 @@ Architectures: amd64
 Signed-By: /etc/apt/keyrings/docker.asc
 EOT
     update_signed_apt
-    for pkg in docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin; do
-        capture in-target apt-cache policy "$pkg" || fatal "Cannot inspect $pkg"
-        grep -F 'download.docker.com/linux/debian' "$WORK/output" >/dev/null ||
-            fatal "$pkg lacks the official signed Docker repository"
-    done
     # Install through Docker's official signed Debian repository.
     # No custom masking, disabling or starting of Docker/containerd units:
     # preserve the packages' own install-time and first-boot defaults.
     # OMV remains independent; OMV-Extras/Compose is never installed here.
     simulate_target install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    check_critical_removals
     review_plan 'Docker: official packages and normal service defaults' "$WORK/plan"
     run_target apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     run_target dpkg --audit

@@ -1,5 +1,93 @@
 # Validation — Test the scripts and generated Debian installer
 
+## User-approved native per-profile completion restoration — 2026-11-17
+
+**Nearest user authorization:** “i agree. use A”, after agreeing to consistent profile file naming and unchanged feature scope. This supersedes the single-status-only design recorded in the next dated section.
+
+**Current source:** The stage-11 `run-selected.sh` runs each approved selected handler once and writes `/target/var/log/installer/my-cdd-completed/<profile>` only after successful return; overall `COMPLETE` follows only after every selected handler succeeds. Unmodified native Simple-CDD stage `14simple-cdd` executes the selected profile's executable `profiles/<profile>.postinst` **in-target**, checking its marker without repeating installation. The final `15my-cdd-status` checks selection approval, overall status and the marker of **every selected profile**, returning native finish-install exit 10 if incomplete. All seven installer handler filenames share the canonical profile stem; the ZRAM helper is `zram-writeback-selection.sh`.
+
+**Outstanding validation:** Confirm executable bits and exact current source listings, successful and failed selected-profile combinations, per-profile marker checks in the native stage-14 hook, a deliberately missing marker at stage 15, installer failure diagnostics and no false final success message. An ISO build, full disposable-VM run, and first-boot checks have **not** been performed for this change.
+
+## Previous native finish-install orchestration refactor (superseded) — 2026-11-17
+
+**Nearest user prompt:** “implement”, in response to the source audit identifying duplicate custom lifecycle orchestration, marker-only Simple-CDD postinst checks, firmware-license template extraction, and manual local mirror edits.
+
+**Implemented source architecture:** `installer/profile-confirm.sh` still uses upstream Simple-CDD's real `simple-cdd/profiles` choice and the user's explicit pre-udeb confirmation. It now registers `run-selected.sh` as native `/usr/lib/finish-install.d/11my-cdd`, together with the one `15my-cdd-status` gate. The default preseed no longer sets `preseed/late_command`. With `apt-setup/disable-cdrom-entries=true`, native Debian Installer executes `10apt-cdrom-setup` **once before** the stage-11 custom runner; no bespoke source editor or second call exists. Upstream `14simple-cdd` remains unmodified. The seven redundant marker-only optional `profiles/*.postinst` files were deleted, as were the runner's per-profile marker writes and the ZRAM marker preflight. The final stage 15 checks only that a confirmed selection exists and the runner's overall status is `COMPLETE`; on failure it returns native finish-install **10**.
+
+**Preserved user requirements:** The same seven optional profiles and explicit selection summary/default-No approval; fixed approved order; separately reviewed full APT transactions including removals; vendor firmware licenses and individually approved omissions; exact selected ZRAM partition and destructive/swapoff confirmations; real diagnostic output; independent official OMV/Docker sources; previously approved root recovery and Debian tweaks conditional manual updates.
+
+**Native reuse boundaries:** Source inspection shows Simple-CDD's normal stage 14 executes optional postinst scripts **in-target**, where the early D-I disk-conversion environment and custom pre-install GTK/text approval workflow are not equivalent. The stage-11 runner therefore remains, but uses Debian's native hook scheduler rather than duplicating its lifecycle. The two firmware vendor licenses must be approved or individually omitted **before** the reviewed transaction, while ordinary APT/Debconf passthrough asks questions during installation; replacing the approved pre-transaction omission workflow is **not proven**. Simple-CDD 0.6.9's `mirror_reprepro.py` hard-codes `UDebComponents: main`, so no verified Simple-CDD configuration-only substitute for the extra installer udeb-component mirror stage exists. The manual mirror adaptation was retained, not silently deleted.
+
+**Source checks:** The 43 remaining complete source listings' Git blob SHA IDs match the current PR branch; the five changed executable/preseed listings match byte-for-byte. All seven deleted `.postinst` files are absent from the Git tree and developer source listings. These are source-level checks, not a successful ISO build.
+
+**New disposable-VM tests required:**
+
+- [ ] Early profile summary and default-No consent still appear once, before native Simple-CDD's selected-profile udeb work
+- [ ] Native `10apt-cdrom-setup` runs before stage `11my-cdd`, disables the observed CD-ROM source, and is **not invoked a second time** by our code
+- [ ] Stage 11 preserves the exact ordered profile set, full APT/GTK transactions, native firmware license and individually approved omission screens, and partition selections
+- [ ] An actual selected-profile failure results in the stage-15 status hook returning exit **10**, preventing an incorrect native installation-complete screen
+- [ ] A base-only install still establishes approved local root recovery and reaches COMPLETE with no optional profile side effects
+- [ ] A full approved OMV/Docker install and ZRAM compressed-writeback first boot succeed on a disposable virtual disk
+
+**No new ISO, successful installer run, firmware-passthrough test, or first boot is claimed.**
+
+## Native apt-cdrom-setup early reuse — 2026-11-17
+
+**Nearest user instruction:** “isn't the early editor the one from cdd? just call the cdd one early and don't reinvent the wheel”.
+
+**Current source:** The bespoke source-list `sed` editor was removed. After profile selection is confirmed, `run-selected.sh` **always invokes the existing Debian Installer `/usr/lib/finish-install.d/10apt-cdrom-setup`** before local root recovery and optional profiles; a real invocation failure is reported through native installer diagnostics. This hook belongs to Debian `apt-setup 1:0.198`, not Simple-CDD. The unconditional preseed value `apt-setup/disable-cdrom-entries=true` remains. The native code comments active `deb cdrom:` in target `sources.list`, adds an explanatory comment and runs target `apt-get update` itself.
+
+**Checks required next disposable VM:** Confirm the native hook is present/usable at the custom `07preseed` stage and removes the actual installed target CD-ROM APT entry **before** other profile transactions. Validate the second, ordinary `10apt-cdrom-setup` invocation; with preseed true, the upstream source can rerun APT refresh and append another explanatory comment. Confirm OMV/Docker install, selected ZRAM conversion and first boot after APT is usable. Current source inspection does **not** establish ISO/VM success.
+
+## Unconditional pre-profile CD-ROM APT cleanup — 2026-11-17
+
+**Nearest user clarification:** “I wanted the CD-ROM cleanup to be non-conditional an happen before the custom profiles and therefore the custom apt transactions”.
+
+**Superseded intermediate implementation in PR #24:** A prior version used bespoke `sed` to disable installer `deb cdrom:` and `deb-src cdrom:` entries (including ordinary `[options]`) from the installed target's `/etc/apt/sources.list` and `/etc/apt/sources.list.d/*.list`. The cleanup is outside any `[ -n "$ordered" ]` gate; it runs even for zero optional profiles. It precedes the previously approved root recovery step, the custom profile loop and **every custom `apt-get` transaction**. Comments and network APT sources remain unchanged. The native unconditional `apt-setup/disable-cdrom-entries` preseed option remains enabled for Debian's later normal finish-install handling.
+
+**Why both steps exist:** Debian Installer calls the custom `preseed/late_command` during `07preseed`, ahead of its later `10apt-cdrom-setup` finish-install cleanup. The native setting therefore cannot by itself protect the custom APT transactions. The early unconditional edit addresses the observed legacy CD-ROM source; it does not add a package-management restriction or new user-selection gate. No blanket rewrite of unrelated Deb822 network sources is introduced.
+
+**Source-level check:** A read-only fixture tested ordinary `deb cdrom:`, `deb-src cdrom:`, bracket-options CD-ROM sources, active network sources and already-commented sources. Four active CD-ROM lines were disabled, two network lines and one inactive comment preserved. Full regenerated ISO and disposable-VM execution remain untested.
+
+**Next VM checkpoint:** Verify the target's legacy CD-ROM APT entries are disabled **before the first selected profile calls APT**. If the installed Debian target uses a CD-ROM Deb822 `.sources` stanza instead of the observed legacy format, inspect its actual contents and adapt the minimal cleanup rather than assuming success.
+
+## User-directed final simplification — 2026-11-17
+
+**Nearest instruction:** Remove OMV/Docker custom origin gates, ZRAM's duplicate root check, all additional build-time refusal checks, the conditional CD-ROM edit (keep the unconditional native Debian preseed), and ZRAM's installer-only RAM/swapoff threshold refusals. Explain, but do not modify, the selected Debian tweaks manual-updates behavior.
+
+**Implemented in PR #24:** OMV/Docker retain signed APT sources and complete user-approved transactions without additional `apt-cache policy` URL verification. ZRAM retains only the selected-partition confirmation, separate default-No targeted swapoff consent, actual `swapoff` execution and prohibition on overwriting active swap; no RAM reserve or memory-pressure refusal. The duplicate ZRAM root-account check is gone. In this **superseded intermediate revision**, the runner did not modify CD-ROM sources; the subsequent clarification above reinstates early cleanup unconditionally. `profiles/default.preseed` retains unconditional `d-i apt-setup/disable-cdrom-entries boolean true`. Custom build preflights and staged ISO/pkg-content gates are removed; native Simple-CDD/reprepro failures determine build success. Inert network method/keyboard variant build settings were deleted; both selections are still offered through Debian's normal installation screens. The earlier user-approved local root recovery setup is again performed on the base-only path.
+
+**Retained, unchanged:** The Debian tweaks policy checks whether `unattended-upgrades` is installed and currently enabled; only then sets `APT::Periodic::Unattended-Upgrade "0";` exactly once. It is not a restriction on manual APT commands or an OMV/Docker configuration step.
+
+**VM release gates:**
+
+- [ ] Verify the **early unconditional runner CD-ROM source edit** completes before the custom profiles' initial APT update. The later native `10apt-cdrom-setup` cleanup alone does not meet this timing requirement.
+- [ ] Validate correct operation and progress dialogs with OMV's signed repository and replacement of `systemd-timesyncd`, followed by Docker installation.
+- [ ] Confirm an installer-activated but unused selected ZRAM swap partitions can be deactivated with only the approved targeted `swapoff`, without arbitrary memory-reserve thresholds.
+- [ ] Confirm base-only root recovery behaves as originally approved, and optional Debian tweaks applies manual-update configuration at most once.
+- [ ] First boot: Linux 7.x matching headers, compressed ZRAM writeback, OMV and Docker services, network/SSH access.
+
+**Validation state:** Source changes only. No fresh ISO build or graphical/text VM test for this revision; the previous screenshot showed a custom OMV APT removal blacklist failure before the actual OMV package installation.
+
+## Current review branch: user-owned installer policy — 2026-11-17
+
+**Latest observed VM outcome (2026-11-16):** The selected profiles progressed through Debian tweaks and the confirmed ZRAM backing conversion. OMV's signed repository and archive key worked; its APT simulation proposed `Remv systemd-timesyncd`. The *project's own package-removal blacklist* stopped the installer before the user could approve the plan. The actual OMV transaction, Docker and first boot were **not** reached. PR #23's package-specific exception was closed unmerged.
+
+**Current source changes (not ISO-tested):** Removed the shared and kernel/firmware package-name removal blacklists; APT command whitelist; unrequested installer service-start preflight; speculative CD-ROM source rejection/recheck while keeping the narrow source fix addressing an observed CD-ROM problem; Backports old-pin/priority refusals and both redundant empty-plan post-install tests; whole-system swap/`PARTLABEL` rejection unrelated to the chosen ZRAM backing. Removed the extra APT priority lookup after each signed update. The later authorized-scope correction restored the previously approved root-recovery setup for base-only installs.
+
+**Required user-owned behavior retained:**
+
+- [ ] The seven profile checkboxes remain genuinely optional, with an unchanged approval summary and no automatically selected optional profile.
+- [ ] A base-only install still establishes the previously approved local root recovery password, without applying other optional-profile changes.
+- [ ] Selected profiles display the complete simulated APT transaction, including removals, and require native default-No approval. A valid APT plan is not vetoed by a custom package blacklist.
+- [ ] The Backports profile performs the user-approved full upgrade and individually approved cleanup; APT status/error results govern completion rather than repeated “empty plan” tests.
+- [ ] The independent OMV/Docker profiles each use the single official signed repository with no additional policy changes.
+- [ ] ZRAM still identifies the exact target GPT partition, confirms destructive conversion and targeted `swapoff` separately, and changes **only** that partition. An unrelated `fstab` swap entry remains untouched and cannot veto the selected conversion.
+- [ ] Genuine operation failures and refused user consent remain visible through the native GTK/text diagnostics.
+- [ ] After a successful installer, verify the Linux 7.x kernel, normal-user SSH access, ZRAM compressed-writeback setup/monitor, OMV/Docker services and first-boot networking.
+
+**Release gate:** The current branch is source-reviewed only. A fresh disposable-VM ISO build and install are necessary; previous screenshots do not establish successful OMV installation or first boot.
+
 ## Confirmed OMV APT keyring permission failure — 2026-11-16
 
 **Newest user-provided VM evidence:** The custom GTK failure dialog now displays the actual command, exit code 100, APT `Err:4` and `E:` diagnostics. The signed OpenMediaVault repository metadata is reachable, but `/usr/bin/sqv` reports `Failed to parse keyring "/usr/share/keyrings/openmediavault-archive-keyring.gpg": Permission denied (os error 13)`; APT consequently reports the repository as unsigned. The attempted repository signature check **did not succeed**, but the error is attributable to inability to read the public keyring rather than demonstrated bad signature content.
@@ -63,7 +151,7 @@ Before making an ISO, reproduce the **file contents from the chapters**, on a sc
 
 1. Follow [Build project](build_project.md), [Shared profile helpers](profile_construction.md), [Installer framework](installer_framework.md) and each selected feature page. Keep the entire current seven-profile set when reconstructing the shipped configuration.
 2. For each created file, run `git hash-object <path>` from `my-cdd`. It **reads the file only** and prints a Git blob identifier. Compare that output with the expected blob SHA printed above the file's full listing. A mismatch means the copy differs.
-3. Confirm `build.sh`, `installer/profile-confirm.sh`, `installer/run-selected.sh`, `installer/15my-cdd-status` and every `profiles/*.postinst` have executable permissions. The imported feature modules should remain **sourced** files.
+3. Confirm `installer/profile-confirm.sh`, `installer/run-selected.sh`, `installer/15my-cdd-status` and all seven `profiles/*.postinst` verifiers have executable permissions. The imported feature modules should remain **sourced** files.
 4. Confirm every path in each `profiles/*.extra` exists before running the build. A module is not executed merely because it was staged.
 5. Do not run sourced installer modules on a host machine. Their behavior must be exercised in the **Debian Installer VM**.
 
@@ -78,12 +166,12 @@ A shell syntax check and a successful ISO build are **not** equivalent to testin
 From `99_custom_netintst/my-cdd`, parse your changed module without executing it:
 
 ~~~sh
-sh -n installer/profile-zram.sh
+sh -n installer/zram-writeback.sh
 ~~~
 
 This is an example. Change the filename to the module you actually edited. `sh -n` checks POSIX shell syntax **without running disk writes or APT**.
 
-Check that the relevant `profiles/<name>.description`, `.extra` and `.postinst` exist. The source file must be listed in the appropriate media manifest; the postinst should verify a completion marker, not repeat installation.
+Check that each selected feature has its own `profiles/<name>.description` and `.extra`, and that its handler is staged by Simple-CDD. All seven optional `.postinst` files verify per-profile completion markers; the runner's overall `COMPLETE` status is checked at stage 15.
 
 Confirm that `simple-cdd.conf` still has the seven offered profiles and **empty** `auto_profiles` and `default_profiles`. Verify that new code is inside a **selected function**, not executed when sourced unconditionally.
 
@@ -158,3 +246,11 @@ Use only a **disposable GPT virtual disk**. Test all of the following before usi
 **Open as of 2026-11-16:** the current native-udeb ZRAM conversion, complete GUI/target APT flow and first-boot writeback have **not** been validated end to end. Do not use the new ISO on important physical disks until these tests pass.
 
 Historical design and earlier failure logs remain in [the original archived validation notes](history/08_validation_and_pending.md).
+
+## Route A additional completion verification tests
+
+- [ ] Select two or more profiles; confirm an individual success record is created only after each handler returns success
+- [ ] Confirm native Simple-CDD stage 14 executes exactly the approved executable `profiles/<name>.postinst` verifiers in-target, without executing the selected installation handlers again
+- [ ] With a selected profile marker absent, confirm stage 15 returns **10** even if the global status file contains `COMPLETE`
+- [ ] On a failed profile handler, confirm no marker is written for that profile and native Debian Installer does not display a false success screen
+- [ ] Confirm all seven selected handler files and the ZRAM helper are staged from their matching native `.extra` manifests

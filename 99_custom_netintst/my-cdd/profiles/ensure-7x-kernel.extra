@@ -1,2 +1,2 @@
 # ensure-7x-kernel: source assets copied by Simple-CDD (not automatically installed).
-installer/profile-kernel.sh
+installer/ensure-7x-kernel.sh

@@ -18,13 +18,13 @@ cd home_server/99_custom_netintst/my-cdd
 
 For an existing clone, `git pull --ff-only` first and then run `./build.sh` from this directory. Intended output: `images/debian-13-amd64-CD-1.iso`. Build logs are produced here (`build-mirror-debug.log`, `build-debug.log`, `build-terminal.log`, `tmp/log/`).
 
-The complete [build-project construction guide](../build_project.md) explains every required file and check. The [build.sh](build.sh) script keeps upstream Simple-CDD `default.*` inputs, runs mirror-only then build-only to handle installer `UDebComponents`, generates editable preseed suggestions from [profile_defaults.conf](profile_defaults.conf), validates shell syntax and staged assets, and checks that `zstd` plus `parted-udeb` and `util-linux-udeb` are present on the ISO.
+The complete [build-project construction guide](../build_project.md) explains the build inputs and commands. [build.sh](build.sh) generates editable preseed suggestions from [profile_defaults.conf](profile_defaults.conf), runs Simple-CDD's mirror-only and build-only stages and propagates native build errors. The extra custom build refusal/ISO-content checks have been removed as requested.
 
 ## Source layout
 
 - [simple-cdd.conf](simple-cdd.conf): seven optional profiles, all initially unchecked, no automatic selection.
-- [profiles/](profiles): profile descriptions, `.extra` packaging inputs, completion-verifying postinst scripts, and the **build-only** media profile.
-- [installer/](installer): native GTK/text Debconf confirmation, ordered late-command dispatcher, selected-only modules and fail-closed completion guard.
+- [profiles/](profiles): profile descriptions, `.extra` staging inputs, native per-profile `.postinst` success verifiers, and the **build-only** media profile.
+- [installer/](installer): native GTK/text Debconf confirmation, selected-only stage-11 finish-install dispatcher, and single stage-15 completion guard.
 - [scripts/](scripts): inputs staged on the ISO (Backports source, firmware inventory, ZRAM generator and monitor).
 - [profile_defaults.conf](profile_defaults.conf): editable suggestions for native installer questions, **not** passwords, disk selection or preapproved optional profiles.
 - [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md): detailed chronological source provenance and past defects.
@@ -33,8 +33,10 @@ The complete [build-project construction guide](../build_project.md) explains ev
 
 ### Why the installer differs from the standalone guides
 
-`udebs` are not ordinary Debian packages: Debian Installer is a stripped-down environment. Partition discovery/conversion uses native `blkid` from `util-linux-udeb`, `parted-udeb`, BusyBox, `/sys` and `/proc`. The ordinary [ZRAM guide](../../06_zram_writeback/README.md) can use full `wipefs` and `sgdisk` instead. Other installer-only mechanisms include `in-target`, cdebconf and preseed/late_command.
+`udebs` are not ordinary Debian packages: Debian Installer is a stripped-down environment. Partition discovery/conversion uses native `blkid` from `util-linux-udeb`, `parted-udeb`, BusyBox, `/sys` and `/proc`. The ordinary [ZRAM guide](../../06_zram_writeback/README.md) can use full `wipefs` and `sgdisk` instead. Other installer-only mechanisms include `in-target`, cdebconf and Debian's native finish-install hook directory. The stage-10 CD-ROM cleanup now precedes the stage-11 profile executor without a custom source editor or double invocation.
 
-**Validation:** The 2026-11-16 newer VM progressed through the former Debian tweaks failure and the ZRAM partition conversion to the OMV profile, then stopped at OMV's `apt-get update`. The command's true stderr was missing from the dialog because Debian Installer logged it only to syslog. The revised common runner redirects target stderr into captured output and displays the actual failing command/output in the native GTK/text error note. **The OMV repository error itself remains unknown and this diagnostic correction awaits a new ISO/VM test; first-boot ZRAM is unverified.** See [active release gates](../validation_and_pending.md).
+**Validation:** The latest 2026-11-16 VM progressed through the approved ZRAM conversion and OMV signed APT repository to its complete package simulation. The custom, unrequested essential-package blacklist stopped the installation on a proposed `systemd-timesyncd` replacement before transaction approval. This review branch removes that policy and the other unapproved installer restrictions; APT plans and explicit approvals remain. **A rebuilt ISO, full OMV/Docker installation and first-boot ZRAM checks are still pending.** See [active release gates](../validation_and_pending.md).
 
 The previous long README, including the detailed VM failures and obsolete interim tool strategies, is preserved in [history/my-cdd-README-20261115.md](../history/my-cdd-README-20261115.md).
+
+**Current completion contract:** The existing stage-11 runner records individual selected-profile completion; native stage-14 Simple-CDD invokes each selected `.postinst` verifier; stage 15 refuses completion when any selected record or the overall status is missing. Installer modules share filenames with their Simple-CDD profile definitions. ISO and first-boot validation remain pending.

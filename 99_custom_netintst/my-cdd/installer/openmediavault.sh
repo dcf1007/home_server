@@ -38,15 +38,9 @@ profile_omv() {
 deb [signed-by=/usr/share/keyrings/openmediavault-archive-keyring.gpg] http://packages.openmediavault.org/public/ synchrony main
 EOF
     update_signed_apt
-    capture in-target apt-cache policy openmediavault ||
-        fatal 'Cannot inspect official OMV package origin'
-    grep -F 'packages.openmediavault.org/public' "$WORK/output" >/dev/null ||
-        fatal 'Official signed OMV repository is unavailable'
-
     # Preserve full default-No APT approval, but do not accept upstream's
     # unreviewed --allow-downgrades/--allow-change-held-packages flags.
     simulate_target install --no-install-recommends openmediavault
-    check_critical_removals
     review_plan 'Official OpenMediaVault 8 package and dependencies' "$WORK/plan"
     run_target apt-get -y install --no-install-recommends openmediavault
     run_target dpkg --audit

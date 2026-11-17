@@ -19,9 +19,9 @@ This creates the folders in which the installer code and media lists belong; it 
 | File | Purpose |
 | --- | --- |
 | `profiles/default.extra` | Copies the shared hooks, templates, selector, dispatcher and generated defaults onto the ISO. |
-| `profiles/default.preseed` | Connects the original Debian Installer's `preseed/early_command` and `preseed/late_command` hooks to our own scripts without patching an installer udeb. |
+| `profiles/default.preseed` | Uses Simple-CDD's original early profile question and Debian Installer's native finish-install hook sequence; no custom late command. |
 
-Open each named file in a text editor, paste its **complete listing** from below, review the contents and save it at the specified path. The important distinction is timing: early command makes choices and records consent; late command works on the now-installed Debian system under `/target`.
+Open each named file in a text editor, paste its **complete listing** from below, review the contents and save it at the specified path. The important distinction is timing: early selection records consent; the stage-11 native finish-install hook works on the installed Debian system under `/target`.
 
 ## Step 3 — Create early selection and native consent
 
@@ -36,18 +36,20 @@ Paste the complete matching listings below. The early hook must run **before** `
 
 | File | Purpose |
 | --- | --- |
-| `installer/run-selected.sh` | Supplies `capture`, `fatal`, target-APT simulation and review helpers; checks local root recovery access; sources and runs only selected functions; writes completion markers and shows real failed-command output in the native failure dialog. |
-| `installer/15my-cdd-status` | Finish-install hook that blocks success if status is not `COMPLETE` or a selected marker is absent. |
+| `installer/run-selected.sh` | Supplies native Debconf review, command diagnostics and execution of the approved selected handlers at stage `11my-cdd`; writes an individual success marker after each selected handler returns successfully and an overall final status. |
+| `installer/15my-cdd-status` | Finish-install hook that backs up if selection confirmation, final `COMPLETE` status or any selected profile's success marker is missing. |
 
-Paste both entire listings below. **Do not trim `run-selected.sh` down to the short dispatcher excerpt.** Its review and error-handling code is necessary for safety. Target stderr is redirected to stdout **inside the `in-target` chroot**, because Debian Installer otherwise sends it only to syslog. On failure, the native GTK/text note shows the failed command, return status, recognized APT/dpkg error lines and the last 100 lines of actual command output. The complete log is still retained in `/target/var/log/installer/my-cdd.log`. The guard uses Debian Installer's finish-install **exit status 10**, not a generic shell exit 1.
+Paste both entire listings below. **Do not trim `run-selected.sh` down to the short dispatcher excerpt.** It preserves native transaction approval and direct command failures, without a project-defined package-removal blacklist, APT operation whitelist, or unrelated environment preflights. Target stderr is redirected to stdout **inside the `in-target` chroot**, because Debian Installer otherwise sends it only to syslog. On failure, the native GTK/text note shows the failed command, return status, recognized APT/dpkg error lines and the last 100 lines of actual command output. The complete log is still retained in `/target/var/log/installer/my-cdd.log`. The guard uses Debian Installer's finish-install **exit status 10**, not a generic shell exit 1.
 
-Mark only the actual **entry points** as executable:
+Each optional profile also has a native executable `profiles/<name>.postinst` verification script, whose complete source appears in its feature construction guide. The original Simple-CDD stage `14simple-cdd` executes selected verifiers within the target, not the installation handlers again. Enable executable permissions on those seven `.postinst` files, but not on the sourced feature handlers.
+
+Mark the shared **entry points** as executable:
 
 ~~~sh
 chmod +x installer/profile-confirm.sh installer/run-selected.sh installer/15my-cdd-status
 ~~~
 
-The ordinary `installer/profile-*.sh` feature modules are *sourced*, and should not be given a separate entry point.
+The ordinary `installer/<profile>.sh` feature modules are *sourced*, and should not be given a separate entry point.
 
 ## Step 5 — Check the framework
 
@@ -76,9 +78,9 @@ The complete files depend on [Shared profile helpers](profile_construction.md) a
 1. `profiles/default.preseed` loads generated editable defaults, then **early** selection and consent.
 2. The accepted profile list is stored only in private installer work data. During native Debian account setup, leave the root-password fields empty so the first user is granted sudo. Before optional profile operations, the late dispatcher verifies that the new account really belongs to the sudo group and that sudo exists; it then asks for a separate local root recovery password through Debian's own password questions.
 3. Debian continues with **native** partitioning, mirror, accounts and tasksel screens.
-4. The **late** dispatcher verifies the original selection and usable local root recovery, prepares target APT, and sources the chosen handlers in fixed order. **Debian tweaks now runs first**, ahead of Backports, kernel, firmware and the destructive ZRAM stage.
-5. Each handler completes **before** its marker is created; the corresponding `.postinst` checks that marker only.
-6. Finish-install's status guard refuses a normal-success screen if the overall status or any selected marker is missing.
+4. Debian Installer runs native **`10apt-cdrom-setup`** with the unconditional `apt-setup/disable-cdrom-entries=true` setting, then the registered **`11my-cdd`** runner, then upstream **`14simple-cdd`**. The runner confirms the approved selection, establishes local root recovery and executes handlers in order: Debian tweaks → Backports → kernel → firmware → ZRAM → OMV → Docker. It never calls the CD-ROM hook again.
+5. After each selected handler returns successfully, the runner writes its individual completion record. Only after **all** approved handlers succeed does it write overall `COMPLETE`. Original Simple-CDD stage `14simple-cdd` executes each selected executable `profiles/<name>.postinst` in-target to verify the record without rerunning the installer handler.
+6. The final `15my-cdd-status` verifies the confirmed selection, overall `COMPLETE` and the presence of a completion marker **for every selected profile**. It returns native finish-install **exit 10** on failure, preventing an erroneous success screen.
 
 **Next:** implement each feature from its chapter, run [Validation](validation_and_pending.md), and **test approvals and failure paths before production use**.
 
@@ -106,7 +108,7 @@ installer/15my-cdd-status
 
 
 <details>
-<summary><strong>Complete file: profiles/default.preseed</strong> (20 lines, current Git blob <code>0d5971206483997eaba0de1f4dc2f2f4c734100f</code>)</summary>
+<summary><strong>Complete file: profiles/default.preseed</strong> (19 lines, current Git blob <code>e4e73aa162e1a9a2f5e4228606fab34c34e3ff4c</code>)</summary>
 
 ````text
 # my-cdd minimal default profile for Debian 13.
@@ -124,18 +126,17 @@ d-i preseed/include string defaults.preseed
 # Its failure MUST prevent anna-install from running.
 # The upstream simple-cdd-profiles component remains unmodified.
 d-i preseed/early_command string /bin/sh /cdrom/simple-cdd/profile-confirm.sh && anna-install simple-cdd-profiles
-# Let Debian's own late finish-install cleanup also disable an installer-
-# only CD-ROM APT source. The custom 07preseed hook needs to do it earlier
-# when selected profiles use network APT before that cleanup runs.
+# Let Debian Installer's existing finish-install hook order handle this:
+# 10apt-cdrom-setup disables CD-ROM APT sources once; our registered
+# 11my-cdd hook then runs approved custom profiles before 14simple-cdd.
 d-i apt-setup/disable-cdrom-entries boolean true
-d-i preseed/late_command string /bin/sh /cdrom/simple-cdd/run-selected.sh
 ````
 
 </details>
 
 
 <details>
-<summary><strong>Complete file: installer/profile-confirm.sh</strong> (125 lines, current Git blob <code>b88e2656d7365593cf0caa67e599db10997b9565</code>)</summary>
+<summary><strong>Complete file: installer/profile-confirm.sh</strong> (130 lines, current Git blob <code>322b8aba7ff6e1a262faaa13542d154960ff72c7</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -149,24 +150,29 @@ CDDIR=/cdrom/simple-cdd
 ORDER_HELPER="$CDDIR/ordered-selection.sh"
 TEMPLATE_SIMPLE="$CDDIR/simple-cdd.templates"
 TEMPLATE_CONFIRM="$CDDIR/profile-confirm.templates"
+FINISH_RUNNER="$CDDIR/run-selected.sh"
 FINISH_GUARD="$CDDIR/15my-cdd-status"
 
 stop() {
     printf >&2 'my-cdd early profile gate: STOP: %s\n' "$*"
     exit 1
 }
-for required in "$ORDER_HELPER" "$TEMPLATE_SIMPLE" "$TEMPLATE_CONFIRM" "$FINISH_GUARD"; do
+for required in "$ORDER_HELPER" "$TEMPLATE_SIMPLE" "$TEMPLATE_CONFIRM" "$FINISH_RUNNER" "$FINISH_GUARD"; do
     [ -r "$required" ] || stop "missing installer-media source: $required"
 done
 command -v debconf-loadtemplate >/dev/null 2>&1 ||
     stop 'debconf-loadtemplate is not available in the installer'
 
-# Register the project's status gate before finish-install enumerates its
-# hooks. 07preseed runs our late command; 14simple-cdd runs completion
-# verifiers; this 15 hook stops success reporting unless all actually finish.
-# No upstream udeb or installed target-system hook is patched.
+# Use Debian Installer's existing finish-install hook order:
+# 10apt-cdrom-setup -> 11my-cdd -> 14simple-cdd -> 15my-cdd-status.
+# Register the selected-profile runner and final completion gate here,
+# before finish-install enumerates its hooks. Do not patch upstream scripts.
 mkdir -p /usr/lib/finish-install.d ||
     stop 'Cannot locate Debian Installer finish-install hook directory'
+cp "$FINISH_RUNNER" /usr/lib/finish-install.d/11my-cdd ||
+    stop 'Cannot register selected-profile finish-install hook'
+chmod 755 /usr/lib/finish-install.d/11my-cdd ||
+    stop 'Cannot make selected-profile hook executable'
 cp "$FINISH_GUARD" /usr/lib/finish-install.d/15my-cdd-status ||
     stop 'Cannot register custom finish-install completion gate'
 chmod 755 /usr/lib/finish-install.d/15my-cdd-status ||
@@ -379,12 +385,12 @@ Description: Remove the package ${MYCDD_REMOVAL}?
 
 
 <details>
-<summary><strong>Complete file: installer/run-selected.sh</strong> (392 lines, current Git blob <code>c59a0f935a2911357a318fc558d68960bf77b35c</code>)</summary>
+<summary><strong>Complete file: installer/run-selected.sh</strong> (318 lines, current Git blob <code>0604f9f40b06e735a038249a4ba709d2a4a433f8</code>)</summary>
 
 ````sh
 #!/bin/sh
 # Debian Installer-side executor: native cdebconf, no patched udeb.
-# Called at the existing preseed/late_command stage before 14simple-cdd.
+# Registered at 11my-cdd in Debian Installer finish-install, after native CD-ROM cleanup.
 set -eu
 umask 077
 MEDIA=/cdrom/simple-cdd
@@ -534,51 +540,24 @@ review_plan() {
     approve "$1"
 }
 run_target() {
-    # Profiles call apt-get directly. For approved package transactions,
-    # show native Debian Installer GTK/text progress via Debconf.
-    # Preserve their exact arguments; no implicit APT command translation.
+    # Retain the native Debian Installer APT progress UI. Profile calls and
+    # the complete reviewed plan determine which operation executes.
     if [ "$1" = apt-get ]; then
-        shift
-        case "$1" in
-            update)
-                [ "$#" -eq 1 ] || fatal 'Unexpected apt-get update arguments'
-                ;;
-            -y)
-                case "${2-}" in
-                    dist-upgrade|install|autoremove) : ;;
-                    *) fatal "Unsupported reviewed apt-get transaction: $*" ;;
-                esac
-                ;;
-            *) fatal "Unexpected apt-get operation: $*" ;;
-        esac
-        # Never force DEBIAN_FRONTEND=noninteractive for package installs.
-        capture in-target debconf-apt-progress --logstderr -- apt-get "$@" ||
-            fatal "Target APT transaction failed: apt-get $*"
+        capture in-target debconf-apt-progress --logstderr -- "$@" ||
+            fatal "Target APT transaction failed: $*"
     else
         capture in-target "$@" || fatal "Target command failed: $*"
     fi
 }
 simulate_target() {
-    # APT simulations and real operations both use apt-get directly.
-    case "$1" in
-        dist-upgrade|install|autoremove) : ;;
-        *) fatal "Unsupported APT simulation: $*" ;;
-    esac
     capture in-target apt-get -s "$@" ||
         fatal "APT simulation failed: apt-get -s $*"
     cp "$WORK/output" "$WORK/plan"
-}
-check_critical_removals() {
-    if grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/plan" > "$WORK/critical"; then
-        cat "$WORK/critical" >> "$LOG"
-        fatal 'Proposed removal of boot/essential administration packages; explicit manual resolution required'
-    fi
 }
 review_install() {
     name=$1
     shift
     simulate_target install "$@"
-    check_critical_removals
     review_plan "$name" "$WORK/plan"
     run_target apt-get -y install "$@"
     run_target dpkg --audit
@@ -701,70 +680,23 @@ ordered="$(/bin/sh "$MEDIA/ordered-selection.sh" "$RET")" ||
 db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 [ "$RET" = true ] || fatal 'The early profile summary was not approved'
 log "CONFIRMED SELECTION: $ordered"
+
 ensure_root_recovery
-
-# Debian Installer's in-target wrapper already installs a temporary policy-rc.d
-# that rejects maintainer-script service starts. Check that native protection
-# before any selected custom APT transaction; do not create another policy,
-# mask units, or change target first-boot enablement.
-if [ -n "$ordered" ]; then
-    capture in-target sh -c '
-        [ -x /usr/sbin/policy-rc.d ] || exit 1
-        /usr/sbin/policy-rc.d my-cdd-installer-preflight start
-        [ "$?" -eq 101 ]
-    ' || fatal 'Debian Installer target service-start protection is missing'
-    log 'Confirmed native in-target package-service startup suppression'
-fi
-
-# Debian Installer apt-setup may leave its CD-ROM APT source active until
-# finish-install's later 10apt-cdrom-setup hook. Our custom APT transactions
-# run in 07preseed, BEFORE that native cleanup. APT update cannot refresh
-# a cdrom: source; disable only those local entries in the target APT list.
-# Do not change the installer medium, remove online sources, or alter mirrors.
-disable_installer_cdrom_sources() {
-    for source in /target/etc/apt/sources.list /target/etc/apt/sources.list.d/*.list; do
-        [ -f "$source" ] || continue
-        if grep -Eq '^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:' "$source"; then
-            sed -i -E '/^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:/s/^/# my-cdd: disabled installer CD-ROM source: /' "$source" ||
-                fatal "Cannot disable installer-only APT CD-ROM entry in $source"
-            log "Disabled installer CD-ROM APT entry in $source"
-        fi
-    done
-    # Keep unfamiliar deb822 arrangements intact rather than disabling a
-    # stanza that may mix CD-ROM and online URIs.
-    for source in /target/etc/apt/sources.list.d/*.sources; do
-        [ -f "$source" ] || continue
-        if grep -Eiq '^[[:space:]]*URIs:[[:space:]]+cdrom:' "$source"; then
-            fatal "Unexpected active deb822 CD-ROM source in $source; manual APT-source review required"
-        fi
-    done
-    # Fail closed if an active legacy CD-ROM source escaped the narrow edit.
-    for source in /target/etc/apt/sources.list /target/etc/apt/sources.list.d/*.list; do
-        [ -f "$source" ] || continue
-        if grep -Eq '^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:' "$source"; then
-            fatal "Installer CD-ROM entry remains active in $source"
-        fi
-    done
-}
-
-if [ -n "$ordered" ]; then
-    disable_installer_cdrom_sources
-fi
 
 for profile in $ordered; do
     log "PROFILE BEGIN: $profile"
     case "$profile" in
-        debian-tweaks) module=tweaks; handler=profile_tweaks ;;
+        debian-tweaks) module=debian-tweaks; handler=profile_tweaks ;;
         backports) module=backports; handler=profile_backports ;;
-        ensure-7x-kernel) module=kernel; handler=profile_kernel ;;
-        extended-device-support) module=firmware; handler=profile_firmware ;;
-        zram-writeback) module=zram; handler=profile_zram ;;
-        openmediavault) module=omv; handler=profile_omv ;;
+        ensure-7x-kernel) module=ensure-7x-kernel; handler=profile_kernel ;;
+        extended-device-support) module=extended-device-support; handler=profile_firmware ;;
+        zram-writeback) module=zram-writeback; handler=profile_zram ;;
+        openmediavault) module=openmediavault; handler=profile_omv ;;
         docker) module=docker; handler=profile_docker ;;
         *) fatal "Unknown selected profile: $profile" ;;
     esac
-    [ -r "$MEDIA/profile-$module.sh" ] || fatal "Missing selected module: $module"
-    . "$MEDIA/profile-$module.sh"
+    [ -r "$MEDIA/$module.sh" ] || fatal "Missing selected module: $module"
+    . "$MEDIA/$module.sh"
     "$handler"
     printf 'Completed: %s\n' "$profile" > "$LOG_DIR/my-cdd-completed/$profile"
     chmod 600 "$LOG_DIR/my-cdd-completed/$profile"
@@ -780,14 +712,13 @@ exit 0
 
 
 <details>
-<summary><strong>Complete file: installer/15my-cdd-status</strong> (25 lines, current Git blob <code>7da85e3e09c57c9b184748a083cc30c4fa801b3f</code>)</summary>
+<summary><strong>Complete file: installer/15my-cdd-status</strong> (24 lines, current Git blob <code>6707fbd22d61d2c4fa2ab383595e2c6e7c8a15c8</code>)</summary>
 
 ````sh
 #!/bin/sh
-# Run by Debian Installer's unmodified finish-install after 07preseed
-# and Simple-CDD's 14simple-cdd, BEFORE its 20final-message.
-# Exit 10 is the documented finish-install "back up" code, unlike exit 1
-# which finish-install only warns about before continuing to "Complete".
+# Debian Installer finish-install stage 15, after native Simple-CDD stage 14.
+# Keep native per-profile postinst checks and independently check each approved
+# profile's completion marker. Exit 10 stops a misleading success screen.
 set -eu
 status=/target/var/log/installer/my-cdd-status
 confirmed=/tmp/my-cdd-confirmed-profiles
@@ -804,8 +735,8 @@ if [ -f "$status" ] && [ "$(cat "$status")" = COMPLETE ] &&
     fi
 fi
 
-logger -t my-cdd 'Custom profiles are incomplete; stopping finish-install before its success message' || :
-printf >&2 '%s\n' 'my-cdd: selected profiles did not complete. See /target/var/log/installer/my-cdd.log and my-cdd-status.' \
+logger -t my-cdd 'Selected profiles did not all complete; returning to main menu' || :
+printf >&2 '%s\n' 'my-cdd: selected profiles did not all complete. See /target/var/log/installer/my-cdd.log and my-cdd-status.' \
     'Returning to Debian Installer main menu instead of reporting Installation complete.'
 exit 10
 ````

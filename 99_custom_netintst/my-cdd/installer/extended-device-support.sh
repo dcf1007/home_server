@@ -122,24 +122,20 @@ profile_firmware() {
         if [ -n "$bpo" ]; then
             candidate="$pkg/trixie-backports"
             if capture in-target apt-get -s install $(cat "$WORK/firmware-selectors") "$candidate"; then
-                if ! grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/output" >/dev/null; then
-                    selector=$candidate
-                fi
-            fi
-            [ -n "$selector" ] ||
+                selector=$candidate
+            else
                 reason='Backports candidate incompatible with existing requested set; details in complete APT log'
+            fi
         fi
         if [ -z "$selector" ] && [ -n "$stable" ]; then
             candidate="$pkg/$stable"
             if capture in-target apt-get -s install $(cat "$WORK/firmware-selectors") "$candidate"; then
-                if ! grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/output" >/dev/null; then
-                    selector=$candidate
-                    if backports_is_selected; then
-                        [ -n "$reason" ] || reason='No published Backports version'
-                        stable_version="$(suite_version "$pkg" "$stable")"
-                        printf '%s: version=%s, origin=%s, fallback reason=%s\n' \
-                            "$pkg" "$stable_version" "$stable" "$reason" >> "$WORK/firmware-fallbacks"
-                    fi
+                selector=$candidate
+                if backports_is_selected; then
+                    [ -n "$reason" ] || reason='No published Backports version'
+                    stable_version="$(suite_version "$pkg" "$stable")"
+                    printf '%s: version=%s, origin=%s, fallback reason=%s\n' \
+                        "$pkg" "$stable_version" "$stable" "$reason" >> "$WORK/firmware-fallbacks"
                 fi
             fi
         fi
@@ -160,7 +156,6 @@ profile_firmware() {
     done
     [ -s "$WORK/firmware-selectors" ] || fatal 'No approved firmware packages remain'
     simulate_target install $(cat "$WORK/firmware-selectors")
-    check_critical_removals
     {
         echo 'All chosen firmware/microcode package selectors:'
         cat "$WORK/firmware-selectors"
@@ -196,7 +191,6 @@ profile_firmware() {
         fatal 'No approved firmware packages remain after license decisions'
     if [ "$license_omitted" = true ]; then
         simulate_target install $(cat "$WORK/firmware-selectors")
-        check_critical_removals
         for licensed_pkg in firmware-ipw2x00 firmware-ivtv; do
             if grep -q "^$licensed_pkg: license declined;" "$WORK/firmware-omissions"; then
                 if grep -Eq "^Inst $licensed_pkg([ :]|$)" "$WORK/plan"; then

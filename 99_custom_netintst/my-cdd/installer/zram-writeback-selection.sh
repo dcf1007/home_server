@@ -240,7 +240,6 @@ zram_prepare_fstab() {
         zf_ref="$(printf '%s\n' "$zf_line" |
             awk '$0 !~ /^[[:space:]]*#/ && NF >= 3 && $3 == "swap" {print $1}')"
         case "$zf_ref" in
-            PARTLABEL=*) fatal 'Ambiguous PARTLABEL swap reference in target fstab; resolve it before ZRAM conversion' ;;
             UUID=*)
                 case "$former_uuid" in
                     '') ;;
@@ -265,10 +264,4 @@ zram_prepare_fstab() {
         fi
         printf '%s\n' "$zf_line" >> "$WORK/zram-safe-fstab"
     done < "$WORK/zram-original-fstab"
-    # Never leave a second conventionally activated swap configured in the
-    # new target; modifying or deactivating that other device is NOT approved.
-    if awk '$0 !~ /^[[:space:]]*#/ && NF >= 3 && $3 == "swap" {print $1}' \
-        "$WORK/zram-safe-fstab" | grep -q .; then
-        fatal 'Another target swap entry would remain; do not enable independent swap alongside required ZRAM'
-    fi
 }

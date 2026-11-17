@@ -1,6 +1,6 @@
 #!/bin/sh
 # Debian Installer-side executor: native cdebconf, no patched udeb.
-# Called at the existing preseed/late_command stage before 14simple-cdd.
+# Registered at 11my-cdd in Debian Installer finish-install, after native CD-ROM cleanup.
 set -eu
 umask 077
 MEDIA=/cdrom/simple-cdd
@@ -150,51 +150,24 @@ review_plan() {
     approve "$1"
 }
 run_target() {
-    # Profiles call apt-get directly. For approved package transactions,
-    # show native Debian Installer GTK/text progress via Debconf.
-    # Preserve their exact arguments; no implicit APT command translation.
+    # Retain the native Debian Installer APT progress UI. Profile calls and
+    # the complete reviewed plan determine which operation executes.
     if [ "$1" = apt-get ]; then
-        shift
-        case "$1" in
-            update)
-                [ "$#" -eq 1 ] || fatal 'Unexpected apt-get update arguments'
-                ;;
-            -y)
-                case "${2-}" in
-                    dist-upgrade|install|autoremove) : ;;
-                    *) fatal "Unsupported reviewed apt-get transaction: $*" ;;
-                esac
-                ;;
-            *) fatal "Unexpected apt-get operation: $*" ;;
-        esac
-        # Never force DEBIAN_FRONTEND=noninteractive for package installs.
-        capture in-target debconf-apt-progress --logstderr -- apt-get "$@" ||
-            fatal "Target APT transaction failed: apt-get $*"
+        capture in-target debconf-apt-progress --logstderr -- "$@" ||
+            fatal "Target APT transaction failed: $*"
     else
         capture in-target "$@" || fatal "Target command failed: $*"
     fi
 }
 simulate_target() {
-    # APT simulations and real operations both use apt-get directly.
-    case "$1" in
-        dist-upgrade|install|autoremove) : ;;
-        *) fatal "Unsupported APT simulation: $*" ;;
-    esac
     capture in-target apt-get -s "$@" ||
         fatal "APT simulation failed: apt-get -s $*"
     cp "$WORK/output" "$WORK/plan"
-}
-check_critical_removals() {
-    if grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/plan" > "$WORK/critical"; then
-        cat "$WORK/critical" >> "$LOG"
-        fatal 'Proposed removal of boot/essential administration packages; explicit manual resolution required'
-    fi
 }
 review_install() {
     name=$1
     shift
     simulate_target install "$@"
-    check_critical_removals
     review_plan "$name" "$WORK/plan"
     run_target apt-get -y install "$@"
     run_target dpkg --audit
@@ -317,70 +290,23 @@ ordered="$(/bin/sh "$MEDIA/ordered-selection.sh" "$RET")" ||
 db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 [ "$RET" = true ] || fatal 'The early profile summary was not approved'
 log "CONFIRMED SELECTION: $ordered"
+
 ensure_root_recovery
-
-# Debian Installer's in-target wrapper already installs a temporary policy-rc.d
-# that rejects maintainer-script service starts. Check that native protection
-# before any selected custom APT transaction; do not create another policy,
-# mask units, or change target first-boot enablement.
-if [ -n "$ordered" ]; then
-    capture in-target sh -c '
-        [ -x /usr/sbin/policy-rc.d ] || exit 1
-        /usr/sbin/policy-rc.d my-cdd-installer-preflight start
-        [ "$?" -eq 101 ]
-    ' || fatal 'Debian Installer target service-start protection is missing'
-    log 'Confirmed native in-target package-service startup suppression'
-fi
-
-# Debian Installer apt-setup may leave its CD-ROM APT source active until
-# finish-install's later 10apt-cdrom-setup hook. Our custom APT transactions
-# run in 07preseed, BEFORE that native cleanup. APT update cannot refresh
-# a cdrom: source; disable only those local entries in the target APT list.
-# Do not change the installer medium, remove online sources, or alter mirrors.
-disable_installer_cdrom_sources() {
-    for source in /target/etc/apt/sources.list /target/etc/apt/sources.list.d/*.list; do
-        [ -f "$source" ] || continue
-        if grep -Eq '^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:' "$source"; then
-            sed -i -E '/^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:/s/^/# my-cdd: disabled installer CD-ROM source: /' "$source" ||
-                fatal "Cannot disable installer-only APT CD-ROM entry in $source"
-            log "Disabled installer CD-ROM APT entry in $source"
-        fi
-    done
-    # Keep unfamiliar deb822 arrangements intact rather than disabling a
-    # stanza that may mix CD-ROM and online URIs.
-    for source in /target/etc/apt/sources.list.d/*.sources; do
-        [ -f "$source" ] || continue
-        if grep -Eiq '^[[:space:]]*URIs:[[:space:]]+cdrom:' "$source"; then
-            fatal "Unexpected active deb822 CD-ROM source in $source; manual APT-source review required"
-        fi
-    done
-    # Fail closed if an active legacy CD-ROM source escaped the narrow edit.
-    for source in /target/etc/apt/sources.list /target/etc/apt/sources.list.d/*.list; do
-        [ -f "$source" ] || continue
-        if grep -Eq '^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:' "$source"; then
-            fatal "Installer CD-ROM entry remains active in $source"
-        fi
-    done
-}
-
-if [ -n "$ordered" ]; then
-    disable_installer_cdrom_sources
-fi
 
 for profile in $ordered; do
     log "PROFILE BEGIN: $profile"
     case "$profile" in
-        debian-tweaks) module=tweaks; handler=profile_tweaks ;;
+        debian-tweaks) module=debian-tweaks; handler=profile_tweaks ;;
         backports) module=backports; handler=profile_backports ;;
-        ensure-7x-kernel) module=kernel; handler=profile_kernel ;;
-        extended-device-support) module=firmware; handler=profile_firmware ;;
-        zram-writeback) module=zram; handler=profile_zram ;;
-        openmediavault) module=omv; handler=profile_omv ;;
+        ensure-7x-kernel) module=ensure-7x-kernel; handler=profile_kernel ;;
+        extended-device-support) module=extended-device-support; handler=profile_firmware ;;
+        zram-writeback) module=zram-writeback; handler=profile_zram ;;
+        openmediavault) module=openmediavault; handler=profile_omv ;;
         docker) module=docker; handler=profile_docker ;;
         *) fatal "Unknown selected profile: $profile" ;;
     esac
-    [ -r "$MEDIA/profile-$module.sh" ] || fatal "Missing selected module: $module"
-    . "$MEDIA/profile-$module.sh"
+    [ -r "$MEDIA/$module.sh" ] || fatal "Missing selected module: $module"
+    . "$MEDIA/$module.sh"
     "$handler"
     printf 'Completed: %s\n' "$profile" > "$LOG_DIR/my-cdd-completed/$profile"
     chmod 600 "$LOG_DIR/my-cdd-completed/$profile"

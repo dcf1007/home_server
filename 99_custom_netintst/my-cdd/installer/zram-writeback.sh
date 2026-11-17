@@ -2,13 +2,14 @@
 # Sourced by the approved installer dispatcher; no automatic execution.
 
 profile_zram() {
-    [ -f "$LOG_DIR/my-cdd-completed/ensure-7x-kernel" ] ||
-        fatal 'ZRAM cannot run without the separately completed Ensure 7.x kernel profile'
+    # ordered-selection requires the separately selected kernel profile,
+    # and the native stage-11 runner executes it before ZRAM. Any failure
+    # prevents reaching this handler; no duplicate completion marker needed.
     [ -r "$MEDIA/zram-generator.conf.template" ] ||
         fatal 'Original ZRAM generator source missing'
-    [ -r "$MEDIA/zram-selection.sh" ] ||
+    [ -r "$MEDIA/zram-writeback-selection.sh" ] ||
         fatal 'Installer ZRAM selection helper missing'
-    . "$MEDIA/zram-selection.sh"
+    . "$MEDIA/zram-writeback-selection.sh"
     # The installer is a minimal udeb environment. The official parted-udeb
     # supplies the installer-native GPT editing CLI and matching udeb libraries.
     # Simple-CDD stages it via the build-only installer-media.udebs profile;
@@ -65,38 +66,20 @@ profile_zram() {
     yes_no my-cdd/zram-destructive ||
         fatal 'User declined destructive ZRAM backing conversion'
 
-    # Debian Installer may itself activate even newly created swap. Leave
-    # unrelated swap devices completely untouched; never use swapoff -a.
+    # Debian Installer may activate the selected swap partition temporarily.
+    # Deactivate ONLY this confirmed partition, with the separately approved
+    # targeted swapoff. Do not veto an empty installer swap on RAM estimates.
     zram_read_active_swap
     if [ -n "$active_used" ]; then
-        available_kb="$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)"
-        total_kb="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)"
-        case "$available_kb:$total_kb" in
-            *[!0-9:]*|:*|*:) fatal 'Cannot assess installer memory pressure for swapoff' ;;
-        esac
-        if [ -r /proc/pressure/memory ]; then
-            log "Installer memory PSI before any swapoff: $(head -n 2 /proc/pressure/memory | tr '\n' ';')"
-        fi
-        reserve_kb=$((total_kb / 8))
-        [ "$reserve_kb" -ge 262144 ] || reserve_kb=262144
-        used_kb=$((active_used / 1024 + 1))
-        [ "$available_kb" -gt "$((used_kb + reserve_kb))" ] ||
-            fatal 'RAM cannot cover selected swap usage plus a safety reserve; no swapoff attempted'
         db_subst my-cdd/zram-swapoff MYCDD_PARTITION "$device" ||
             fatal 'Cannot show exact swapoff target'
         db_subst my-cdd/zram-swapoff MYCDD_USED "$active_used" ||
             fatal 'Cannot show selected swap usage'
         yes_no my-cdd/zram-swapoff ||
             fatal 'Targeted swapoff was not separately approved'
-        # Re-evaluate memory and identity immediately before swapoff, too.
         zram_validate_candidate
         zram_read_active_swap
         if [ -n "$active_used" ]; then
-            available_kb="$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)"
-            case "$available_kb" in ''|*[!0-9]*) fatal 'RAM check failed immediately before swapoff' ;; esac
-            used_kb=$((active_used / 1024 + 1))
-            [ "$available_kb" -gt "$((used_kb + reserve_kb))" ] ||
-                fatal 'Insufficient remaining RAM for a safe targeted swapoff'
             capture busybox swapoff "$device" ||
                 fatal 'Targeted swapoff failed; GPT and signatures left unchanged'
         fi
@@ -107,7 +90,7 @@ profile_zram() {
     zram_validate_candidate
     zram_read_active_swap
     [ -z "$active_used" ] ||
-        fatal 'Selected backing was reactivated as swap before conversion'
+        fatal 'Selected backing is active swap; cannot overwrite its signature'
 
     # Write only the approved partition's first 1 MiB, never its parent disk.
     # The GPT layout and PARTUUID are preserved; no filesystem is created.
@@ -179,11 +162,6 @@ profile_zram() {
     fi
     run_target update-grub
     run_target systemctl enable zram-pressure.service
-    # Defense in depth: common preflight has already established recovery access
-    # before any selected profile (including this partition conversion).
-    capture in-target passwd -S root || fatal 'Cannot inspect emergency root account'
-    grep -E '^root[[:space:]]+P[[:space:]]' "$WORK/output" >/dev/null ||
-        fatal 'Separate local root password is not enabled for ZRAM emergency recovery'
     log "ZRAM raw backing: $device PARTUUID=$uuid size=$size; boot kernel/sysfs and generator require first-boot validation"
 }
 

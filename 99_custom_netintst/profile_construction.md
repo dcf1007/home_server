@@ -27,7 +27,7 @@ Open each listed file in a text editor (for example a text editor for `installer
 
 ## Step 3 — Understand the control flow
 
-The selection parser first validates the approved profile names and cross-profile dependency; it never adds choices automatically. The shared source/version helpers inspect the **target system** in `/target`, not the installer's temporary package database. One-time automatic-update configuration now belongs directly to the selected Debian tweaks module; no OpenSSH validation helper is retained. A complete APT plan is shown through the dispatcher's native Debconf UI before a target package transaction is performed.
+The selection parser first validates the approved profile names and cross-profile dependency; it never adds choices automatically. The shared source/version helpers inspect the **target system** in `/target`, not the installer's temporary package database. Repository refresh runs APT once and does not add an extra priority-policy check. One-time automatic-update configuration now belongs directly to the selected Debian tweaks module; no OpenSSH validation helper is retained. A complete APT plan is shown through the dispatcher's native Debconf UI before a target package transaction is performed.
 
 The shared functions expect the dispatcher to provide `capture`, `fatal`, `WORK`, `LOG`, `MEDIA` and the cdebconf helper functions. That's why you must complete [Installer framework](installer_framework.md) before using a feature module.
 
@@ -87,7 +87,7 @@ printf '%s\n' "$out"
 
 
 <details>
-<summary><strong>Complete file: installer/profile-common.sh</strong> (19 lines, current Git blob <code>d3dbd82c76cb65fa1b7a32c994ae0fc8ffd76bde</code>)</summary>
+<summary><strong>Complete file: installer/profile-common.sh</strong> (18 lines, current Git blob <code>19fcba111715cf3dfdcd2b76ac0efe1fedcf9ed3</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -107,7 +107,6 @@ backports_is_selected() {
 
 update_signed_apt() {
     run_target apt-get update
-    capture in-target apt-cache policy || fatal 'Cannot inspect APT priorities'
 }
 
 ````

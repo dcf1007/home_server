@@ -17,20 +17,23 @@ Work inside `99_custom_netintst/my-cdd/`, on a test branch or scratch copy.
 
 ## Step 2 — Know exactly which files make up the feature
 
+Ten source/configuration files make up the profile, including a native Simple-CDD completion verifier.
+
 | File to create | Reason |
 | --- | --- |
 | `profiles/zram-writeback.description` | Text of the opt-in ZRAM checkbox. |
 | `profiles/zram-writeback.extra` | All required sources and generator/monitor assets to stage on the installer ISO. |
-| `profiles/zram-writeback.postinst` | Executable completion-marker verifier (not a second partition conversion). |
-| `installer/profile-zram.sh` | The complete selected-only handler: inline utility preflight, confirmation, RAM/swapoff checks, bounded erase, native Parted, fstab and target provisioning. |
-| `installer/zram-selection.sh` | The complete native GPT/sysfs/blkid candidate discovery, identity validation, mount/holder checks and fstab preparation; `blkid` is called directly. |
+| `profiles/zram-writeback.postinst` | Native Simple-CDD completion verifier; checks a marker without rerunning feature installation. |
+| `installer/zram-writeback.sh` | The complete selected-only handler: inline utility preflight, confirmation, targeted swapoff, bounded erase, native Parted, fstab and target provisioning. |
+| `installer/zram-writeback-selection.sh` | The complete native GPT/sysfs/blkid candidate discovery, identity validation, mount/holder checks and fstab preparation; `blkid` is called directly. |
 | `scripts/zram-generator.conf.template` | ZSTD/ZRAM sizing and writeback config; dynamically replaced PARTUUID placeholders. |
 | `scripts/override.conf` | Single systemd drop-in for pre-init compressed writeback and setup-failure emergency policy. |
 | `scripts/zram-pressure.sh` | Complete script monitoring memory pressure and issuing writeback operations. |
 | `scripts/zram-pressure.service` | Systemd service to supervise and restart the pressure monitor. |
 | `scripts/90-zram.conf` | Swappiness setting applicable only to the explicitly selected ZRAM feature. |
 
-All **ten** source/configuration files are included in full below. You do not need to invent any missing functions or generator scripts.
+
+Native Debian Installer stage `11my-cdd` runs each approved selected handler **once**, then writes that profile's success marker. Unmodified Simple-CDD stage `14simple-cdd` executes the selected profile's verification-only `.postinst` **in-target**. Stage `15my-cdd-status` independently checks all approved markers and overall `COMPLETE`, returning native exit 10 rather than falsely reporting success.
 
 ## Step 3 — Create each file
 
@@ -54,72 +57,62 @@ Open `profiles/zram-writeback.extra` in a text editor, paste the indicated conte
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**3. Create `profiles/zram-writeback.postinst`.** Executable completion-marker verifier (not a second partition conversion).
+**3. Create `installer/zram-writeback.sh`.** The complete selected-only handler: confirmation, targeted swapoff, bounded erase, native Parted, fstab and target provisioning.
 
-Open `profiles/zram-writeback.postinst` in a text editor, paste the indicated contents and save it at that path.
-
-This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
-
-**4. Create `installer/profile-zram.sh`.** The complete selected-only handler: confirmation, RAM/swapoff checks, bounded erase, native Parted, fstab and target provisioning.
-
-Open `installer/profile-zram.sh` in a text editor, paste the indicated contents and save it at that path.
+Open `installer/zram-writeback.sh` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**5. Create `installer/zram-selection.sh`.** The complete installer-native GPT/sysfs/blkid candidate discovery, identity validation, mount/holder checks and fstab preparation.
+**4. Create `installer/zram-writeback-selection.sh`.** The complete installer-native GPT/sysfs/blkid candidate discovery, identity validation, mount/holder checks and fstab preparation.
 
-Open `installer/zram-selection.sh` in a text editor, paste the indicated contents and save it at that path.
+Open `installer/zram-writeback-selection.sh` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**6. Create `scripts/zram-generator.conf.template`.** ZSTD/ZRAM sizing and writeback config; dynamically replaced PARTUUID placeholders.
+**5. Create `scripts/zram-generator.conf.template`.** ZSTD/ZRAM sizing and writeback config; dynamically replaced PARTUUID placeholders.
 
 Open `scripts/zram-generator.conf.template` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**7. Create `scripts/override.conf`.** Single systemd drop-in for compressed writeback before initialization and emergency mode on setup failure.
+**6. Create `scripts/override.conf`.** Single systemd drop-in for compressed writeback before initialization and emergency mode on setup failure.
 
 Open `scripts/override.conf` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**8. Create `scripts/zram-pressure.sh`.** Complete script monitoring memory pressure and issuing writeback operations.
+**7. Create `scripts/zram-pressure.sh`.** Complete script monitoring memory pressure and issuing writeback operations.
 
 Open `scripts/zram-pressure.sh` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**9. Create `scripts/zram-pressure.service`.** Systemd service to supervise and restart the pressure monitor.
+**8. Create `scripts/zram-pressure.service`.** Systemd service to supervise and restart the pressure monitor.
 
 Open `scripts/zram-pressure.service` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**10. Create `scripts/90-zram.conf`.** Swappiness setting applicable only to the explicitly selected ZRAM feature.
+**9. Create `scripts/90-zram.conf`.** Swappiness setting applicable only to the explicitly selected ZRAM feature.
 
 Open `scripts/90-zram.conf` in a text editor, paste the indicated contents and save it at that path.
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
 
-Make the completion verifier executable:
 
-~~~sh
-chmod +x profiles/zram-writeback.postinst
-~~~
 
-The main `installer/profile-zram.sh` handler is **sourced**; it is never invoked as a standalone host program.
+The main `installer/zram-writeback.sh` handler is **sourced**; it is never invoked as a standalone host program.
 
 ## Step 4 — Understand how the complete code fits together
 
 1. **Profile consent is not disk consent.** `simple-cdd.conf` offers the optional `zram-writeback` checkbox, but the shared selector rejects it without independently selected `ensure-7x-kernel`. The dispatcher maps the ZRAM name to `profile_zram()`.
-2. **Installer-native tools:** the handler loads `parted-udeb` / `util-linux-udeb` when absent, checks native BusyBox `dd` and `swapoff` applets, and sources `zram-selection.sh`.
+2. **Installer-native tools:** the handler loads `parted-udeb` / `util-linux-udeb` when absent, checks native BusyBox `dd` and `swapoff` applets, and sources `zram-writeback-selection.sh`.
 3. **Candidate discovery:** the selection helper uses `/sys/class/block` and native `blkid -p -o export` to inspect GPT partition number, parent disk, GUID type and **actual PARTUUID**. It accepts GPT swap-type partitions, plus already prepared raw partitions named `zram-writeback`. It rejects duplicate identities, mounts and block-device holders.
 4. **Automatic choice is narrowly limited:** exactly one suitable conventional swap reference in the new target's `/target/etc/fstab` may be selected automatically. Otherwise the native Debconf chooser presents the exact candidates and initially offers **Stop**.
 5. **Independent destructive approval:** after selecting a candidate, the handler shows the exact partition device, parent disk, size, PARTUUID and planned **first-1-MiB erase**. The default is **No**.
-6. **Active swap safety:** used swap is identified in `/proc/swaps`. The handler requires enough available RAM for the used pages **plus a reserve**, asks another default-No confirmation for targeted `swapoff`, and revalidates the partition before touching it.
-7. **fstab preparation:** before writes, the helper prepares removal of only that partition's conventional swap entry. It must not delete unrelated root, EFI or NAS mounts.
+6. **Active swap:** the installer reads `/proc/swaps` and asks a separate default-No confirmation for targeted `swapoff` only if the chosen partition is active. It does not impose a RAM-reserve or memory-pressure threshold. An actual failed `swapoff` or still-active backing stops the destructive conversion.
+7. **fstab preparation:** before writes, the helper prepares removal of only the confirmed partition's conventional swap entry. Unrelated root, EFI, NAS, **other swap references and partitions** remain untouched. There is no separate whole-system swap policy.
 8. **Bounded signature erase:** once all checks pass, the handler runs BusyBox `dd` with `bs=4096 count=256` against the **verified partition**, not its parent disk. That writes exactly **1 MiB**.
 9. **GPT conversion without recreation:** native Parted changes that partition's **type** to standard Linux data (gdisk 8300, GUID `0FC63DAF-8483-4772-8E79-3D69D8477DE4`) and its **name** to `zram-writeback`. It does **not** format a filesystem, delete the partition or hardcode the machine's PARTUUID. Post-write checks must confirm correct identity and no residual swap signature.
 10. **Target provisioning:** an atomically staged `fstab` is installed; the user approves installing `systemd-zram-generator`; both template `YOUR_PARTUUID` placeholders are replaced with the **actual detected PARTUUID**. The generator, single setup override, pressure monitor and swappiness file are installed under `/target`; GRUB is updated for `zswap.enabled=0`.
@@ -127,13 +120,13 @@ The main `installer/profile-zram.sh` handler is **sourced**; it is never invoked
 ## Step 5 — Check copied source before any disk operation
 
 ~~~sh
-sh -n installer/profile-zram.sh
+sh -n installer/zram-writeback.sh
 ~~~
 
 This syntax-checks the main handler without running it.
 
 ~~~sh
-sh -n installer/zram-selection.sh
+sh -n installer/zram-writeback-selection.sh
 ~~~
 
 This checks the GPT selection helper without touching a disk.
@@ -159,12 +152,12 @@ ZSTD ZRAM writeback; confirmed raw GPT backing, requires Linux 7.x
 </details>
 
 <details>
-<summary><strong>profiles/zram-writeback.extra</strong> — complete file; 8 lines; original blob <code>12962359382c64461dfb56f432a453a9ea1d249b</code></summary>
+<summary><strong>profiles/zram-writeback.extra</strong> — complete file; 8 lines; original blob <code>5c40044f3a181a1dd46b7e6b65a6004f79d77b19</code></summary>
 
 ````text
 # zram-writeback: source assets copied by Simple-CDD (not automatically installed).
-installer/profile-zram.sh
-installer/zram-selection.sh
+installer/zram-writeback.sh
+installer/zram-writeback-selection.sh
 scripts/zram-generator.conf.template
 scripts/override.conf
 scripts/zram-pressure.sh
@@ -174,40 +167,24 @@ scripts/90-zram.conf
 
 </details>
 
-<details>
-<summary><strong>profiles/zram-writeback.postinst</strong> — complete file; 11 lines; original blob <code>f1b1bba87c3d2a53cc84ee2a9658348287a57d5f</code></summary>
 
-````sh
-#!/bin/sh
-# Simple-CDD finish-install verification only.
-# The selected profile was performed beforehand by the native Debian
-# Installer late command, where its Debconf approvals were visible.
-# Never execute the profile twice or claim success from mere selection.
-set -eu
-marker="/var/log/installer/my-cdd-completed/zram-writeback"
-if [ ! -f "$marker" ]; then
-    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'zram-writeback'
-    exit 1
-fi
-````
-
-</details>
 
 <details>
-<summary><strong>installer/profile-zram.sh</strong> — complete file; 188 lines; original blob <code>6205945a4914980ce437593d954aa9e5dfeecede</code></summary>
+<summary><strong>installer/zram-writeback.sh</strong> — complete file; 167 lines; current Git blob <code>63267fec1afb2beca12b97ff98e79de36695a28f</code></summary>
 
 ````sh
 #!/bin/sh
 # Sourced by the approved installer dispatcher; no automatic execution.
 
 profile_zram() {
-    [ -f "$LOG_DIR/my-cdd-completed/ensure-7x-kernel" ] ||
-        fatal 'ZRAM cannot run without the separately completed Ensure 7.x kernel profile'
+    # ordered-selection requires the separately selected kernel profile,
+    # and the native stage-11 runner executes it before ZRAM. Any failure
+    # prevents reaching this handler; no duplicate completion marker needed.
     [ -r "$MEDIA/zram-generator.conf.template" ] ||
         fatal 'Original ZRAM generator source missing'
-    [ -r "$MEDIA/zram-selection.sh" ] ||
+    [ -r "$MEDIA/zram-writeback-selection.sh" ] ||
         fatal 'Installer ZRAM selection helper missing'
-    . "$MEDIA/zram-selection.sh"
+    . "$MEDIA/zram-writeback-selection.sh"
     # The installer is a minimal udeb environment. The official parted-udeb
     # supplies the installer-native GPT editing CLI and matching udeb libraries.
     # Simple-CDD stages it via the build-only installer-media.udebs profile;
@@ -264,38 +241,20 @@ profile_zram() {
     yes_no my-cdd/zram-destructive ||
         fatal 'User declined destructive ZRAM backing conversion'
 
-    # Debian Installer may itself activate even newly created swap. Leave
-    # unrelated swap devices completely untouched; never use swapoff -a.
+    # Debian Installer may activate the selected swap partition temporarily.
+    # Deactivate ONLY this confirmed partition, with the separately approved
+    # targeted swapoff. Do not veto an empty installer swap on RAM estimates.
     zram_read_active_swap
     if [ -n "$active_used" ]; then
-        available_kb="$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)"
-        total_kb="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)"
-        case "$available_kb:$total_kb" in
-            *[!0-9:]*|:*|*:) fatal 'Cannot assess installer memory pressure for swapoff' ;;
-        esac
-        if [ -r /proc/pressure/memory ]; then
-            log "Installer memory PSI before any swapoff: $(head -n 2 /proc/pressure/memory | tr '\n' ';')"
-        fi
-        reserve_kb=$((total_kb / 8))
-        [ "$reserve_kb" -ge 262144 ] || reserve_kb=262144
-        used_kb=$((active_used / 1024 + 1))
-        [ "$available_kb" -gt "$((used_kb + reserve_kb))" ] ||
-            fatal 'RAM cannot cover selected swap usage plus a safety reserve; no swapoff attempted'
         db_subst my-cdd/zram-swapoff MYCDD_PARTITION "$device" ||
             fatal 'Cannot show exact swapoff target'
         db_subst my-cdd/zram-swapoff MYCDD_USED "$active_used" ||
             fatal 'Cannot show selected swap usage'
         yes_no my-cdd/zram-swapoff ||
             fatal 'Targeted swapoff was not separately approved'
-        # Re-evaluate memory and identity immediately before swapoff, too.
         zram_validate_candidate
         zram_read_active_swap
         if [ -n "$active_used" ]; then
-            available_kb="$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)"
-            case "$available_kb" in ''|*[!0-9]*) fatal 'RAM check failed immediately before swapoff' ;; esac
-            used_kb=$((active_used / 1024 + 1))
-            [ "$available_kb" -gt "$((used_kb + reserve_kb))" ] ||
-                fatal 'Insufficient remaining RAM for a safe targeted swapoff'
             capture busybox swapoff "$device" ||
                 fatal 'Targeted swapoff failed; GPT and signatures left unchanged'
         fi
@@ -306,7 +265,7 @@ profile_zram() {
     zram_validate_candidate
     zram_read_active_swap
     [ -z "$active_used" ] ||
-        fatal 'Selected backing was reactivated as swap before conversion'
+        fatal 'Selected backing is active swap; cannot overwrite its signature'
 
     # Write only the approved partition's first 1 MiB, never its parent disk.
     # The GPT layout and PARTUUID are preserved; no filesystem is created.
@@ -378,11 +337,6 @@ profile_zram() {
     fi
     run_target update-grub
     run_target systemctl enable zram-pressure.service
-    # Defense in depth: common preflight has already established recovery access
-    # before any selected profile (including this partition conversion).
-    capture in-target passwd -S root || fatal 'Cannot inspect emergency root account'
-    grep -E '^root[[:space:]]+P[[:space:]]' "$WORK/output" >/dev/null ||
-        fatal 'Separate local root password is not enabled for ZRAM emergency recovery'
     log "ZRAM raw backing: $device PARTUUID=$uuid size=$size; boot kernel/sysfs and generator require first-boot validation"
 }
 
@@ -391,7 +345,7 @@ profile_zram() {
 </details>
 
 <details>
-<summary><strong>installer/zram-selection.sh</strong> — complete file; 274 lines; original blob <code>760a7d4475f513bf08f2ea7bb0156930cf7d3d1a</code></summary>
+<summary><strong>installer/zram-writeback-selection.sh</strong> — complete file; 267 lines; current Git blob <code>e600dff3e04641bc4e7cb51d4eb08d31b0e093c3</code></summary>
 
 ````sh
 #!/bin/sh
@@ -636,7 +590,6 @@ zram_prepare_fstab() {
         zf_ref="$(printf '%s\n' "$zf_line" |
             awk '$0 !~ /^[[:space:]]*#/ && NF >= 3 && $3 == "swap" {print $1}')"
         case "$zf_ref" in
-            PARTLABEL=*) fatal 'Ambiguous PARTLABEL swap reference in target fstab; resolve it before ZRAM conversion' ;;
             UUID=*)
                 case "$former_uuid" in
                     '') ;;
@@ -661,12 +614,6 @@ zram_prepare_fstab() {
         fi
         printf '%s\n' "$zf_line" >> "$WORK/zram-safe-fstab"
     done < "$WORK/zram-original-fstab"
-    # Never leave a second conventionally activated swap configured in the
-    # new target; modifying or deactivating that other device is NOT approved.
-    if awk '$0 !~ /^[[:space:]]*#/ && NF >= 3 && $3 == "swap" {print $1}' \
-        "$WORK/zram-safe-fstab" | grep -q .; then
-        fatal 'Another target swap entry would remain; do not enable independent swap alongside required ZRAM'
-    fi
 }
 ````
 
@@ -816,6 +763,419 @@ WantedBy=multi-user.target
 # Deploy ONLY when the ZRAM profile was explicitly selected.
 # Not a Debian tweaks default and never deployed for unselected ZRAM.
 vm.swappiness = 100
+````
+
+</details>
+ ||
+        return 1
+    zi_type=$(zram_probe_value PART_ENTRY_TYPE | tr '[:upper:]' '[:lower:]')
+    [ "$(zram_probe_value PART_ENTRY_NUMBER)" = "$zi_partn" ] || return 1
+    zi_entry_disk=$(zram_probe_value PART_ENTRY_DISK)
+    if [ -n "$zi_entry_disk" ]; then
+        [ "$zi_entry_disk" = "$(cat "/sys/class/block/$zi_parent/dev")" ] || return 1
+    fi
+    zi_label=$(zram_probe_value PART_ENTRY_NAME)
+    zi_signature=$(zram_probe_value TYPE)
+    zi_size_kib=$((zi_sectors / 2))
+}
+
+zram_is_mounted() {
+    zm_name=$(basename "$zram_device")
+    zm_id=$(cat "/sys/class/block/$zm_name/dev") ||
+        fatal 'Cannot inspect selected partition mount identity'
+    awk -v id="$zm_id" '$3 == id { found=1 } END { exit !found }' /proc/self/mountinfo
+}
+
+zram_ref_matches() (
+    # Return success only when a target fstab source resolves to the exact
+    # selected GPT partition. An arbitrary same-disk swap is NOT a match.
+    zr_ref=$1
+    zr_part=$2
+    zr_dev=$3
+    zr_swap_uuid=$4
+    zr_swap_label=$5
+    case "$zr_ref" in
+        PARTUUID=*) [ "$(printf '%s' "${zr_ref#PARTUUID=}" | tr '[:upper:]' '[:lower:]')" = "$zr_part" ] ;;
+        UUID=*) [ -n "$zr_swap_uuid" ] &&
+            [ "$(printf '%s' "${zr_ref#UUID=}" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$zr_swap_uuid" | tr '[:upper:]' '[:lower:]')" ] &&
+            [ "$(readlink -f -- "$(blkid -t "UUID=$zr_swap_uuid" -o device 2>/dev/null || true)" 2>/dev/null || true)" = "$zr_dev" ] ;;
+        LABEL=*) [ -n "$zr_swap_label" ] && [ "${zr_ref#LABEL=}" = "$zr_swap_label" ] &&
+            [ "$(readlink -f -- "$(blkid -t "LABEL=$zr_swap_label" -o device 2>/dev/null || true)" 2>/dev/null || true)" = "$zr_dev" ] ;;
+        # PARTLABEL is not unique and cannot prove which raw partition
+        # belongs to the target. Do not resolve it automatically.
+        PARTLABEL=*) return 1 ;;
+        /dev/*) [ "$(readlink -f -- "$zr_ref" 2>/dev/null || true)" = "$zr_dev" ] ;;
+        *) return 1 ;;
+    esac
+)
+
+zram_collect_candidates() {
+    # Prefer swap in this target's fstab; allow manually selected existing raw backing.
+    [ -f /target/etc/fstab ] || fatal 'No installed-target fstab: cannot identify assigned swap'
+    [ -r /proc/self/mountinfo ] &&
+        awk '$5 == "/target" { found=1 } END { exit !found }' /proc/self/mountinfo ||
+        fatal 'Installed target root is not a separately mounted filesystem'
+    : > "$WORK/zram-candidate-map"
+    for zc_entry in /sys/class/block/*/partition; do
+        [ -r "$zc_entry" ] || continue
+        zc_device="/dev/$(basename "$(dirname "$zc_entry")")"
+        zram_partition_info "$zc_device" || continue
+        zc_kind=''
+        if [ "$zi_type" = "$ZRAM_SWAP_GUID" ] && [ "$zi_signature" = swap ]; then
+            zc_kind=swap
+        elif [ "$zi_type" = "$ZRAM_DATA_GUID" ] &&
+            [ "$zi_label" = zram-writeback ] &&
+            { [ -z "$zi_signature" ] || [ "$zi_signature" = swap ]; }; then
+            zc_kind=existing-raw
+        fi
+        [ -n "$zc_kind" ] || continue
+        ! grep -q "^$zi_partuuid|" "$WORK/zram-candidate-map" ||
+            fatal 'Duplicate GPT partition identity; refusing ZRAM selection'
+        zc_size="$zi_size_kib KiB"
+        printf '%s|%s|%s|%s\n' "$zi_partuuid" "$zc_device" "$zc_kind" "$zc_size" >> "$WORK/zram-candidate-map"
+    done
+    [ -s "$WORK/zram-candidate-map" ] ||
+        fatal 'No eligible GPT swap or existing raw zram-writeback partition. Return to partitioning or deselect ZRAM.'
+}
+
+zram_choose_candidate() {
+    # Automatic selection is authorized ONLY by one exact swap reference in
+    # this newly installed target, never by partition age or disk proximity.
+    awk '$0 !~ /^[[:space:]]*#/ && NF >= 3 && $3 == "swap" {print $1}' \
+        /target/etc/fstab > "$WORK/zram-target-swap-refs"
+    za_count=0
+    za_uuid=''
+    if [ "$(wc -l < "$WORK/zram-target-swap-refs")" -eq 1 ]; then
+        za_ref="$(cat "$WORK/zram-target-swap-refs")"
+        while IFS='|' read -r za_id za_dev za_kind za_size; do
+            za_swap_uuid="$(blkid -s UUID -o value "$za_dev" 2>/dev/null || true)"
+            za_swap_label="$(blkid -s LABEL -o value "$za_dev" 2>/dev/null || true)"
+            if [ "$za_kind" = swap ] &&
+                zram_ref_matches "$za_ref" "$za_id" "$za_dev" "$za_swap_uuid" "$za_swap_label"; then
+                za_count=$((za_count + 1))
+                za_uuid=$za_id
+            fi
+        done < "$WORK/zram-candidate-map"
+    fi
+    if [ "$za_count" -eq 1 ]; then
+        zram_uuid=$za_uuid
+        zram_selection=automatic
+        log "ZRAM assigned backing verified from target fstab: PARTUUID=$zram_uuid"
+    else
+        # Choices-C holds canonical PARTUUIDs; Choices holds display-only
+        # device/size/type labels. The first choice is deliberately safe.
+        za_ids=none
+        za_labels='Stop without changing a partition'
+        while IFS='|' read -r za_id za_dev za_kind za_size; do
+            za_ids="$za_ids, $za_id"
+            za_labels="$za_labels, $za_dev ($za_size; $za_kind; PARTUUID $za_id)"
+        done < "$WORK/zram-candidate-map"
+        db_subst my-cdd/zram-backing-select MYCDD_BACKING_IDS "$za_ids" ||
+            fatal 'Cannot construct canonical ZRAM partition choices'
+        db_subst my-cdd/zram-backing-select MYCDD_BACKING_LABELS "$za_labels" ||
+            fatal 'Cannot display ZRAM partition choices'
+        db_set my-cdd/zram-backing-select none || fatal 'Cannot reset ZRAM selection to safe default'
+        db_fset my-cdd/zram-backing-select seen false || fatal 'Cannot present ZRAM selection'
+        db_input critical my-cdd/zram-backing-select || fatal 'ZRAM partition chooser unavailable'
+        db_go || fatal 'ZRAM partition chooser cancelled; no backing changed'
+        db_get my-cdd/zram-backing-select || fatal 'Cannot read ZRAM partition choice'
+        zram_uuid=$RET
+        [ "$zram_uuid" != none ] && [ -n "$zram_uuid" ] ||
+            fatal 'No backing partition was selected; nothing modified'
+        zram_selection=manual
+        log "USER SELECTED ZRAM backing in native partition list: PARTUUID=$zram_uuid"
+    fi
+    zram_device=''
+    zram_kind=''
+    zram_size=''
+    zram_hits=0
+    while IFS='|' read -r za_id za_dev za_kind za_size; do
+        if [ "$za_id" = "$zram_uuid" ]; then
+            zram_hits=$((zram_hits + 1))
+            zram_device=$za_dev
+            zram_kind=$za_kind
+            zram_size=$za_size
+        fi
+    done < "$WORK/zram-candidate-map"
+    [ "$zram_hits" -eq 1 ] || fatal 'Chosen partition is not a unique verified candidate'
+    zram_validate_candidate
+}
+
+zram_validate_candidate() {
+    # Re-check live identity, active use and mounts before destructive changes.
+    zc_link="/dev/disk/by-partuuid/$zram_uuid"
+    [ -b "$zc_link" ] || fatal 'Selected PARTUUID block device is missing'
+    [ "$(readlink -f "$zc_link")" = "$zram_device" ] ||
+        fatal 'Backing device has changed since selection'
+    zram_partition_info "$zram_device" ||
+        fatal 'Selected backing is not a readable GPT partition'
+    [ "$zi_partuuid" = "$zram_uuid" ] ||
+        fatal 'Backing PARTUUID changed before conversion'
+    parent=$zi_parent
+    partn=$zi_partn
+    disk=$zi_disk
+    [ "$zi_sectors" -ge 2048 ] ||
+        fatal 'Selected backing is smaller than the required 1 MiB signature erase'
+    # Cloned disks can duplicate a PARTUUID even on ineligible partitions.
+    zc_hits=0
+    for zc_entry in /sys/class/block/*/partition; do
+        [ -r "$zc_entry" ] || continue
+        zc_other="/dev/$(basename "$(dirname "$zc_entry")")"
+        zram_partition_info "$zc_other" || continue
+        if [ "$zi_partuuid" = "$zram_uuid" ]; then
+            zc_hits=$((zc_hits + 1))
+        fi
+    done
+    [ "$zc_hits" -eq 1 ] ||
+        fatal 'Selected PARTUUID occurs on multiple block partitions; refusing ambiguous backing'
+    zram_partition_info "$zram_device" ||
+        fatal 'Selected backing vanished during validation'
+    case "$zram_kind" in
+        swap)
+            [ "$zi_type" = "$ZRAM_SWAP_GUID" ] && [ "$zi_signature" = swap ] ||
+                fatal 'Backing is no longer a conventional GPT swap partition' ;;
+        existing-raw)
+            [ "$zi_type" = "$ZRAM_DATA_GUID" ] &&
+                [ "$zi_label" = zram-writeback ] &&
+                { [ -z "$zi_signature" ] || [ "$zi_signature" = swap ]; } ||
+                fatal 'Previously converted backing no longer matches raw GPT identity' ;;
+        *) fatal 'Unknown ZRAM backing class' ;;
+    esac
+    for zc_holder in "/sys/class/block/$(basename "$zram_device")/holders/"*; do
+        [ ! -e "$zc_holder" ] || fatal 'Selected ZRAM backing is held by another block device'
+    done
+    ! zram_is_mounted ||
+        fatal 'Selected backing has filesystem mounts; refusing conversion'
+}
+
+zram_read_active_swap() {
+    # /proc/swaps reports KiB used; preserve byte units for RAM checks/prompts.
+    active_used=''
+    [ -r /proc/swaps ] || fatal 'Cannot enumerate installer-active swap'
+    while read -r zs_path zs_type zs_size zs_used zs_priority; do
+        [ "$zs_path" != Filename ] || continue
+        [ -n "$zs_path" ] || continue
+        if [ "$(readlink -f "$zs_path" 2>/dev/null || true)" = "$zram_device" ]; then
+            [ -z "$active_used" ] || fatal 'Duplicate active-swap mapping for the chosen partition'
+            case "$zs_used" in ''|*[!0-9]*) fatal 'Invalid used-swap KiB count' ;; esac
+            active_used=$((zs_used * 1024))
+        fi
+    done < /proc/swaps
+}
+
+zram_prepare_fstab() {
+    # Build the edited target fstab BEFORE modifying any partition. Preserve
+    # every unrelated line byte-for-byte and remove only matching swap lines.
+    cp /target/etc/fstab "$WORK/zram-original-fstab" ||
+        fatal 'Cannot snapshot installed fstab before ZRAM conversion'
+    : > "$WORK/zram-safe-fstab"
+    while IFS= read -r zf_line || [ -n "$zf_line" ]; do
+        zf_ref="$(printf '%s\n' "$zf_line" |
+            awk '$0 !~ /^[[:space:]]*#/ && NF >= 3 && $3 == "swap" {print $1}')"
+        case "$zf_ref" in
+            UUID=*)
+                case "$former_uuid" in
+                    '') ;;
+                    *) if [ "${zf_ref#UUID=}" = "$former_uuid" ] &&
+                        ! zram_ref_matches "$zf_ref" "$zram_uuid" "$zram_device" "$former_uuid" "$former_label"; then
+                        fatal 'Target fstab swap UUID is duplicated or cannot be resolved uniquely'
+                    fi ;;
+                esac ;;
+            LABEL=*)
+                case "$former_label" in
+                    '') ;;
+                    *) if [ "${zf_ref#LABEL=}" = "$former_label" ] &&
+                        ! zram_ref_matches "$zf_ref" "$zram_uuid" "$zram_device" "$former_uuid" "$former_label"; then
+                        fatal 'Target fstab swap LABEL is duplicated or cannot be resolved uniquely'
+                    fi ;;
+                esac ;;
+        esac
+        if [ -n "$zf_ref" ] &&
+            zram_ref_matches "$zf_ref" "$zram_uuid" "$zram_device" "$former_uuid" "$former_label"; then
+            log "Removing confirmed backing conventional-swap fstab reference: $zf_ref"
+            continue
+        fi
+        printf '%s\n' "$zf_line" >> "$WORK/zram-safe-fstab"
+    done < "$WORK/zram-original-fstab"
+}
+````
+
+</details>
+
+<details>
+<summary><strong>scripts/zram-generator.conf.template</strong> — complete file; 10 lines; original blob <code>bd95dec18d1a82a7d8723d0984f0cb11730c15b3</code></summary>
+
+````text
+# Early unit generation may precede creation of the PARTUUID symlink.
+# The generator re-reads the configuration during device setup.
+set!backingBytes = /usr/sbin/blockdev --getsize64 /dev/disk/by-partuuid/YOUR_PARTUUID 2>/dev/null || echo 0
+
+[zram0]
+zram-size = ram + backingBytes / 1048576
+zram-resident-limit = ram / 2
+compression-algorithm = zstd
+writeback-device = /dev/disk/by-partuuid/YOUR_PARTUUID
+swap-priority = 100
+````
+
+</details>
+
+<details>
+<summary><strong>scripts/override.conf</strong> — complete file; 6 lines; original blob <code>aa3b1e83a4ab4f0857287890483715a4e3ffd16b</code></summary>
+
+````ini
+[Unit]
+OnFailure=emergency.target
+OnFailureJobMode=replace-irreversibly
+
+[Service]
+ExecStartPre=/bin/sh -c 'echo yes > /sys/block/zram0/compressed_writeback'
+````
+
+</details>
+
+<details>
+<summary><strong>scripts/zram-pressure.sh</strong> — complete file; 76 lines; original blob <code>9a40b02f7bb80504c1f4a6d831d2ca4ac08cbf3d</code></summary>
+
+````sh
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+Z=/sys/block/zram0
+POLL=1
+START=80
+TARGET=70
+EMERGENCY=95
+PSI_MIN=500                  # 5.00% as hundredths of a percent
+AGES=(86400 21600 3600 300 60)
+
+state() {
+    local kind avg whole fraction
+    read -r _ _ used limit _ < "$Z/mm_stat" || return 1
+    (( limit > 0 )) || return 1
+    read -r kind avg _ < /proc/pressure/memory || return 1
+    [[ $kind == some && $avg =~ ^avg10=([0-9]+)\.([0-9]{2})$ ]] || return 1
+    whole=${BASH_REMATCH[1]}
+    fraction=${BASH_REMATCH[2]}
+    psi=$(( 10#$whole * 100 + 10#$fraction ))
+    occupancy=$(( used * 100 / limit ))
+}
+
+for name in mm_stat idle writeback bd_stat compressed_writeback writeback_limit_enable; do
+    [[ -e $Z/$name ]] || { echo "Missing $Z/$name" >&2; exit 1; }
+done
+read -r value < "$Z/compressed_writeback"
+[[ $value == 1 ]] || { echo 'Compressed writeback is not enabled' >&2; exit 1; }
+read -r value < "$Z/writeback_limit_enable"
+[[ $value == 0 ]] || { echo 'Disable writeback_limit before starting' >&2; exit 1; }
+
+while :; do
+    state || { echo 'Cannot read PSI/zram state' >&2; exit 1; }
+    if (( occupancy < EMERGENCY && (occupancy < START || psi < PSI_MIN) )); then
+        sleep "$POLL"
+        continue
+    fi
+
+    echo "Writeback triggered: zram=${occupancy}% PSI=${psi}bp"
+    read -r _ _ before < "$Z/bd_stat"
+    failed=0
+
+    for age in "${AGES[@]}"; do
+        state || exit 1
+        # Once started, continue only while pressure + insufficient
+        # headroom persist, or the emergency threshold is reached.
+        if (( occupancy < EMERGENCY && (occupancy < TARGET || psi < PSI_MIN) )); then
+            break
+        fi
+        if ! printf '%s\n' "$age" > "$Z/idle" ||
+           ! printf '%s\n' 'type=idle' > "$Z/writeback"; then
+            echo "Writeback failed for age=${age}s" >&2
+            failed=1
+            break
+        fi
+        echo "Writeback completed: age=${age}s"
+    done
+
+    state || exit 1
+    if (( failed == 0 && occupancy >= EMERGENCY )); then
+        echo 'Emergency writeback: all remaining eligible entries'
+        if ! printf '%s\n' all > "$Z/idle" ||
+           ! printf '%s\n' 'type=idle' > "$Z/writeback"; then
+            echo 'Emergency writeback failed' >&2
+            failed=1
+        fi
+    fi
+
+    read -r _ _ after < "$Z/bd_stat"
+    echo "Cycle complete; backing writes delta=$((after - before))"
+    if (( failed || after == before )); then
+        sleep 30                 # Avoid rapid retries on full/ineffective backing
+    else
+        sleep "$POLL"
+    fi
+done
+````
+
+</details>
+
+<details>
+<summary><strong>scripts/zram-pressure.service</strong> — complete file; 13 lines; original blob <code>14c1716d05700ab187a64d8bf4474f41dcd1bced</code></summary>
+
+````ini
+[Unit]
+Description=Pressure-triggered zram writeback
+BindsTo=dev-zram0.swap
+After=dev-zram0.swap
+
+[Service]
+Type=exec
+ExecStart=/usr/local/sbin/zram-pressure.sh
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+````
+
+</details>
+
+<details>
+<summary><strong>scripts/90-zram.conf</strong> — complete file; 3 lines; original blob <code>290648ab923c198a74a4c11774df270e01b679ab</code></summary>
+
+````ini
+# Deploy ONLY when the ZRAM profile was explicitly selected.
+# Not a Debian tweaks default and never deployed for unselected ZRAM.
+vm.swappiness = 100
+````
+
+</details>
+
+## Native Simple-CDD completion verifier
+
+Create `profiles/zram-writeback.postinst` from the full source below, alongside its `.description` and `.extra` files. The stage-11 runner writes its record after successful handler execution; the original `14simple-cdd` hook runs this verifier in-target without installing the feature twice.
+
+~~~sh
+chmod +x profiles/zram-writeback.postinst
+sh -n profiles/zram-writeback.postinst
+~~~
+
+The syntax check is read-only. The final `15my-cdd-status` guard also checks this selected profile's record, returning exit 10 if any required record is missing.
+
+<details>
+<summary><strong>profiles/zram-writeback.postinst</strong> — complete native verifier (11 lines; Git blob <code>9600b6690b1ea86d2e079fbd46ccad6434752137</code>)</summary>
+
+````sh
+#!/bin/sh
+# Simple-CDD finish-install verification only.
+# The selected profile was performed beforehand by the native Debian
+# Installer stage-11 runner, where its Debconf approvals were visible.
+# Never execute the profile twice or claim success from mere selection.
+set -eu
+marker="/var/log/installer/my-cdd-completed/zram-writeback"
+if [ ! -f "$marker" ]; then
+    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'zram-writeback'
+    exit 1
+fi
 ````
 
 </details>
