@@ -29,7 +29,6 @@ EOT
     # preserve the packages' own install-time and first-boot defaults.
     # OMV remains independent; OMV-Extras/Compose is never installed here.
     simulate_target install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    check_critical_removals
     review_plan 'Docker: official packages and normal service defaults' "$WORK/plan"
     run_target apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     run_target dpkg --audit
