@@ -290,10 +290,7 @@ ordered="$(/bin/sh "$MEDIA/ordered-selection.sh" "$RET")" ||
 db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 [ "$RET" = true ] || fatal 'The early profile summary was not approved'
 log "CONFIRMED SELECTION: $ordered"
-# A base-only installation must not change root credentials or target policy.
-if [ -n "$ordered" ]; then
-    ensure_root_recovery
-fi
+ensure_root_recovery
 
 for profile in $ordered; do
     log "PROFILE BEGIN: $profile"
