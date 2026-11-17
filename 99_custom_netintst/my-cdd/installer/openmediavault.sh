@@ -49,8 +49,61 @@ EOF
     grep -Eq '^8\.' "$WORK/output" ||
         fatal 'Installed OMV package is not version 8'
 
-    # Exactly the two post-install initialization operations in upstream.
-    run_target omv-confdbadm populate
-    run_target omv-salt deploy run hosts
-    log 'OMV 8 installed and initialized; no custom SSH, update, notification or plugin changes'
+    # OMV's upstream initialization requires a running systemd/D-Bus.
+    # Stage it for the first boot; do not execute it in Debian Installer.
+    [ -r "$MEDIA/openmediavault-firstboot.sh" ] ||
+        fatal 'OMV first-boot script missing from installer media'
+    [ -r "$MEDIA/openmediavault-firstboot.service" ] ||
+        fatal 'OMV first-boot service missing from installer media'
+
+    mkdir -p /target/usr/local/sbin \
+        /target/etc/systemd/system \
+        /target/var/lib/my-cdd \
+        /target/etc/motd.d ||
+        fatal 'Cannot create OMV first-boot directories'
+
+    cp "$MEDIA/openmediavault-firstboot.sh" \
+        /target/usr/local/sbin/my-cdd-omv-firstboot.sh ||
+        fatal 'Cannot install OMV first-boot script'
+    chmod 0755 /target/usr/local/sbin/my-cdd-omv-firstboot.sh ||
+        fatal 'Cannot make OMV first-boot script executable'
+
+    cp "$MEDIA/openmediavault-firstboot.service" \
+        /target/etc/systemd/system/my-cdd-omv-firstboot.service ||
+        fatal 'Cannot install OMV first-boot service'
+    chmod 0644 \
+        /target/etc/systemd/system/my-cdd-omv-firstboot.service ||
+        fatal 'Cannot set OMV service file permissions'
+
+    # Pending is distinct from successful OMV runtime initialization.
+    printf 'PENDING\n' > /target/var/lib/my-cdd/omv-firstboot.status ||
+        fatal 'Cannot record pending OMV initialization'
+
+    cat > /target/etc/motd.d/90-my-cdd-omv <<'EOT'
+OpenMediaVault initialization is scheduled for the first boot.
+The system will run the official OMV initialization commands automatically.
+Check the login notice after boot for the result.
+EOT
+    chmod 0644 /target/etc/motd.d/90-my-cdd-omv ||
+        fatal 'Cannot configure OMV initialization notice'
+
+    # Offline systemd enabling registers the service, but does not start it.
+    run_target systemctl enable my-cdd-omv-firstboot.service
+
+    cat > "$WORK/omv-firstboot-info" <<'EOT'
+OpenMediaVault 8 packages were installed successfully.
+
+Final initialization will run automatically on the first boot:
+  1. omv-confdbadm populate
+  2. omv-salt deploy run hosts
+
+Progress and errors will be recorded in the system journal and
+/var/log/installer/my-cdd-omv-firstboot.log.
+The login message will report the result.
+EOT
+    show_note 'OpenMediaVault first-boot initialization' \
+        "$WORK/omv-firstboot-info" ||
+        log 'Could not display OMV first-boot note; login notice remains'
+
+    log 'OMV 8 packages installed; first-boot initialization PENDING'
 }

@@ -1,0 +1,19 @@
+[Unit]
+Description=One-time OpenMediaVault first-boot initialization
+Documentation=https://docs.openmediavault.org/en/8.x/installation/on_debian.html
+
+Wants=dbus.socket
+After=dbus.socket network.target
+
+ConditionPathExists=/var/lib/my-cdd/omv-firstboot.status
+ConditionPathExists=!/var/lib/my-cdd/omv-firstboot.attempted
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/my-cdd-omv-firstboot.sh
+StandardOutput=journal+console
+StandardError=journal+console
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
