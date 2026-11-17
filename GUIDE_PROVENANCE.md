@@ -1,5 +1,15 @@
 # Guide provenance and scope
 
+## Corrected interpretation: unconditional CD-ROM cleanup before profiles — 2026-11-17
+
+**Nearest user prompt:** “I wanted the CD-ROM cleanup to be non-conditional an happen before the custom profiles and therefore the custom apt transactions”.
+
+**Previous error:** PR #24's interim revision deleted the only early source editor and left `apt-setup/disable-cdrom-entries=true` in the preseed, which cannot guarantee that cleanup precedes `preseed/late_command`: Debian's normal `10apt-cdrom-setup` stage runs after `07preseed`. This contradicted the user's requested ordering.
+
+**Current implementation:** Restore the target legacy CD-ROM entry edit in `run-selected.sh` **unconditionally** after confirmed selection and **before root recovery and any selected custom profile APT transaction**. It runs with or without selected optional profiles, edits only active legacy `deb cdrom:`/`deb-src cdrom:` lines (and bracket-option forms), and leaves network APT source entries unchanged. Keep the native unconditional preseed option for later Debian Installer cleanup. No separate refusal checks, mirror changes, package blacklists or new helpers.
+
+**Verification boundary:** Isolated sed fixture passed; CDD full listing/hash refreshed. Runtime behavior still needs the next disposable VM. Other changes in PR #24 remain unmerged.
+
 ## Final removal of discretionary origin, build and swapoff gates — 2026-11-17
 
 **Nearest user instruction:** “remove 1,2,3 and 5. for 4, remove the conditional one and leave the unconditional cdrom entries . remove also the zram swapoff refusals, it is an installation environment ffs, of course the swap is going to be empty. talk me through what you call 'conditional manual-update policy.'”
