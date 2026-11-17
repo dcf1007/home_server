@@ -1,10 +1,20 @@
 # my-cdd source manifest and provenance
 
+## Native Debian Installer CD-ROM source cleanup reuse — 2026-11-17
+
+**Nearest user instruction:** “isn't the early editor the one from cdd? just call the cdd one early and don't reinvent the wheel”.
+
+**Confirmed implementation:** Debian 13 Trixie's `apt-setup 1:0.198` provides `/usr/lib/finish-install.d/10apt-cdrom-setup`. This is a native Debian Installer hook, not part of Simple-CDD. In `installer/run-selected.sh`, after the full chosen-profile approval is verified but before any root recovery or custom profiles, call the unmodified Debian Installer hook via `capture`; treat an actual nonzero result as a command failure. Retain `apt-setup/disable-cdrom-entries=true` in `profiles/default.preseed`, ensuring its cleanup path is taken regardless of optional profile selection. No custom `sed` CD-ROM editor remains. The hook updates the target APT lists itself.
+
+**Upstream limitation:** The native finish-install scheduler will also execute `10apt-cdrom-setup` at its later normal stage. It can repeat `apt-get update` and append explanatory comments twice when forced true. The hook edits only `^deb cdrom:` in target `/etc/apt/sources.list`; it does not cover unrelated Deb822 or `.list` syntax. This matches the legacy form in the observed installer failure, but the next VM must establish actual behavior. Upstream reference: https://sources.debian.org/src/apt-setup/1:0.198/finish-install.d/10apt-cdrom-setup .
+
+**Verification:** Synchronize native runner and preseed complete CDD listings and Git blob hashes; confirm no local sed editor, no selection-condition gate, and correct call order. No ISO rebuild or VM install tested.
+
 ## Unconditional CD-ROM APT cleanup before custom transactions — 2026-11-17
 
 **Nearest user clarification:** “I wanted the CD-ROM cleanup to be non-conditional an happen before the custom profiles and therefore the custom apt transactions”.
 
-**Exact source implementation:** In `installer/run-selected.sh`, after approved selection confirmation and **before** `ensure_root_recovery` and the `for profile in $ordered` loop, iterate over target `/etc/apt/sources.list` and `/etc/apt/sources.list.d/*.list` unconditionally. Comment only active legacy installer `deb[-src] [options] cdrom:` lines. No `[ -n "$ordered" ]` condition controls this operation; it also runs for base-only installs. Non-CD-ROM lines and already-disabled entries remain unchanged. Fail only if the actual source-file edit fails. The native `d-i apt-setup/disable-cdrom-entries boolean true` remains in `profiles/default.preseed` for the later finish-install stage.
+**Superseded intermediate implementation:** An earlier PR revision iterated over legacy target source files with bespoke `sed`. The current code invokes Debian's own hook as described above. Comment only active legacy installer `deb[-src] [options] cdrom:` lines. No `[ -n "$ordered" ]` condition controls this operation; it also runs for base-only installs. Non-CD-ROM lines and already-disabled entries remain unchanged. Fail only if the actual source-file edit fails. The native `d-i apt-setup/disable-cdrom-entries boolean true` remains in `profiles/default.preseed` for the later finish-install stage.
 
 **Why timing matters:** Debian Installer runs the custom late command in `07preseed`, before its normal `10apt-cdrom-setup` cleanup, and earlier VM tests failed when an active `cdrom:` source remained during custom APT. Removing the early editor was a misinterpretation of the previous user instruction. This correction restores the early cleanup **without selection gating**; no custom APT dependency/removal policy is introduced.
 
