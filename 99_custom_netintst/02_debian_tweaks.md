@@ -6,13 +6,12 @@
 
 Finish the shared [Build project](build_project.md), [Shared profile helpers](profile_construction.md) and [Installer framework](installer_framework.md). Work from `99_custom_netintst/my-cdd/` in a test branch or disposable copy. This optional profile shares the common dispatcher; it is **not a standalone shell script**.
 
-## Step 1 — Make the four feature files
+## Step 1 — Make the three feature files
 
 | File | What it contributes |
 | --- | --- |
 | `profiles/debian-tweaks.description` | The label shown only when the optional tweaks checkbox is offered. |
 | `profiles/debian-tweaks.extra` | Stages the selected-only tweaks module on the ISO. |
-| `profiles/debian-tweaks.postinst` | Checks the marker after successful application; it does not reconfigure Debian. |
 | `installer/profile-tweaks.sh` | Complete code that edits target GRUB, root filesystem fstab, SSH and the manual APT-update policy. |
 
 The choice ID is `debian-tweaks`; the dispatcher sources `installer/profile-tweaks.sh` and calls `profile_tweaks()`.
@@ -39,26 +38,18 @@ Open `profiles/debian-tweaks.extra` in a text editor, paste the indicated conten
 
 This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, Save the document after reviewing the pasted contents.
 
-**3. Create `profiles/debian-tweaks.postinst`.** Checks the marker after successful application; it does not reconfigure Debian.
-
-Open `profiles/debian-tweaks.postinst` in a text editor, paste the indicated contents and save it at that path.
-
-This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, Save the document after reviewing the pasted contents.
-
-**4. Create `installer/profile-tweaks.sh`.** Complete code that edits target GRUB, root filesystem fstab, SSH and the manual APT-update policy.
+**3. Create `installer/profile-tweaks.sh`.** Complete code that edits target GRUB, root filesystem fstab, SSH and the manual APT-update policy.
 
 Open `installer/profile-tweaks.sh` in a text editor, paste the indicated contents and save it at that path.
 
 This opens the named file for editing; it does not run anything. Expand its identically named **complete listing below**, Save the document after reviewing the pasted contents.
 
 
-Set execute permission on the marker-checking postinst only:
 
-~~~sh
-chmod +x profiles/debian-tweaks.postinst
-~~~
 
 The installer `profile-tweaks.sh` module is *sourced*, not independently executed.
+
+Only the native Debian Installer `11my-cdd` runner executes these selected-profile functions; `15my-cdd-status` verifies one overall completion state. Simple-CDD's own stage 14 is left unchanged.
 
 ## Step 3 — Understand each operation before building
 
@@ -79,11 +70,7 @@ sh -n installer/profile-tweaks.sh
 
 This reads and syntax-checks the module without changing any GRUB or filesystem settings.
 
-~~~sh
-sh -n profiles/debian-tweaks.postinst
-~~~
 
-This similarly parses the marker checker.
 
 Each complete listing includes its original Git blob SHA; `git hash-object <path>` calculates the hash of a recreated copy without modifying it. Match the two strings to verify exact bytes before attempting `./build.sh`.
 
@@ -111,24 +98,7 @@ installer/profile-tweaks.sh
 
 </details>
 
-<details>
-<summary><strong>Complete profiles/debian-tweaks.postinst</strong> — 11 lines; Git blob <code>c94115dde4672a867033610df8b34b90c1acc505</code></summary>
 
-````sh
-#!/bin/sh
-# Simple-CDD finish-install verification only.
-# The selected profile was performed beforehand by the native Debian
-# Installer late command, where its Debconf approvals were visible.
-# Never execute the profile twice or claim success from mere selection.
-set -eu
-marker="/var/log/installer/my-cdd-completed/debian-tweaks"
-if [ ! -f "$marker" ]; then
-    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'debian-tweaks'
-    exit 1
-fi
-````
-
-</details>
 
 <details>
 <summary><strong>Complete installer/profile-tweaks.sh</strong> — 76 lines; Git blob <code>6b363c62770cb6536179ea9111c38b937443f8dc</code></summary>
