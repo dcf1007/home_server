@@ -76,7 +76,7 @@ The complete files depend on [Shared profile helpers](profile_construction.md) a
 1. `profiles/default.preseed` loads generated editable defaults, then **early** selection and consent.
 2. The accepted profile list is stored only in private installer work data. During native Debian account setup, leave the root-password fields empty so the first user is granted sudo. Before optional profile operations, the late dispatcher verifies that the new account really belongs to the sudo group and that sudo exists; it then asks for a separate local root recovery password through Debian's own password questions.
 3. Debian continues with **native** partitioning, mirror, accounts and tasksel screens.
-4. The **late** dispatcher verifies the original selection, **unconditionally disables active legacy installer CD-ROM APT source entries** in the installed target even when no optional profile was chosen, establishes approved local root recovery access, and then runs the chosen handlers in fixed order. The source cleanup happens **before any custom profile APT transaction**, because Debian Installer's later native `10apt-cdrom-setup` cleanup cannot serve that earlier operation. The native unconditional `apt-setup/disable-cdrom-entries` setting is retained. Network APT entries are left untouched. **Debian tweaks runs first** among selected profiles, ahead of Backports, kernel, firmware and the destructive ZRAM stage.
+4. The **late** dispatcher verifies the original selection, then **unconditionally invokes Debian Installer's existing `/usr/lib/finish-install.d/10apt-cdrom-setup` hook** before root recovery and any selected profile or APT transaction. The native `apt-setup/disable-cdrom-entries=true` preseed makes this cleanup unconditional, including when no profile was selected. The custom runner contains **no CD-ROM source editor**; the native hook is ordinarily scheduled later in finish-install and will execute again at that stage. **Debian tweaks runs first** among selected profiles, ahead of Backports, kernel, firmware and the destructive ZRAM stage.
 5. Each handler completes **before** its marker is created; the corresponding `.postinst` checks that marker only.
 6. Finish-install's status guard refuses a normal-success screen if the overall status or any selected marker is missing.
 
@@ -378,7 +378,7 @@ Description: Remove the package ${MYCDD_REMOVAL}?
 
 
 <details>
-<summary><strong>Complete file: installer/run-selected.sh</strong> (328 lines, current Git blob <code>c475dac8b767fe787def5d8d90863be0ec07dfc1</code>)</summary>
+<summary><strong>Complete file: installer/run-selected.sh</strong> (324 lines, current Git blob <code>4cd77aa7ba5a351d3ab49e1bfeeb148090519666</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -674,15 +674,11 @@ db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 [ "$RET" = true ] || fatal 'The early profile summary was not approved'
 log "CONFIRMED SELECTION: $ordered"
 
-# Unconditionally disable installer CD-ROM APT entries in the installed target
-# BEFORE root recovery and every custom profile/APT transaction. Debian's
-# native finish-install CD-ROM cleanup occurs too late for these profiles.
-# Leave all non-CD-ROM sources unchanged.
-for source in /target/etc/apt/sources.list /target/etc/apt/sources.list.d/*.list; do
-    [ -f "$source" ] || continue
-    sed -i -E '/^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:/s/^/# my-cdd: installer CD-ROM source disabled: /' "$source" ||
-        fatal "Cannot disable installer CD-ROM APT entries in $source"
-done
+# Use Debian Installer's own apt-cdrom-setup cleanup now, before any
+# custom profiles or their APT transactions. Its preseed setting is already
+# true; the normal finish-install hook would otherwise run after 07preseed.
+capture /usr/lib/finish-install.d/10apt-cdrom-setup ||
+    fatal 'Debian Installer CD-ROM APT source cleanup failed'
 
 ensure_root_recovery
 
