@@ -22,7 +22,7 @@ Work inside `99_custom_netintst/my-cdd/`, on a test branch or scratch copy.
 | `profiles/zram-writeback.description` | Text of the opt-in ZRAM checkbox. |
 | `profiles/zram-writeback.extra` | All required sources and generator/monitor assets to stage on the installer ISO. |
 | `profiles/zram-writeback.postinst` | Executable completion-marker verifier (not a second partition conversion). |
-| `installer/profile-zram.sh` | The complete selected-only handler: inline utility preflight, confirmation, RAM/swapoff checks, bounded erase, native Parted, fstab and target provisioning. |
+| `installer/profile-zram.sh` | The complete selected-only handler: inline utility preflight, confirmation, targeted swapoff, bounded erase, native Parted, fstab and target provisioning. |
 | `installer/zram-selection.sh` | The complete native GPT/sysfs/blkid candidate discovery, identity validation, mount/holder checks and fstab preparation; `blkid` is called directly. |
 | `scripts/zram-generator.conf.template` | ZSTD/ZRAM sizing and writeback config; dynamically replaced PARTUUID placeholders. |
 | `scripts/override.conf` | Single systemd drop-in for pre-init compressed writeback and setup-failure emergency policy. |
@@ -60,7 +60,7 @@ Open `profiles/zram-writeback.postinst` in a text editor, paste the indicated co
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**4. Create `installer/profile-zram.sh`.** The complete selected-only handler: confirmation, RAM/swapoff checks, bounded erase, native Parted, fstab and target provisioning.
+**4. Create `installer/profile-zram.sh`.** The complete selected-only handler: confirmation, targeted swapoff, bounded erase, native Parted, fstab and target provisioning.
 
 Open `installer/profile-zram.sh` in a text editor, paste the indicated contents and save it at that path.
 
@@ -118,7 +118,7 @@ The main `installer/profile-zram.sh` handler is **sourced**; it is never invoked
 3. **Candidate discovery:** the selection helper uses `/sys/class/block` and native `blkid -p -o export` to inspect GPT partition number, parent disk, GUID type and **actual PARTUUID**. It accepts GPT swap-type partitions, plus already prepared raw partitions named `zram-writeback`. It rejects duplicate identities, mounts and block-device holders.
 4. **Automatic choice is narrowly limited:** exactly one suitable conventional swap reference in the new target's `/target/etc/fstab` may be selected automatically. Otherwise the native Debconf chooser presents the exact candidates and initially offers **Stop**.
 5. **Independent destructive approval:** after selecting a candidate, the handler shows the exact partition device, parent disk, size, PARTUUID and planned **first-1-MiB erase**. The default is **No**.
-6. **Active swap safety:** used swap is identified in `/proc/swaps`. The handler requires enough available RAM for the used pages **plus a reserve**, asks another default-No confirmation for targeted `swapoff`, and revalidates the partition before touching it.
+6. **Active swap:** the installer reads `/proc/swaps` and asks a separate default-No confirmation for targeted `swapoff` only if the chosen partition is active. It does not impose a RAM-reserve or memory-pressure threshold. An actual failed `swapoff` or still-active backing stops the destructive conversion.
 7. **fstab preparation:** before writes, the helper prepares removal of only the confirmed partition's conventional swap entry. Unrelated root, EFI, NAS, **other swap references and partitions** remain untouched. There is no separate whole-system swap policy.
 8. **Bounded signature erase:** once all checks pass, the handler runs BusyBox `dd` with `bs=4096 count=256` against the **verified partition**, not its parent disk. That writes exactly **1 MiB**.
 9. **GPT conversion without recreation:** native Parted changes that partition's **type** to standard Linux data (gdisk 8300, GUID `0FC63DAF-8483-4772-8E79-3D69D8477DE4`) and its **name** to `zram-writeback`. It does **not** format a filesystem, delete the partition or hardcode the machine's PARTUUID. Post-write checks must confirm correct identity and no residual swap signature.
@@ -194,7 +194,7 @@ fi
 </details>
 
 <details>
-<summary><strong>installer/profile-zram.sh</strong> — complete file; 188 lines; original blob <code>6205945a4914980ce437593d954aa9e5dfeecede</code></summary>
+<summary><strong>installer/profile-zram.sh</strong> — complete file; 165 lines; original blob <code>6e3da1e8b15bd2f43245198f87c1b981c6c7a79f</code></summary>
 
 ````sh
 #!/bin/sh
@@ -264,38 +264,20 @@ profile_zram() {
     yes_no my-cdd/zram-destructive ||
         fatal 'User declined destructive ZRAM backing conversion'
 
-    # Debian Installer may itself activate even newly created swap. Leave
-    # unrelated swap devices completely untouched; never use swapoff -a.
+    # Debian Installer may activate the selected swap partition temporarily.
+    # Deactivate ONLY this confirmed partition, with the separately approved
+    # targeted swapoff. Do not veto an empty installer swap on RAM estimates.
     zram_read_active_swap
     if [ -n "$active_used" ]; then
-        available_kb="$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)"
-        total_kb="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)"
-        case "$available_kb:$total_kb" in
-            *[!0-9:]*|:*|*:) fatal 'Cannot assess installer memory pressure for swapoff' ;;
-        esac
-        if [ -r /proc/pressure/memory ]; then
-            log "Installer memory PSI before any swapoff: $(head -n 2 /proc/pressure/memory | tr '\n' ';')"
-        fi
-        reserve_kb=$((total_kb / 8))
-        [ "$reserve_kb" -ge 262144 ] || reserve_kb=262144
-        used_kb=$((active_used / 1024 + 1))
-        [ "$available_kb" -gt "$((used_kb + reserve_kb))" ] ||
-            fatal 'RAM cannot cover selected swap usage plus a safety reserve; no swapoff attempted'
         db_subst my-cdd/zram-swapoff MYCDD_PARTITION "$device" ||
             fatal 'Cannot show exact swapoff target'
         db_subst my-cdd/zram-swapoff MYCDD_USED "$active_used" ||
             fatal 'Cannot show selected swap usage'
         yes_no my-cdd/zram-swapoff ||
             fatal 'Targeted swapoff was not separately approved'
-        # Re-evaluate memory and identity immediately before swapoff, too.
         zram_validate_candidate
         zram_read_active_swap
         if [ -n "$active_used" ]; then
-            available_kb="$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)"
-            case "$available_kb" in ''|*[!0-9]*) fatal 'RAM check failed immediately before swapoff' ;; esac
-            used_kb=$((active_used / 1024 + 1))
-            [ "$available_kb" -gt "$((used_kb + reserve_kb))" ] ||
-                fatal 'Insufficient remaining RAM for a safe targeted swapoff'
             capture busybox swapoff "$device" ||
                 fatal 'Targeted swapoff failed; GPT and signatures left unchanged'
         fi
@@ -306,7 +288,7 @@ profile_zram() {
     zram_validate_candidate
     zram_read_active_swap
     [ -z "$active_used" ] ||
-        fatal 'Selected backing was reactivated as swap before conversion'
+        fatal 'Selected backing is active swap; cannot overwrite its signature'
 
     # Write only the approved partition's first 1 MiB, never its parent disk.
     # The GPT layout and PARTUUID are preserved; no filesystem is created.
@@ -378,11 +360,6 @@ profile_zram() {
     fi
     run_target update-grub
     run_target systemctl enable zram-pressure.service
-    # Defense in depth: common preflight has already established recovery access
-    # before any selected profile (including this partition conversion).
-    capture in-target passwd -S root || fatal 'Cannot inspect emergency root account'
-    grep -E '^root[[:space:]]+P[[:space:]]' "$WORK/output" >/dev/null ||
-        fatal 'Separate local root password is not enabled for ZRAM emergency recovery'
     log "ZRAM raw backing: $device PARTUUID=$uuid size=$size; boot kernel/sysfs and generator require first-boot validation"
 }
 
