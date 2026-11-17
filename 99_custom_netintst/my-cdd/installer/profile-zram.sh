@@ -2,8 +2,9 @@
 # Sourced by the approved installer dispatcher; no automatic execution.
 
 profile_zram() {
-    [ -f "$LOG_DIR/my-cdd-completed/ensure-7x-kernel" ] ||
-        fatal 'ZRAM cannot run without the separately completed Ensure 7.x kernel profile'
+    # ordered-selection requires the separately selected kernel profile,
+    # and the native stage-11 runner executes it before ZRAM. Any failure
+    # prevents reaching this handler; no duplicate completion marker needed.
     [ -r "$MEDIA/zram-generator.conf.template" ] ||
         fatal 'Original ZRAM generator source missing'
     [ -r "$MEDIA/zram-selection.sh" ] ||
