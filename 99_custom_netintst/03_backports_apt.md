@@ -12,7 +12,6 @@ Complete the shared [Build project](build_project.md), [Shared profile helpers](
 | --- | --- |
 | `profiles/backports.description` | The checkbox's plain-language label. |
 | `profiles/backports.extra` | Which Backports module and source template must be copied to installer media. |
-| `profiles/backports.postinst` | A success-marker verifier only; it must be executable. |
 | `installer/profile-backports.sh` | The complete selected-only function: signed source, reviewed upgrade, individual cleanup consent and audit. |
 | `scripts/debian-backports.sources` | The signed Trixie Backports configuration installed in the target only when selected. |
 
@@ -38,32 +37,24 @@ Open `profiles/backports.extra` in a text editor, paste the indicated contents a
 
 Expand the **matching complete file listing below**, Save the document after reviewing the pasted contents. This editor command does not execute the file.
 
-**3. Open `profiles/backports.postinst`.** A success-marker verifier only; it must be executable.
-
-Open `profiles/backports.postinst` in a text editor, paste the indicated contents and save it at that path.
-
-Expand the **matching complete file listing below**, Save the document after reviewing the pasted contents. This editor command does not execute the file.
-
-**4. Open `installer/profile-backports.sh`.** The complete selected-only function: signed source, reviewed upgrade, individual cleanup consent and audit.
+**3. Open `installer/profile-backports.sh`.** The complete selected-only function: signed source, reviewed upgrade, individual cleanup consent and audit.
 
 Open `installer/profile-backports.sh` in a text editor, paste the indicated contents and save it at that path.
 
 Expand the **matching complete file listing below**, Save the document after reviewing the pasted contents. This editor command does not execute the file.
 
-**5. Open `scripts/debian-backports.sources`.** The signed Trixie Backports configuration installed in the target only when selected.
+**4. Open `scripts/debian-backports.sources`.** The signed Trixie Backports configuration installed in the target only when selected.
 
 Open `scripts/debian-backports.sources` in a text editor, paste the indicated contents and save it at that path.
 
 Expand the **matching complete file listing below**, Save the document after reviewing the pasted contents. This editor command does not execute the file.
 
 
-Make the marker verifier executable:
 
-~~~sh
-chmod +x profiles/backports.postinst
-~~~
 
 This sets the permission expected by Simple-CDD. `installer/profile-backports.sh` is **sourced** by the dispatcher and should not be run directly.
+
+Only the native Debian Installer `11my-cdd` runner executes these selected-profile functions; `15my-cdd-status` verifies one overall completion state. Simple-CDD's own stage 14 is left unchanged.
 
 ## Step 3 — Understand how the code works
 
@@ -73,7 +64,6 @@ This sets the permission expected by Simple-CDD. `installer/profile-backports.sh
 4. The function adds the signed source to `/target` and refreshes package indexes. Debian APT applies repository priorities and resolves dependencies; the profile does not create its own priority-refusal policy.
 5. It performs its own full-upgrade simulation and obtains default-No native Debconf approval directly in `profile_backports()`. The complete plan, including any removals, is reviewed by the user; the profile adds no package blacklist.
 6. Cleanup is reviewed **per named package** before removal. The module finishes with package audits.
-7. The dispatcher writes a completion marker **only if the handler succeeds**; `backports.postinst` verifies that marker and does not repeat the installation.
 
 ## Step 4 — Check the files, then build
 
@@ -83,9 +73,6 @@ sh -n installer/profile-backports.sh
 
 This checks the handler's POSIX syntax **without running APT**.
 
-~~~sh
-sh -n profiles/backports.postinst
-~~~
 
 This checks the verifier's syntax. For every file below, `git hash-object <file>` prints the **Git blob SHA**; compare it with the value in the listing heading to detect omissions or accidental edits. This is read-only.
 
@@ -114,24 +101,7 @@ scripts/debian-backports.sources
 
 </details>
 
-<details>
-<summary><strong>Complete profiles/backports.postinst</strong> (11 lines; original blob <code>0c54457530c5fb5141e35fb3a2d3d8b7d3f41236</code>)</summary>
 
-````sh
-#!/bin/sh
-# Simple-CDD finish-install verification only.
-# The selected profile was performed beforehand by the native Debian
-# Installer late command, where its Debconf approvals were visible.
-# Never execute the profile twice or claim success from mere selection.
-set -eu
-marker="/var/log/installer/my-cdd-completed/backports"
-if [ ! -f "$marker" ]; then
-    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'backports'
-    exit 1
-fi
-````
-
-</details>
 
 <details>
 <summary><strong>Complete installer/profile-backports.sh</strong> (49 lines; original blob <code>f8ac2e847636e5eb367afdde23d5b3283851ffeb</code>)</summary>
