@@ -27,7 +27,7 @@ A single feature's source module is **not** a complete ISO: it depends on the sh
 | [04 — Linux 7.x kernel](04_ensure_7x_kernel.md) | Eligible suite selection, image and matching headers, GRUB |
 | [05 — Extended device support](05_extended_device_support.md) | Firmware manifest, microcode and original vendor-license dialogs |
 | [06 — ZRAM writeback](06_zram_writeback.md) | Native udeb disk selector, safe confirmation, GPT conversion and ZRAM generator |
-| [07 — OpenMediaVault 8](07_openmediavault.md) | One official signed APT source, reviewed installation and required OMV initialization |
+| [07 — OpenMediaVault 8](07_openmediavault.md) | One official signed APT source, reviewed package installation and native one-time first-boot OMV initialization |
 | [08 — Docker](08_docker.md) | One official signed APT source, reviewed package set; independent of OMV |
 
 The installer executes **selected features in this fixed order**. In particular, Debian tweaks must complete before ZRAM performs any destructive conversion. Choosing ZRAM separately requires the **Linux 7.x profile**; the installer never selects it for you.
@@ -49,3 +49,5 @@ The revised source removes the unrequested package-removal blacklist, APT operat
 Earlier design notes and test history remain under [history](history/). [Provenance](../GUIDE_PROVENANCE.md) records why the standalone and installer versions must be updated together.
 
 **Current selected-profile verification (approved 2026-11-17):** The runner records individual successful profile completion, unmodified Simple-CDD stage 14 invokes the matching executable `.postinst` verifier, and stage 15 checks every selected record and overall status with an exit-10 failure response. Installer handler filenames share their Simple-CDD profile names. These source changes require fresh ISO and disposable-VM validation.
+
+**OMV first-boot lifecycle correction (17 November 2026):** In the latest VM, OpenMediaVault package installation succeeded but the in-target `omv-confdbadm populate` failed because upstream OMV's timezone script required a running system bus. The OMV-only handler now schedules the same two official post-install commands for a one-time systemd service on first boot, with a separate runtime success/failure record and console/login notices. The Docker handler and native Simple-CDD completion checks are unchanged. VM verification remains pending.

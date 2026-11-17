@@ -1,5 +1,30 @@
 # Validation — Test the scripts and generated Debian installer
 
+## OMV first-boot initialization after observed installer D-Bus failure — 2026-11-17
+
+**Nearest user prompt:** “go ahead”, explicitly approving the previously displayed four-file OMV-only first-boot implementation.
+
+**Observed latest VM evidence:** A fresh Debian Installer run on 17 November 2026 reached the OMV 8 package configuration. The selected OMV handler then failed at `in-target omv-confdbadm populate` (exit 1). Upstream OMV's `50timezone.sh` calls `timedatectl show -p Timezone --value`, which needs a running system D-Bus. Docker had not yet been reached in that VM.
+
+**Implemented source, not yet VM-tested:** The selected OMV handler retains its official signed APT source, complete transaction review, `dpkg --audit`, and OMV 8 version check. It stages and enables one native systemd service to execute the **unchanged** upstream `omv-confdbadm populate` then `omv-salt deploy run hosts` on the installed system's first boot. Only OMV selection stages and enables the job. There are no Docker or shared installer hook changes. The stage-11 per-profile marker and stages 14/15 still establish successful **package installation and job registration**; first-boot initialization has a separate persistent status and log.
+
+**Notification and one-run contract:** The service writes `/var/lib/my-cdd/omv-firstboot.status` (`PENDING`, `RUNNING`, `COMPLETE`, `FAILED`) and creates `/var/lib/my-cdd/omv-firstboot.attempted` **before** the first OMV command. After success or failure, automatic reruns are prevented. It logs output to `/var/log/installer/my-cdd-omv-firstboot.log`, emits journal/console progress, and writes a persistent `/etc/motd.d/90-my-cdd-omv` login notice for PAM-enabled logins. These notices are local, not remote alerts.
+
+**Local checks executed:** Both POSIX shell files passed `sh -n`. Offline `systemctl --root=<fixture> enable my-cdd-omv-firstboot.service` created the expected target.wants symlink. An isolated mock first-boot script test passed: both commands succeeded, first-command exit 37, and second-command exit 23; in both failure tests, `FAILED` identified the step/exit status and a second invocation did not rerun the commands. The real Debian Installer chroot and VM boot have **not** been tested for this change.
+
+**Next disposable-VM acceptance checks:**
+
+- [ ] All seven optional profiles begin unchecked; OMV-only assets are absent when OMV is unselected
+- [ ] Selected OMV package install, keyring, APT review, `dpkg --audit`, and 8.x version check succeed exactly as before
+- [ ] OMV handler registers the oneshot unit without executing `populate` or `hosts` in the installer
+- [ ] Stages 14 and 15 accept a successful OMV package+job registration record, without claiming first-boot OMV runtime success
+- [ ] First boot exposes a running system D-Bus, executes the commands once in the official order, and transitions `PENDING` → `RUNNING` → `COMPLETE`
+- [ ] Boot journal/console and normal local/SSH login show appropriate progress, completion or failure; preserve command output log
+- [ ] Deliberate failure in either command records the failed step and exit status, stops before the second command if the first fails, and does not retry on reboot
+- [ ] Docker remains independent and completes its own native package installation and first-boot service checks
+- [ ] Verify first-boot DNS/network state, OMV web interface and ZRAM compressed writeback separately; do not infer readiness from package presence
+
+
 ## User-approved native per-profile completion restoration — 2026-11-17
 
 **Nearest user authorization:** “i agree. use A”, after agreeing to consistent profile file naming and unchanged feature scope. This supersedes the single-status-only design recorded in the next dated section.

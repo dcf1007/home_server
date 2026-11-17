@@ -1,5 +1,14 @@
 # Guide provenance and scope
 
+## Approved one-time OMV first-boot initialization — 2026-11-17
+
+**Nearest user prompt:** “go ahead”, in direct response to the complete displayed four-file implementation and its limitation that first-boot OMV readiness cannot be certified by Debian Installer.
+
+**Observed latest VM:** The Debian Installer successfully installed OMV 8 packages but the subsequent `in-target omv-confdbadm populate` exited 1 after upstream `50timezone.sh` tried `timedatectl` without a running system bus. The official upstream shell installer uses exactly `omv-confdbadm populate` followed by `omv-salt deploy run hosts`.
+
+**Approved change and scope:** Preserve package installation and transaction approvals, stage one native systemd oneshot service, and execute only the two official initialization commands once at real first boot. Add explicit `PENDING`/runtime state, persistent journal/log and local login/console notice; never automatically rerun after first attempt. Keep Docker, all other profile handlers, shared runner, native selected `.postinst` verifiers and final exit-10 guard unchanged. Synchronize the OMV construction guide complete sources and hashes. Shell mock tests passed; ISO and VM validation remain pending.
+
+
 ## Native per-profile verification restoration and naming — 2026-11-17
 
 **Nearest user authorization:** “i agree. use A”, following explicit agreement on canonical installer filenames and unchanged feature scope.
