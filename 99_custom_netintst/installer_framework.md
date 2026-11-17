@@ -39,7 +39,7 @@ Paste the complete matching listings below. The early hook must run **before** `
 | `installer/run-selected.sh` | Supplies `capture`, `fatal`, target-APT simulation and review helpers; checks local root recovery access; sources and runs only selected functions; writes completion markers and shows real failed-command output in the native failure dialog. |
 | `installer/15my-cdd-status` | Finish-install hook that blocks success if status is not `COMPLETE` or a selected marker is absent. |
 
-Paste both entire listings below. **Do not trim `run-selected.sh` down to the short dispatcher excerpt.** Its review and error-handling code is necessary for safety. Target stderr is redirected to stdout **inside the `in-target` chroot**, because Debian Installer otherwise sends it only to syslog. On failure, the native GTK/text note shows the failed command, return status, recognized APT/dpkg error lines and the last 100 lines of actual command output. The complete log is still retained in `/target/var/log/installer/my-cdd.log`. The guard uses Debian Installer's finish-install **exit status 10**, not a generic shell exit 1.
+Paste both entire listings below. **Do not trim `run-selected.sh` down to the short dispatcher excerpt.** It preserves native transaction approval and direct command failures, without a project-defined package-removal blacklist, APT operation whitelist, or unrelated environment preflights. Target stderr is redirected to stdout **inside the `in-target` chroot**, because Debian Installer otherwise sends it only to syslog. On failure, the native GTK/text note shows the failed command, return status, recognized APT/dpkg error lines and the last 100 lines of actual command output. The complete log is still retained in `/target/var/log/installer/my-cdd.log`. The guard uses Debian Installer's finish-install **exit status 10**, not a generic shell exit 1.
 
 Mark only the actual **entry points** as executable:
 
@@ -76,7 +76,7 @@ The complete files depend on [Shared profile helpers](profile_construction.md) a
 1. `profiles/default.preseed` loads generated editable defaults, then **early** selection and consent.
 2. The accepted profile list is stored only in private installer work data. During native Debian account setup, leave the root-password fields empty so the first user is granted sudo. Before optional profile operations, the late dispatcher verifies that the new account really belongs to the sudo group and that sudo exists; it then asks for a separate local root recovery password through Debian's own password questions.
 3. Debian continues with **native** partitioning, mirror, accounts and tasksel screens.
-4. The **late** dispatcher verifies the original selection and usable local root recovery, prepares target APT, and sources the chosen handlers in fixed order. **Debian tweaks now runs first**, ahead of Backports, kernel, firmware and the destructive ZRAM stage.
+4. The **late** dispatcher verifies the original selection and usable local root recovery, disables an installer-only legacy CD-ROM APT source when applicable, and sources the chosen handlers in fixed order. **Debian tweaks now runs first**, ahead of Backports, kernel, firmware and the destructive ZRAM stage.
 5. Each handler completes **before** its marker is created; the corresponding `.postinst` checks that marker only.
 6. Finish-install's status guard refuses a normal-success screen if the overall status or any selected marker is missing.
 
@@ -379,7 +379,7 @@ Description: Remove the package ${MYCDD_REMOVAL}?
 
 
 <details>
-<summary><strong>Complete file: installer/run-selected.sh</strong> (392 lines, current Git blob <code>c59a0f935a2911357a318fc558d68960bf77b35c</code>)</summary>
+<summary><strong>Complete file: installer/run-selected.sh</strong> (331 lines, current Git blob <code>6097a7bbcf04688a07d6ec136219fb65f847c757</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -534,51 +534,24 @@ review_plan() {
     approve "$1"
 }
 run_target() {
-    # Profiles call apt-get directly. For approved package transactions,
-    # show native Debian Installer GTK/text progress via Debconf.
-    # Preserve their exact arguments; no implicit APT command translation.
+    # Retain the native Debian Installer APT progress UI. Profile calls and
+    # the complete reviewed plan determine which operation executes.
     if [ "$1" = apt-get ]; then
-        shift
-        case "$1" in
-            update)
-                [ "$#" -eq 1 ] || fatal 'Unexpected apt-get update arguments'
-                ;;
-            -y)
-                case "${2-}" in
-                    dist-upgrade|install|autoremove) : ;;
-                    *) fatal "Unsupported reviewed apt-get transaction: $*" ;;
-                esac
-                ;;
-            *) fatal "Unexpected apt-get operation: $*" ;;
-        esac
-        # Never force DEBIAN_FRONTEND=noninteractive for package installs.
-        capture in-target debconf-apt-progress --logstderr -- apt-get "$@" ||
-            fatal "Target APT transaction failed: apt-get $*"
+        capture in-target debconf-apt-progress --logstderr -- "$@" ||
+            fatal "Target APT transaction failed: $*"
     else
         capture in-target "$@" || fatal "Target command failed: $*"
     fi
 }
 simulate_target() {
-    # APT simulations and real operations both use apt-get directly.
-    case "$1" in
-        dist-upgrade|install|autoremove) : ;;
-        *) fatal "Unsupported APT simulation: $*" ;;
-    esac
     capture in-target apt-get -s "$@" ||
         fatal "APT simulation failed: apt-get -s $*"
     cp "$WORK/output" "$WORK/plan"
-}
-check_critical_removals() {
-    if grep -E '^Remv (linux-image|linux-headers|grub|openssh-server|sudo|systemd|apt |dpkg )' "$WORK/plan" > "$WORK/critical"; then
-        cat "$WORK/critical" >> "$LOG"
-        fatal 'Proposed removal of boot/essential administration packages; explicit manual resolution required'
-    fi
 }
 review_install() {
     name=$1
     shift
     simulate_target install "$@"
-    check_critical_removals
     review_plan "$name" "$WORK/plan"
     run_target apt-get -y install "$@"
     run_target dpkg --audit
@@ -703,52 +676,18 @@ db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 log "CONFIRMED SELECTION: $ordered"
 ensure_root_recovery
 
-# Debian Installer's in-target wrapper already installs a temporary policy-rc.d
-# that rejects maintainer-script service starts. Check that native protection
-# before any selected custom APT transaction; do not create another policy,
-# mask units, or change target first-boot enablement.
+# The installer may leave a legacy CD-ROM package source enabled before
+# finish-install's own cleanup. Disable only that source for selected profiles
+# that use online APT; APT itself reports any remaining source errors.
 if [ -n "$ordered" ]; then
-    capture in-target sh -c '
-        [ -x /usr/sbin/policy-rc.d ] || exit 1
-        /usr/sbin/policy-rc.d my-cdd-installer-preflight start
-        [ "$?" -eq 101 ]
-    ' || fatal 'Debian Installer target service-start protection is missing'
-    log 'Confirmed native in-target package-service startup suppression'
-fi
-
-# Debian Installer apt-setup may leave its CD-ROM APT source active until
-# finish-install's later 10apt-cdrom-setup hook. Our custom APT transactions
-# run in 07preseed, BEFORE that native cleanup. APT update cannot refresh
-# a cdrom: source; disable only those local entries in the target APT list.
-# Do not change the installer medium, remove online sources, or alter mirrors.
-disable_installer_cdrom_sources() {
     for source in /target/etc/apt/sources.list /target/etc/apt/sources.list.d/*.list; do
         [ -f "$source" ] || continue
-        if grep -Eq '^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:' "$source"; then
-            sed -i -E '/^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:/s/^/# my-cdd: disabled installer CD-ROM source: /' "$source" ||
+        if grep -Eq '^[[:space:]]*deb(-src)?[[:space:]]+(\\[[^]]*\\][[:space:]]+)?cdrom:' "$source"; then
+            sed -i -E '/^[[:space:]]*deb(-src)?[[:space:]]+(\\[[^]]*\\][[:space:]]+)?cdrom:/s/^/# my-cdd: disabled installer CD-ROM source: /' "$source" ||
                 fatal "Cannot disable installer-only APT CD-ROM entry in $source"
             log "Disabled installer CD-ROM APT entry in $source"
         fi
     done
-    # Keep unfamiliar deb822 arrangements intact rather than disabling a
-    # stanza that may mix CD-ROM and online URIs.
-    for source in /target/etc/apt/sources.list.d/*.sources; do
-        [ -f "$source" ] || continue
-        if grep -Eiq '^[[:space:]]*URIs:[[:space:]]+cdrom:' "$source"; then
-            fatal "Unexpected active deb822 CD-ROM source in $source; manual APT-source review required"
-        fi
-    done
-    # Fail closed if an active legacy CD-ROM source escaped the narrow edit.
-    for source in /target/etc/apt/sources.list /target/etc/apt/sources.list.d/*.list; do
-        [ -f "$source" ] || continue
-        if grep -Eq '^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:' "$source"; then
-            fatal "Installer CD-ROM entry remains active in $source"
-        fi
-    done
-}
-
-if [ -n "$ordered" ]; then
-    disable_installer_cdrom_sources
 fi
 
 for profile in $ordered; do
