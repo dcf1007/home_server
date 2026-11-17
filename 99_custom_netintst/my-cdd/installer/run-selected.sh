@@ -298,8 +298,8 @@ ensure_root_recovery
 if [ -n "$ordered" ]; then
     for source in /target/etc/apt/sources.list /target/etc/apt/sources.list.d/*.list; do
         [ -f "$source" ] || continue
-        if grep -Eq '^[[:space:]]*deb(-src)?[[:space:]]+(\\[[^]]*\\][[:space:]]+)?cdrom:' "$source"; then
-            sed -i -E '/^[[:space:]]*deb(-src)?[[:space:]]+(\\[[^]]*\\][[:space:]]+)?cdrom:/s/^/# my-cdd: disabled installer CD-ROM source: /' "$source" ||
+        if grep -Eq '^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:' "$source"; then
+            sed -i -E '/^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:/s/^/# my-cdd: disabled installer CD-ROM source: /' "$source" ||
                 fatal "Cannot disable installer-only APT CD-ROM entry in $source"
             log "Disabled installer CD-ROM APT entry in $source"
         fi
