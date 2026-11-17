@@ -1,5 +1,15 @@
 # my-cdd source manifest and provenance
 
+## Unconditional CD-ROM APT cleanup before custom transactions — 2026-11-17
+
+**Nearest user clarification:** “I wanted the CD-ROM cleanup to be non-conditional an happen before the custom profiles and therefore the custom apt transactions”.
+
+**Exact source implementation:** In `installer/run-selected.sh`, after approved selection confirmation and **before** `ensure_root_recovery` and the `for profile in $ordered` loop, iterate over target `/etc/apt/sources.list` and `/etc/apt/sources.list.d/*.list` unconditionally. Comment only active legacy installer `deb[-src] [options] cdrom:` lines. No `[ -n "$ordered" ]` condition controls this operation; it also runs for base-only installs. Non-CD-ROM lines and already-disabled entries remain unchanged. Fail only if the actual source-file edit fails. The native `d-i apt-setup/disable-cdrom-entries boolean true` remains in `profiles/default.preseed` for the later finish-install stage.
+
+**Why timing matters:** Debian Installer runs the custom late command in `07preseed`, before its normal `10apt-cdrom-setup` cleanup, and earlier VM tests failed when an active `cdrom:` source remained during custom APT. Removing the early editor was a misinterpretation of the previous user instruction. This correction restores the early cleanup **without selection gating**; no custom APT dependency/removal policy is introduced.
+
+**Validation:** Legacy source-line syntax and idempotent comment/no-edit behavior checked in an isolated sed fixture. No fresh built ISO or actual Debian Installer run. The current edit is scoped to the observed legacy `.list` syntax, not unrelated Deb822 `.sources` stanzas.
+
 ## User-directed final policy cleanup and exact source manifest — 2026-11-17
 
 **Nearest user instruction:** “remove 1,2,3 and 5. for 4, remove the conditional one and leave the unconditional cdrom entries . remove also the zram swapoff refusals, it is an installation environment ffs, of course the swap is going to be empty. talk me through what you call 'conditional manual-update policy.'”
