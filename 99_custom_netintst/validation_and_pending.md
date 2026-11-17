@@ -1,5 +1,17 @@
 # Validation — Test the scripts and generated Debian installer
 
+## Unconditional pre-profile CD-ROM APT cleanup — 2026-11-17
+
+**Nearest user clarification:** “I wanted the CD-ROM cleanup to be non-conditional an happen before the custom profiles and therefore the custom apt transactions”.
+
+**Corrected implementation in PR #24:** Immediately after verifying the approved profile selection, `run-selected.sh` **always** disables active installer `deb cdrom:` and `deb-src cdrom:` entries (including ordinary `[options]`) from the installed target's `/etc/apt/sources.list` and `/etc/apt/sources.list.d/*.list`. The cleanup is outside any `[ -n "$ordered" ]` gate; it runs even for zero optional profiles. It precedes the previously approved root recovery step, the custom profile loop and **every custom `apt-get` transaction**. Comments and network APT sources remain unchanged. The native unconditional `apt-setup/disable-cdrom-entries` preseed option remains enabled for Debian's later normal finish-install handling.
+
+**Why both steps exist:** Debian Installer calls the custom `preseed/late_command` during `07preseed`, ahead of its later `10apt-cdrom-setup` finish-install cleanup. The native setting therefore cannot by itself protect the custom APT transactions. The early unconditional edit addresses the observed legacy CD-ROM source; it does not add a package-management restriction or new user-selection gate. No blanket rewrite of unrelated Deb822 network sources is introduced.
+
+**Source-level check:** A read-only fixture tested ordinary `deb cdrom:`, `deb-src cdrom:`, bracket-options CD-ROM sources, active network sources and already-commented sources. Four active CD-ROM lines were disabled, two network lines and one inactive comment preserved. Full regenerated ISO and disposable-VM execution remain untested.
+
+**Next VM checkpoint:** Verify the target's legacy CD-ROM APT entries are disabled **before the first selected profile calls APT**. If the installed Debian target uses a CD-ROM Deb822 `.sources` stanza instead of the observed legacy format, inspect its actual contents and adapt the minimal cleanup rather than assuming success.
+
 ## User-directed final simplification — 2026-11-17
 
 **Nearest instruction:** Remove OMV/Docker custom origin gates, ZRAM's duplicate root check, all additional build-time refusal checks, the conditional CD-ROM edit (keep the unconditional native Debian preseed), and ZRAM's installer-only RAM/swapoff threshold refusals. Explain, but do not modify, the selected Debian tweaks manual-updates behavior.
