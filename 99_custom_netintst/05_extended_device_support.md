@@ -8,13 +8,12 @@ Complete [Build project](build_project.md), [Shared profile helpers](profile_con
 
 Work inside `99_custom_netintst/my-cdd/` in a **test branch or scratch copy**. Do not run its source module as a shell script on a normal NAS.
 
-## Step 2 — Create the five exact source files
+## Step 2 — Create the four exact source files
 
 | Path | Responsibility |
 | --- | --- |
 | `profiles/extended-device-support.description` | Human-readable checkbox for additional firmware and both CPU microcode packages. |
 | `profiles/extended-device-support.extra` | Stages the firmware module and full list of requested packages on the ISO. |
-| `profiles/extended-device-support.postinst` | Checks completion and must be executable, but performs no second install. |
 | `installer/profile-firmware.sh` | All selection, fallback, per-package omission, complete APT review and native vendor-license Debconf code. |
 | `scripts/firmware-candidates.txt` | The full approved package inventory, including both Intel and AMD CPU microcode. |
 
@@ -38,32 +37,24 @@ Open `profiles/extended-device-support.extra` in a text editor, paste the indica
 
 Open that specific file, expand the matching **complete source listing** below, paste all contents, Save the document after reviewing the pasted contents. This does **not** execute the file.
 
-**3. Create `profiles/extended-device-support.postinst`.** Checks completion and must be executable, but performs no second install.
-
-Open `profiles/extended-device-support.postinst` in a text editor, paste the indicated contents and save it at that path.
-
-Open that specific file, expand the matching **complete source listing** below, paste all contents, Save the document after reviewing the pasted contents. This does **not** execute the file.
-
-**4. Create `installer/profile-firmware.sh`.** All selection, fallback, per-package omission, complete APT review and native vendor-license Debconf code.
+**3. Create `installer/profile-firmware.sh`.** All selection, fallback, per-package omission, complete APT review and native vendor-license Debconf code.
 
 Open `installer/profile-firmware.sh` in a text editor, paste the indicated contents and save it at that path.
 
 Open that specific file, expand the matching **complete source listing** below, paste all contents, Save the document after reviewing the pasted contents. This does **not** execute the file.
 
-**5. Create `scripts/firmware-candidates.txt`.** The full approved package inventory, including both Intel and AMD CPU microcode.
+**4. Create `scripts/firmware-candidates.txt`.** The full approved package inventory, including both Intel and AMD CPU microcode.
 
 Open `scripts/firmware-candidates.txt` in a text editor, paste the indicated contents and save it at that path.
 
 Open that specific file, expand the matching **complete source listing** below, paste all contents, Save the document after reviewing the pasted contents. This does **not** execute the file.
 
 
-Allow Simple-CDD to execute the success-marker verifier:
 
-~~~sh
-chmod +x profiles/extended-device-support.postinst
-~~~
 
 Do not mark the ordinary imported `profile-firmware.sh` source module as an independent program.
+
+Only the native Debian Installer `11my-cdd` runner executes these selected-profile functions; `15my-cdd-status` verifies one overall completion state. Simple-CDD's own stage 14 is left unchanged.
 
 ## Step 3 — Understand why each operation exists
 
@@ -86,11 +77,7 @@ sh -n installer/profile-firmware.sh
 
 This checks only POSIX shell syntax; it does **not** select packages or show vendor licenses.
 
-~~~sh
-sh -n profiles/extended-device-support.postinst
-~~~
 
-This parses the marker verifier. To catch copy mistakes, use `git hash-object <path>` for each file and compare the output with the original blob SHA in its heading; the command reads the file without changing it.
 
 Build via `./build.sh` only after every shared input is in place. Use a **throwaway VM** to test both full vendor license dialogs, a decline, an individual omitted package, absent Backports, safe fallback, conflict rejection and first-boot device logs.
 
@@ -117,24 +104,7 @@ scripts/firmware-candidates.txt
 
 </details>
 
-<details>
-<summary><strong>Complete profiles/extended-device-support.postinst</strong> (11 lines; original blob <code>a01a9471ed75662f4e85059a0dc34df793e6af54</code>)</summary>
 
-````sh
-#!/bin/sh
-# Simple-CDD finish-install verification only.
-# The selected profile was performed beforehand by the native Debian
-# Installer late command, where its Debconf approvals were visible.
-# Never execute the profile twice or claim success from mere selection.
-set -eu
-marker="/var/log/installer/my-cdd-completed/extended-device-support"
-if [ ! -f "$marker" ]; then
-    printf >&2 'my-cdd: %s was selected but not successfully applied; refusing completion.\n' 'extended-device-support'
-    exit 1
-fi
-````
-
-</details>
 
 <details>
 <summary><strong>Complete installer/profile-firmware.sh</strong> (213 lines; original blob <code>afc504d8d088c4d0818d3d2bd2d904dcebaaba45</code>)</summary>
