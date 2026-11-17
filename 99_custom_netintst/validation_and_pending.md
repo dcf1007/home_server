@@ -1,5 +1,24 @@
 # Validation — Test the scripts and generated Debian installer
 
+## Current review branch: user-owned installer policy — 2026-11-17
+
+**Latest observed VM outcome (2026-11-16):** The selected profiles progressed through Debian tweaks and the confirmed ZRAM backing conversion. OMV's signed repository and archive key worked; its APT simulation proposed `Remv systemd-timesyncd`. The *project's own package-removal blacklist* stopped the installer before the user could approve the plan. The actual OMV transaction, Docker and first boot were **not** reached. PR #23's package-specific exception was closed unmerged.
+
+**Current source changes (not ISO-tested):** Removed the shared and kernel/firmware package-name removal blacklists; APT command whitelist; unrequested installer service-start preflight; speculative CD-ROM source rejection/recheck while keeping the narrow source fix addressing an observed CD-ROM problem; Backports old-pin/priority refusals and both redundant empty-plan post-install tests; whole-system swap/`PARTLABEL` rejection unrelated to the chosen ZRAM backing. Removed the extra APT priority lookup after each signed update. Base-only installs no longer run the optional-profile root-password recovery setup.
+
+**Required user-owned behavior retained:**
+
+- [ ] The seven profile checkboxes remain genuinely optional, with an unchanged approval summary and no automatically selected optional profile.
+- [ ] A base-only install does not alter root credentials or impose optional profiles' APT/system configuration.
+- [ ] Selected profiles display the complete simulated APT transaction, including removals, and require native default-No approval. A valid APT plan is not vetoed by a custom package blacklist.
+- [ ] The Backports profile performs the user-approved full upgrade and individually approved cleanup; APT status/error results govern completion rather than repeated “empty plan” tests.
+- [ ] The independent OMV/Docker profiles each use the single official signed repository with no additional policy changes.
+- [ ] ZRAM still identifies the exact target GPT partition, confirms destructive conversion and targeted `swapoff` separately, and changes **only** that partition. An unrelated `fstab` swap entry remains untouched and cannot veto the selected conversion.
+- [ ] Genuine operation failures and refused user consent remain visible through the native GTK/text diagnostics.
+- [ ] After a successful installer, verify the Linux 7.x kernel, normal-user SSH access, ZRAM compressed-writeback setup/monitor, OMV/Docker services and first-boot networking.
+
+**Release gate:** The current branch is source-reviewed only. A fresh disposable-VM ISO build and install are necessary; previous screenshots do not establish successful OMV installation or first boot.
+
 ## Confirmed OMV APT keyring permission failure — 2026-11-16
 
 **Newest user-provided VM evidence:** The custom GTK failure dialog now displays the actual command, exit code 100, APT `Err:4` and `E:` diagnostics. The signed OpenMediaVault repository metadata is reachable, but `/usr/bin/sqv` reports `Failed to parse keyring "/usr/share/keyrings/openmediavault-archive-keyring.gpg": Permission denied (os error 13)`; APT consequently reports the repository as unsigned. The attempted repository signature check **did not succeed**, but the error is attributable to inability to read the public keyring rather than demonstrated bad signature content.
