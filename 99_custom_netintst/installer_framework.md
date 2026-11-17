@@ -106,7 +106,7 @@ installer/15my-cdd-status
 
 
 <details>
-<summary><strong>Complete file: profiles/default.preseed</strong> (19 lines, current Git blob <code>776832bc1d52af7b17976b9137c61eb6c2e26bfa</code>)</summary>
+<summary><strong>Complete file: profiles/default.preseed</strong> (20 lines, current Git blob <code>bfdf653e40c4991d93565919cc4a3f0103e18edb</code>)</summary>
 
 ````text
 # my-cdd minimal default profile for Debian 13.
@@ -124,8 +124,9 @@ d-i preseed/include string defaults.preseed
 # Its failure MUST prevent anna-install from running.
 # The upstream simple-cdd-profiles component remains unmodified.
 d-i preseed/early_command string /bin/sh /cdrom/simple-cdd/profile-confirm.sh && anna-install simple-cdd-profiles
-# Configure Debian Installer to disable CD-ROM APT entries. The custom
-# selected-profile runner does not separately edit these sources.
+# Force Debian Installer's native apt-cdrom-setup cleanup. Our late
+# runner invokes its unmodified finish-install hook before custom profiles;
+# Debian Installer also invokes the hook at its normal later stage.
 d-i apt-setup/disable-cdrom-entries boolean true
 d-i preseed/late_command string /bin/sh /cdrom/simple-cdd/run-selected.sh
 ````
