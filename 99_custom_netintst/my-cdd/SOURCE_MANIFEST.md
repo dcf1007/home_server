@@ -1,15 +1,12 @@
 # my-cdd source manifest and provenance
 
-## OMV first-boot one-shot initialization — 2026-11-17
+## OMV one-time job cleans up after itself — 2026-11-17
 
-**Nearest user prompt:** “go ahead”, authorizing the previously shown OMV-only systemd oneshot and persistent progress/failure notices.
+**Nearest user prompt:** “i agree with the suggestion”, after requesting that the one-shot script, service and all state markers disappear after execution, leaving only logs.
 
-**Observed cause:** The latest 2026-11-17 VM successfully installed OMV packages but `omv-confdbadm populate` failed because the target chroot lacked the system bus needed by upstream OMV's timezone population script. The two commands are now deferred unchanged, in order, until the booted system has systemd/D-Bus.
+**Revision of PR #25:** `installer/openmediavault.sh` still stages and enables a temporary job after approved OMV 8 package installation. The updated `installer/openmediavault-firstboot.sh` creates `/var/log/installer/my-cdd-omv-firstboot.log` before any initialization, runs only `omv-confdbadm populate` and `omv-salt deploy run hosts` on the real first boot, then disables/deletes its service, enablement symlink and itself on both success and failure. `installer/openmediavault-firstboot.service` has no persistent-state condition or MOTD. A prior log forces cleanup-only after interruption, with no automatic command retry. The OMV `.extra` manifest, Docker handler, selected-profile dispatcher and native completion guard do not change.
 
-**Actual file scope:** Modified `installer/openmediavault.sh` to stage and enable its one-time service after package audit and OMV 8 version verification, with a target `PENDING` state and installer note. Modified `profiles/openmediavault.extra` to stage `installer/openmediavault-firstboot.sh` and `installer/openmediavault-firstboot.service`. Both new files record status and notification on first boot, with an attempted marker preventing any automatic second run. Original profile ID, Docker handler, `run-selected.sh`, stage-14 `.postinst` and stage-15 guard are unchanged.
-
-**Verification boundary:** Isolated shell mock tests for success, failing `populate`, failing `hosts`, and repeat invocation passed. `sh -n` passed; offline systemd unit enablement was checked on a fixture. No rebuilt ISO, Debian Installer/VM end-to-end run, or real OMV first-boot initialization has yet been verified.
-
+**Observability boundary:** Log and boot console/systemd journal are retained reporting channels; no persistent login notice/status file is installed. If a sudden power loss interrupts cleanup the next boot can recover it, provided the attempt log reached storage. Six isolated mock cases passed; full ISO and first-boot validation remain outstanding. Full current source listings and Git hashes are in the OMV construction guide.
 
 ## Latest user-approved Route A and canonical naming — 2026-11-17
 

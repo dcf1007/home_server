@@ -1,13 +1,14 @@
 # Guide provenance and scope
 
-## Approved one-time OMV first-boot initialization — 2026-11-17
+## Approved self-cleaning OMV first boot — 2026-11-17
 
-**Nearest user prompt:** “go ahead”, in direct response to the complete displayed four-file implementation and its limitation that first-boot OMV readiness cannot be certified by Debian Installer.
+**Nearest user prompt:** “i agree with the suggestion”, following the explicit request for a one-time script which leaves only logs and cleans up its own systemd files on success and failure.
 
-**Observed latest VM:** The Debian Installer successfully installed OMV 8 packages but the subsequent `in-target omv-confdbadm populate` exited 1 after upstream `50timezone.sh` tried `timedatectl` without a running system bus. The official upstream shell installer uses exactly `omv-confdbadm populate` followed by `omv-salt deploy run hosts`.
+**Observed cause:** The 2026-11-17 VM reached successful OMV 8 package installation then failed when the in-target `omv-confdbadm populate` called `timedatectl` without system D-Bus. The two OMV upstream commands and their original order remain unchanged.
 
-**Approved change and scope:** Preserve package installation and transaction approvals, stage one native systemd oneshot service, and execute only the two official initialization commands once at real first boot. Add explicit `PENDING`/runtime state, persistent journal/log and local login/console notice; never automatically rerun after first attempt. Keep Docker, all other profile handlers, shared runner, native selected `.postinst` verifiers and final exit-10 guard unchanged. Synchronize the OMV construction guide complete sources and hashes. Shell mock tests passed; ISO and VM validation remain pending.
+**Implemented:** OMV package stage installs and registers a one-time first-boot service. It creates the private log before executing either command, records stdout/stderr, progress, final command/exit status, and then disables/removes its service, symlink and runner, retaining only `/var/log/installer/my-cdd-omv-firstboot.log`. On a later boot after an interrupted attempt, the existing log causes cleanup only. No status/attempt/MOTD files are retained. Console/journal reporting is transient; persistent failure details are in the log. Native completion markers still verify package+registration success rather than actual OMV runtime readiness.
 
+**Boundaries:** No Docker modifications, extra OMV commands, NAS policies, APT changes or shared installer hook changes. Six isolated mocked shell cases passed; full ISO, Debian Installer and real first-boot verification are not yet established.
 
 ## Native per-profile verification restoration and naming — 2026-11-17
 
