@@ -1,6 +1,14 @@
 # Validation — Test the scripts and generated Debian installer
 
-## Native finish-install orchestration refactor — 2026-11-17
+## User-approved native per-profile completion restoration — 2026-11-17
+
+**Nearest user authorization:** “i agree. use A”, after agreeing to consistent profile file naming and unchanged feature scope. This supersedes the single-status-only design recorded in the next dated section.
+
+**Current source:** The stage-11 `run-selected.sh` runs each approved selected handler once and writes `/target/var/log/installer/my-cdd-completed/<profile>` only after successful return; overall `COMPLETE` follows only after every selected handler succeeds. Unmodified native Simple-CDD stage `14simple-cdd` executes the selected profile's executable `profiles/<profile>.postinst` **in-target**, checking its marker without repeating installation. The final `15my-cdd-status` checks selection approval, overall status and the marker of **every selected profile**, returning native finish-install exit 10 if incomplete. All seven installer handler filenames share the canonical profile stem; the ZRAM helper is `zram-writeback-selection.sh`.
+
+**Outstanding validation:** Confirm executable bits and exact current source listings, successful and failed selected-profile combinations, per-profile marker checks in the native stage-14 hook, a deliberately missing marker at stage 15, installer failure diagnostics and no false final success message. An ISO build, full disposable-VM run, and first-boot checks have **not** been performed for this change.
+
+## Previous native finish-install orchestration refactor (superseded) — 2026-11-17
 
 **Nearest user prompt:** “implement”, in response to the source audit identifying duplicate custom lifecycle orchestration, marker-only Simple-CDD postinst checks, firmware-license template extraction, and manual local mirror edits.
 
@@ -143,7 +151,7 @@ Before making an ISO, reproduce the **file contents from the chapters**, on a sc
 
 1. Follow [Build project](build_project.md), [Shared profile helpers](profile_construction.md), [Installer framework](installer_framework.md) and each selected feature page. Keep the entire current seven-profile set when reconstructing the shipped configuration.
 2. For each created file, run `git hash-object <path>` from `my-cdd`. It **reads the file only** and prints a Git blob identifier. Compare that output with the expected blob SHA printed above the file's full listing. A mismatch means the copy differs.
-3. Confirm `installer/profile-confirm.sh`, `installer/run-selected.sh` and `installer/15my-cdd-status` have executable permissions; there are no optional `.postinst` scripts. The imported feature modules should remain **sourced** files.
+3. Confirm `installer/profile-confirm.sh`, `installer/run-selected.sh`, `installer/15my-cdd-status` and all seven `profiles/*.postinst` verifiers have executable permissions. The imported feature modules should remain **sourced** files.
 4. Confirm every path in each `profiles/*.extra` exists before running the build. A module is not executed merely because it was staged.
 5. Do not run sourced installer modules on a host machine. Their behavior must be exercised in the **Debian Installer VM**.
 
@@ -158,12 +166,12 @@ A shell syntax check and a successful ISO build are **not** equivalent to testin
 From `99_custom_netintst/my-cdd`, parse your changed module without executing it:
 
 ~~~sh
-sh -n installer/profile-zram.sh
+sh -n installer/zram-writeback.sh
 ~~~
 
 This is an example. Change the filename to the module you actually edited. `sh -n` checks POSIX shell syntax **without running disk writes or APT**.
 
-Check that each selected feature has its own `profiles/<name>.description` and `.extra`, and that its handler is staged by Simple-CDD. There are no optional `.postinst` files or completion markers; the runner's overall `COMPLETE` status is checked at stage 15.
+Check that each selected feature has its own `profiles/<name>.description` and `.extra`, and that its handler is staged by Simple-CDD. All seven optional `.postinst` files verify per-profile completion markers; the runner's overall `COMPLETE` status is checked at stage 15.
 
 Confirm that `simple-cdd.conf` still has the seven offered profiles and **empty** `auto_profiles` and `default_profiles`. Verify that new code is inside a **selected function**, not executed when sourced unconditionally.
 
@@ -238,3 +246,11 @@ Use only a **disposable GPT virtual disk**. Test all of the following before usi
 **Open as of 2026-11-16:** the current native-udeb ZRAM conversion, complete GUI/target APT flow and first-boot writeback have **not** been validated end to end. Do not use the new ISO on important physical disks until these tests pass.
 
 Historical design and earlier failure logs remain in [the original archived validation notes](history/08_validation_and_pending.md).
+
+## Route A additional completion verification tests
+
+- [ ] Select two or more profiles; confirm an individual success record is created only after each handler returns success
+- [ ] Confirm native Simple-CDD stage 14 executes exactly the approved executable `profiles/<name>.postinst` verifiers in-target, without executing the selected installation handlers again
+- [ ] With a selected profile marker absent, confirm stage 15 returns **10** even if the global status file contains `COMPLETE`
+- [ ] On a failed profile handler, confirm no marker is written for that profile and native Debian Installer does not display a false success screen
+- [ ] Confirm all seven selected handler files and the ZRAM helper are staged from their matching native `.extra` manifests
