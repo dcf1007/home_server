@@ -295,20 +295,6 @@ if [ -n "$ordered" ]; then
     ensure_root_recovery
 fi
 
-# The installer may leave a legacy CD-ROM package source enabled before
-# finish-install's own cleanup. Disable only that source for selected profiles
-# that use online APT; APT itself reports any remaining source errors.
-if [ -n "$ordered" ]; then
-    for source in /target/etc/apt/sources.list /target/etc/apt/sources.list.d/*.list; do
-        [ -f "$source" ] || continue
-        if grep -Eq '^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:' "$source"; then
-            sed -i -E '/^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:/s/^/# my-cdd: disabled installer CD-ROM source: /' "$source" ||
-                fatal "Cannot disable installer-only APT CD-ROM entry in $source"
-            log "Disabled installer CD-ROM APT entry in $source"
-        fi
-    done
-fi
-
 for profile in $ordered; do
     log "PROFILE BEGIN: $profile"
     case "$profile" in
