@@ -76,7 +76,7 @@ The complete files depend on [Shared profile helpers](profile_construction.md) a
 1. `profiles/default.preseed` loads generated editable defaults, then **early** selection and consent.
 2. The accepted profile list is stored only in private installer work data. During native Debian account setup, leave the root-password fields empty so the first user is granted sudo. Before optional profile operations, the late dispatcher verifies that the new account really belongs to the sudo group and that sudo exists; it then asks for a separate local root recovery password through Debian's own password questions.
 3. Debian continues with **native** partitioning, mirror, accounts and tasksel screens.
-4. The **late** dispatcher verifies the original selection and usable local root recovery, disables an installer-only legacy CD-ROM APT source when applicable, and sources the chosen handlers in fixed order. **Debian tweaks now runs first**, ahead of Backports, kernel, firmware and the destructive ZRAM stage.
+4. The **late** dispatcher verifies the original selection. **Only when profiles are selected** does it establish the approved local root recovery access and disable an installer-only legacy CD-ROM APT source when applicable, before sourcing the chosen handlers in fixed order. Base-only installations do not alter root credentials. **Debian tweaks now runs first**, ahead of Backports, kernel, firmware and the destructive ZRAM stage.
 5. Each handler completes **before** its marker is created; the corresponding `.postinst` checks that marker only.
 6. Finish-install's status guard refuses a normal-success screen if the overall status or any selected marker is missing.
 
@@ -379,7 +379,7 @@ Description: Remove the package ${MYCDD_REMOVAL}?
 
 
 <details>
-<summary><strong>Complete file: installer/run-selected.sh</strong> (331 lines, current Git blob <code>fa7d9709ff32588eb383e807cf1b1a38038b35d9</code>)</summary>
+<summary><strong>Complete file: installer/run-selected.sh</strong> (334 lines, current Git blob <code>a70c48796a63152409984acd9eebf09f08051d4f</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -674,7 +674,10 @@ ordered="$(/bin/sh "$MEDIA/ordered-selection.sh" "$RET")" ||
 db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 [ "$RET" = true ] || fatal 'The early profile summary was not approved'
 log "CONFIRMED SELECTION: $ordered"
-ensure_root_recovery
+# A base-only installation must not change root credentials or target policy.
+if [ -n "$ordered" ]; then
+    ensure_root_recovery
+fi
 
 # The installer may leave a legacy CD-ROM package source enabled before
 # finish-install's own cleanup. Disable only that source for selected profiles
