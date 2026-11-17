@@ -76,7 +76,7 @@ The complete files depend on [Shared profile helpers](profile_construction.md) a
 1. `profiles/default.preseed` loads generated editable defaults, then **early** selection and consent.
 2. The accepted profile list is stored only in private installer work data. During native Debian account setup, leave the root-password fields empty so the first user is granted sudo. Before optional profile operations, the late dispatcher verifies that the new account really belongs to the sudo group and that sudo exists; it then asks for a separate local root recovery password through Debian's own password questions.
 3. Debian continues with **native** partitioning, mirror, accounts and tasksel screens.
-4. The **late** dispatcher verifies the original selection. **Only when profiles are selected** does it establish the approved local root recovery access and disable an installer-only legacy CD-ROM APT source when applicable, before sourcing the chosen handlers in fixed order. Base-only installations do not alter root credentials. **Debian tweaks now runs first**, ahead of Backports, kernel, firmware and the destructive ZRAM stage.
+4. The **late** dispatcher verifies the original selection and the previously approved local root recovery access, then runs the chosen handlers in fixed order. Debian Installer's unconditional `apt-setup/disable-cdrom-entries` setting handles CD-ROM APT entries; the custom runner does not edit them. **Debian tweaks runs first** among selected profiles, ahead of Backports, kernel, firmware and the destructive ZRAM stage.
 5. Each handler completes **before** its marker is created; the corresponding `.postinst` checks that marker only.
 6. Finish-install's status guard refuses a normal-success screen if the overall status or any selected marker is missing.
 
@@ -106,7 +106,7 @@ installer/15my-cdd-status
 
 
 <details>
-<summary><strong>Complete file: profiles/default.preseed</strong> (20 lines, current Git blob <code>0d5971206483997eaba0de1f4dc2f2f4c734100f</code>)</summary>
+<summary><strong>Complete file: profiles/default.preseed</strong> (19 lines, current Git blob <code>776832bc1d52af7b17976b9137c61eb6c2e26bfa</code>)</summary>
 
 ````text
 # my-cdd minimal default profile for Debian 13.
@@ -124,9 +124,8 @@ d-i preseed/include string defaults.preseed
 # Its failure MUST prevent anna-install from running.
 # The upstream simple-cdd-profiles component remains unmodified.
 d-i preseed/early_command string /bin/sh /cdrom/simple-cdd/profile-confirm.sh && anna-install simple-cdd-profiles
-# Let Debian's own late finish-install cleanup also disable an installer-
-# only CD-ROM APT source. The custom 07preseed hook needs to do it earlier
-# when selected profiles use network APT before that cleanup runs.
+# Configure Debian Installer to disable CD-ROM APT entries. The custom
+# selected-profile runner does not separately edit these sources.
 d-i apt-setup/disable-cdrom-entries boolean true
 d-i preseed/late_command string /bin/sh /cdrom/simple-cdd/run-selected.sh
 ````
@@ -379,7 +378,7 @@ Description: Remove the package ${MYCDD_REMOVAL}?
 
 
 <details>
-<summary><strong>Complete file: installer/run-selected.sh</strong> (334 lines, current Git blob <code>a70c48796a63152409984acd9eebf09f08051d4f</code>)</summary>
+<summary><strong>Complete file: installer/run-selected.sh</strong> (317 lines, current Git blob <code>944a32a4de4ddbdc4fc32e93de8c28d213257b82</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -674,24 +673,7 @@ ordered="$(/bin/sh "$MEDIA/ordered-selection.sh" "$RET")" ||
 db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 [ "$RET" = true ] || fatal 'The early profile summary was not approved'
 log "CONFIRMED SELECTION: $ordered"
-# A base-only installation must not change root credentials or target policy.
-if [ -n "$ordered" ]; then
-    ensure_root_recovery
-fi
-
-# The installer may leave a legacy CD-ROM package source enabled before
-# finish-install's own cleanup. Disable only that source for selected profiles
-# that use online APT; APT itself reports any remaining source errors.
-if [ -n "$ordered" ]; then
-    for source in /target/etc/apt/sources.list /target/etc/apt/sources.list.d/*.list; do
-        [ -f "$source" ] || continue
-        if grep -Eq '^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:' "$source"; then
-            sed -i -E '/^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:/s/^/# my-cdd: disabled installer CD-ROM source: /' "$source" ||
-                fatal "Cannot disable installer-only APT CD-ROM entry in $source"
-            log "Disabled installer CD-ROM APT entry in $source"
-        fi
-    done
-fi
+ensure_root_recovery
 
 for profile in $ordered; do
     log "PROFILE BEGIN: $profile"
