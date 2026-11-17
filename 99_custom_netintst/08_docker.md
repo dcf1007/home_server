@@ -63,7 +63,7 @@ This changes permissions only. The main module is sourced by the confirmed insta
 1. The `docker` checkbox begins **unchecked**. When chosen, the dispatcher loads this one handler; Docker does not imply OMV or OMV-Extras.
 2. The `review_install` helper shows and approves target installation of `ca-certificates` and `curl`, the signing-key prerequisites.
 3. The handler downloads Docker's official public key to the target's APT keyring and creates the signed Deb822 repository for **Debian Trixie amd64**.
-4. It verifies the Docker package origin, then simulates installing **five packages together**: `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin` and `docker-compose-plugin`.
+4. It refreshes the official signed Docker repository and simulates installing **five packages together**: `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin` and `docker-compose-plugin`.
 5. The complete APT plan, including any removals, is shown through the installer Debconf frontend with **default-No** approval. The user decides whether to proceed; no project-defined essential-package blacklist intervenes. The approved set is installed and dpkg audited.
 6. It does **not** mask/disable Docker services, create containers, give users the root-equivalent Docker group, or install OMV Compose integrations.
 
@@ -81,7 +81,7 @@ sh -n profiles/docker.postinst
 
 This parses the verifier without running it. Verify exact copies using `git hash-object <path>` compared with the original Git blob SHA shown below; the command reads content only.
 
-When the shared framework and other required profile manifests are complete, run `./build.sh`. In a **disposable VM**, test unchecked Docker, selected+approved, refused APT plan, official origin checks, installation and first boot. `docker --version` and `docker compose version` prove only the client tools exist; also check Docker/containerd services.
+When the shared framework and other required profile manifests are complete, run `./build.sh`. In a **disposable VM**, test unchecked Docker, selected+approved, refused APT plan, signed repository refresh, installation and first boot. `docker --version` and `docker compose version` prove only the client tools exist; also check Docker/containerd services.
 
 ## Complete source listings
 
@@ -125,7 +125,7 @@ fi
 </details>
 
 <details>
-<summary><strong>installer/profile-docker.sh</strong> — complete file; 36 lines; Git blob <code>53ad42442591b94c35b67a9bdef46a90fdf306e7</code></summary>
+<summary><strong>installer/profile-docker.sh</strong> — complete file; 31 lines; Git blob <code>110db356d9590cd3a12b0211ca0192a19757ceed</code></summary>
 
 ````sh
 #!/bin/sh
@@ -149,11 +149,6 @@ Architectures: amd64
 Signed-By: /etc/apt/keyrings/docker.asc
 EOT
     update_signed_apt
-    for pkg in docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin; do
-        capture in-target apt-cache policy "$pkg" || fatal "Cannot inspect $pkg"
-        grep -F 'download.docker.com/linux/debian' "$WORK/output" >/dev/null ||
-            fatal "$pkg lacks the official signed Docker repository"
-    done
     # Install through Docker's official signed Debian repository.
     # No custom masking, disabling or starting of Docker/containerd units:
     # preserve the packages' own install-time and first-boot defaults.
