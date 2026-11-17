@@ -87,8 +87,8 @@ conversion until an additional explicit default-No destructive approval.
 Previously converted raw `zram-writeback` GPT partitions are shown only as
 manual candidates. PARTLABEL alone is not unique proof of identity.
 
-Source: [`zram-selection.sh`](zram-selection.sh),
-[`profile-zram.sh`](profile-zram.sh), and
+Source: [`zram-selection.sh`](https://github.com/dcf1007/home_server/blob/8a8c5b055531523fb3088905a21aa3c82701c5df/99_custom_netintst/my-cdd/installer/zram-selection.sh),
+[`profile-zram.sh`](https://github.com/dcf1007/home_server/blob/8a8c5b055531523fb3088905a21aa3c82701c5df/99_custom_netintst/my-cdd/installer/profile-zram.sh), and
 [`profile-confirm.templates`](profile-confirm.templates).
 The approved targeted `swapoff` path remains, with memory reserve and
 identity/activity rechecks. No partitioning commands occur in candidate
