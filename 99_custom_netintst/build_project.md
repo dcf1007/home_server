@@ -1,6 +1,6 @@
 # Build project — Recreate Simple-CDD and the ISO build wrapper
 
-**Outcome:** a working *build project* for Debian 13 amd64 containing the complete source of `simple-cdd.conf`, editable installer defaults and the guarded two-stage `build.sh`. This does **not** yet include the per-feature implementation; those are constructed in [Shared profile helpers](profile_construction.md), [Installer framework](installer_framework.md) and the feature chapters.
+**Outcome:** a working *build project* for Debian 13 amd64 containing the complete source of `simple-cdd.conf`, editable installer defaults and the two-stage `build.sh`. This does **not** yet include the per-feature implementation; those are constructed in [Shared profile helpers](profile_construction.md), [Installer framework](installer_framework.md) and the feature chapters.
 
 ## Step 1 — Prepare a Debian build computer
 
@@ -67,13 +67,13 @@ Run this from the root of the `home_server` checkout, not from inside another `m
 | File | Why it is needed |
 | --- | --- |
 | `simple-cdd.conf` | Select Debian 13/Trixie, architecture, allowed profile IDs and separate build-only media inputs. |
-| `profile_defaults.conf` | Keep editable locale, keyboard, network and account *suggestions* in one place. Never put passwords or disk selections here. |
-| `build.sh` | Validate inputs and sources, generate preseed defaults, populate the two-stage mirror, build the ISO and verify package/media contents. |
+| `profile_defaults.conf` | Keep editable hostname, locale, keyboard layout, time and account *suggestions* in one place. Network method and keyboard variant remain interactive choices in Debian Installer. Never put passwords or disk selections here. |
+| `build.sh` | Generate editable preseed defaults, prepare the local two-stage mirror and run Simple-CDD to build the ISO without custom validation/refusal gates. |
 | `profiles/installer-media.downloads` | Put regular `zstd` in the build-only media package list. |
 | `profiles/installer-media.udebs` | Include native `parted-udeb` and `util-linux-udeb` for installer-side GPT work. |
 | `.gitignore` | Avoid checking in generated build logs, images and temporary files. |
 
-For **each file**, open it in an editor (a text editor for `simple-cdd.conf`, then a text editor for `profile_defaults.conf`, and so on), paste the **entire matching file listing** below, save, and close. Do not use abbreviated snippets from earlier versions of this guide: some were missing build guards.
+For **each file**, open it in an editor (a text editor for `simple-cdd.conf`, then a text editor for `profile_defaults.conf`, and so on), paste the **entire matching file listing** below, save, and close. Do not use abbreviated snippets from earlier versions of this guide: some were incomplete.
 
 Make the build entry point executable:
 
@@ -87,9 +87,9 @@ This changes file permission only, so `./build.sh` can run later.
 
 `simple-cdd.conf` offers seven optional features but starts none automatically. `build_profiles="installer-media"` is a separate *build input*, not another checkbox. `profile_defaults.conf` specifies suggestions for ordinary Debian Installer screens, not answers that suppress those screens.
 
-The build wrapper runs **mirror-only** first, adjusts only its **generated local mirror** to include the installer udebs from required components, then runs **build-only**. Its source and ISO checks prevent reporting a successful build when key scripts or packages were omitted.
+The build wrapper runs **mirror-only** first, adjusts only its **generated local mirror** for the installer udebs from required components, then runs **build-only**. Native build-command failures govern the outcome; it does not impose additional project-defined preflight or ISO-content rejection gates.
 
-The project also depends on the official Simple-CDD `default.*` profile files. **Do not create local files named** `profiles/default.downloads`, `profiles/default.udebs` or `profiles/default.packages`; the wrapper explicitly refuses to shadow upstream ones.
+The project also depends on the official Simple-CDD `default.*` profile files. **Do not create local files named** `profiles/default.downloads`, `profiles/default.udebs` or `profiles/default.packages`; the upstream files supply the standard profile inputs; do not shadow them with custom files.
 
 ## Step 5 — Check your build entry point
 
@@ -97,7 +97,7 @@ The project also depends on the official Simple-CDD `default.*` profile files. *
 bash -n build.sh
 ~~~
 
-This checks Bash syntax without running the builder. **Do not run `./build.sh` yet if you have not created** the common installer files and feature modules: its checks will stop on missing source.
+This checks Bash syntax without running the builder. **Do not run `./build.sh` yet if you have not created** the common installer files and feature modules: the build tools still need those sources.
 
 **Next:** [Shared profile helpers](profile_construction.md), then [Installer framework](installer_framework.md), then one or more feature guides. When all media manifests and modules exist, run `./build.sh` from `my-cdd` and test the ISO in a disposable VM.
 
@@ -162,7 +162,7 @@ BOOT_TIMEOUT="0"
 
 
 <details>
-<summary><strong>Complete file: profile_defaults.conf</strong> (49 lines, current Git blob <code>e7ef827d8a53240bdf6ad25a0a2b5a848e7a6bc6</code>)</summary>
+<summary><strong>Complete file: profile_defaults.conf</strong> (48 lines, current Git blob <code>c77b5a8028157d8f28b2a9eae5d3b3754449ef4d</code>)</summary>
 
 ````text
 # profile_defaults.conf — Debian 13 Simple-CDD installation GUI suggested values
@@ -195,15 +195,14 @@ DEFAULT_LANGUAGE="en"
 DEFAULT_COUNTRY="DE"
 DEFAULT_LOCALE="en_US.UTF-8"
 DEFAULT_KEYBOARD_LAYOUT="es"
-DEFAULT_KEYBOARD_VARIANT=""  # Non-empty variant not supported by renderer yet
+# Keyboard variants remain a choice in Debian Installer's native editable
+# keyboard dialog; this file does not preselect a variant.
 DEFAULT_TIMEZONE="Europe/Berlin"
 DEFAULT_RTC_UTC="true"
 
-# Installer networking and software-selection defaults.
-# DHCP is left to Debian Installer's native setup. The build currently
-# supports DHCP mode only; a static setting fails validation rather than being
-# silently ignored. Any installer prompt must remain editable.
-DEFAULT_NETWORK_METHOD="dhcp"
+# Networking method (DHCP or manual/static configuration) is chosen in
+# Debian Installer's normal editable interface; the ISO does not force one.
+# Software-selection suggestions are provided below.
 # Rendered into tasksel/first with its Debconf seen flag reset.
 # Minimal/headless system: SSH server + Standard system utilities, no desktop.
 DEFAULT_TASKSEL_TASKS="ssh-server,standard"
@@ -220,7 +219,7 @@ DEFAULT_TASKSEL_TASKS="ssh-server,standard"
 
 
 <details>
-<summary><strong>Complete file: build.sh</strong> (245 lines, current Git blob <code>65372c3ab5629006493032bf913ed0d814c8a903</code>)</summary>
+<summary><strong>Complete file: build.sh</strong> (74 lines, current Git blob <code>3f27ffd18ecae1c83e87e5ef8cf688aad862f3cc</code>)</summary>
 
 ````sh
 #!/bin/bash
@@ -230,90 +229,15 @@ DEFAULT_TASKSEL_TASKS="ssh-server,standard"
 set -euo pipefail
 cd "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
-# In Simple-CDD 0.6.9 the first matching profile file wins. Let the
-# upstream default.downloads and default.udebs lists be used intact.
-for name in default.downloads default.udebs default.packages; do
-    [ ! -e "./profiles/$name" ] || {
-        printf >&2 'my-cdd: local profiles/%s shadows upstream defaults.\n' "$name"
-        exit 1
-    }
-    [ -r "/usr/share/simple-cdd/profiles/$name" ] || {
-        printf >&2 'my-cdd: missing upstream Simple-CDD profile: %s\n' "$name"
-        exit 1
-    }
-done
-# Keep zstd in the ISO package pool and installer-native parted/blkid
-# in the udeb pool. All belong to the existing build-only profile; never
-# shadow upstream default.* lists or add a selectable installer profile.
-[ "$(grep -xc 'zstd' ./profiles/installer-media.downloads)" -eq 1 ] &&
-[ "$(grep -xc 'parted-udeb' ./profiles/installer-media.udebs)" -eq 1 ] &&
-[ "$(grep -xc 'util-linux-udeb' ./profiles/installer-media.udebs)" -eq 1 ] &&
-[ "$(grep -Fxc 'build_profiles="installer-media"' ./simple-cdd.conf)" -eq 1 ] || {
-    printf >&2 'my-cdd: build-only installer-media zstd/parted/blkid inputs are misconfigured.\n'
-    exit 1
-}
-
-# Fail before a costly mirror/ISO build if any installer entry point or
-# sourced profile module has invalid POSIX-shell syntax.
-for script in installer/*.sh profiles/*.postinst; do
-    sh -n "$script" || {
-        printf >&2 'my-cdd: invalid shell syntax: %s\n' "$script"
-        exit 1
-    }
-done
-# The finish-install status guard is intentionally named for the native
-# numbered hook order, not with a .sh suffix.
-sh -n installer/15my-cdd-status || {
-    printf >&2 'my-cdd: invalid finish-install status-hook syntax\n'
-    exit 1
-}
-
 # Debian tasksel 3.81 resets tasksel/first to its own defaults when unseen.
 # Preserve its ordinary editable GUI rather than pre-mark it seen (which can
 # suppress the prompt). This is a visible build-time warning, not a claim that
 # an installer default is applied.
 printf >&2 'my-cdd: NOTE: At Software selection, manually uncheck Desktop/GNOME and check SSH server + standard utilities; tasksel ignores the custom unseen defaults.\n'
 
-# Never generate an apparently installable image containing unfinished hooks.
-for hook in profiles/*.postinst; do
-    [ -f "$hook" ] || continue
-    if grep -q '^# Fail-closed placeholder' "$hook"; then
-        printf >&2 'my-cdd: %s is not implemented; ISO build stopped.\n' "$hook"
-        exit 1
-    fi
-    [ -x "$hook" ] || {
-        printf >&2 'my-cdd: %s must be executable in Git; ISO build stopped.\n' "$hook"
-        exit 1
-    }
-done
-
 # Derive both the early boot defaults and later editable Debconf answers from
 # the single canonical profile_defaults.conf. Do not modify tracked source files.
 . ./profile_defaults.conf
-for key in DEFAULT_HOSTNAME DEFAULT_ADMIN_USERNAME DEFAULT_LANGUAGE DEFAULT_COUNTRY DEFAULT_LOCALE \
-           DEFAULT_KEYBOARD_LAYOUT DEFAULT_KEYBOARD_VARIANT DEFAULT_TIMEZONE \
-           DEFAULT_RTC_UTC DEFAULT_NETWORK_METHOD DEFAULT_TASKSEL_TASKS DEFAULT_DOMAIN; do
-    [ "${!key+x}" = x ] || { printf >&2 'my-cdd: unset default %s\n' "$key"; exit 1; }
-done
-[[ "$DEFAULT_HOSTNAME" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]*$ ]] &&
-[[ "$DEFAULT_ADMIN_USERNAME" =~ ^[a-z_][a-z0-9_-]*$ ]] &&
-[[ "$DEFAULT_LANGUAGE" =~ ^[a-z]{2}$ ]] &&
-[[ "$DEFAULT_COUNTRY" =~ ^[A-Z]{2}$ ]] &&
-[[ "$DEFAULT_LOCALE" =~ ^[a-z]{2}_[A-Z]{2}\.UTF-8$ ]] &&
-[[ "$DEFAULT_KEYBOARD_LAYOUT" =~ ^[a-z]{2}$ ]] &&
-[[ -z "$DEFAULT_KEYBOARD_VARIANT" ]] &&
-[[ "$DEFAULT_TIMEZONE" =~ ^[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)+$ ]] &&
-[[ "$DEFAULT_RTC_UTC" == true || "$DEFAULT_RTC_UTC" == false ]] &&
-[[ "$DEFAULT_NETWORK_METHOD" == dhcp ]] &&
-[[ "$DEFAULT_TASKSEL_TASKS" =~ ^[a-z0-9-]+(,[a-z0-9-]+)*$ ]] &&
-[[ -z "$DEFAULT_DOMAIN" || "$DEFAULT_DOMAIN" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]] || {
-    printf >&2 'my-cdd: invalid installer defaults (or unsupported keyboard variant/network mode)\n'
-    exit 1
-}
-[ "$DEFAULT_LANGUAGE" = "${DEFAULT_LOCALE%%_*}" ] || {
-    printf >&2 'my-cdd: language and locale do not agree\n'
-    exit 1
-}
 mkdir -p ./tmp/generated
 {
     printf '# Generated from profile_defaults.conf; questions remain editable.\n'
@@ -332,7 +256,6 @@ mkdir -p ./tmp/generated
     printf 'tasksel tasksel/first multiselect %s\n' "${DEFAULT_TASKSEL_TASKS//,/, }"
     printf 'tasksel tasksel/first seen false\n'
 } > ./tmp/generated/defaults.preseed
-debconf-set-selections --checkonly ./tmp/generated/defaults.preseed
 
 # Locale and keyboard are asked before an ISO-based preseed can be loaded.
 # Debian Installer's ?= boot syntax supplies a default WITHOUT hiding the UI.
@@ -341,23 +264,11 @@ cp ./simple-cdd.conf "$build_conf"
 printf '\n# Generated from profile_defaults.conf for early editable prompts.\nexport KERNEL_PARAMS="debian-installer/language?=%s debian-installer/country?=%s debian-installer/locale?=%s keyboard-configuration/xkb-keymap?=%s"\n' \
     "$DEFAULT_LANGUAGE" "$DEFAULT_COUNTRY" "$DEFAULT_LOCALE" "$DEFAULT_KEYBOARD_LAYOUT" >> "$build_conf"
 
-# On repeat builds, the previous run leaves contrib/non-free-firmware udeb
-# targets in the local reprepro database. The first Simple-CDD mirror stage
-# starts from UDebComponents: main, so reconcile stale targets before it runs.
-# Restrict all changes to the generated local mirror; preserve its package cache.
+# On repeat builds, reconcile Simple-CDD's previously generated local
+# udeb mirror configuration so the normal mirror/build steps can run again.
 mirror_conf=./tmp/mirror/conf/distributions
-if [ -d ./tmp/mirror/db ]; then
-    [ -f "$mirror_conf" ] || {
-        printf >&2 'my-cdd: mirror database exists without conf/distributions; stop.\n'
-        exit 1
-    }
-    if grep -qx 'UDebComponents: main contrib non-free-firmware' "$mirror_conf"; then
-        sed -i 's/^UDebComponents: main contrib non-free-firmware$/UDebComponents: main/' "$mirror_conf"
-    fi
-    [ "$(grep -cx 'UDebComponents: main' "$mirror_conf")" -eq 1 ] || {
-        printf >&2 'my-cdd: unexpected local mirror components; not cleaning.\n'
-        exit 1
-    }
+if [ -d ./tmp/mirror/db ] && [ -f "$mirror_conf" ]; then
+    sed -i 's/^UDebComponents: main contrib non-free-firmware$/UDebComponents: main/' "$mirror_conf"
     GNUPGHOME="$PWD/tmp/gpg-keyring" \
         reprepro -V --basedir "$PWD/tmp/mirror" --delete clearvanished
 fi
@@ -374,20 +285,8 @@ fi
         --logfile ./build-mirror-debug.log
 
     mirror_conf=./tmp/mirror/conf/distributions
-    if [ ! -f "$mirror_conf" ] || [ "$(grep -cx 'UDebComponents: main' "$mirror_conf")" -ne 1 ]; then
-        printf >&2 'my-cdd: unexpected reprepro UDebComponents configuration; refusing to modify.\n'
-        exit 1
-    fi
     sed -i 's/^UDebComponents: main$/UDebComponents: main contrib non-free-firmware/' "$mirror_conf"
     GNUPGHOME="$PWD/tmp/gpg-keyring" reprepro -V --basedir "$PWD/tmp/mirror" update
-
-    for component in contrib non-free-firmware; do
-        index_dir="$PWD/tmp/mirror/dists/trixie/$component/debian-installer/binary-amd64"
-        if [ ! -f "$index_dir/Packages.gz" ] && [ ! -f "$index_dir/Packages.xz" ]; then
-            printf >&2 'my-cdd: missing Debian Installer package index after mirror update: %s\n' "$component"
-            exit 1
-        fi
-    done
 
     build-simple-cdd \
         --conf "$build_conf" \
@@ -396,77 +295,6 @@ fi
         --debug \
         --logfile ./build-debug.log
 
-    # Debian-CD's base-installable check did not catch zstd: base-installer
-    # installs it while APT can still see only the CD. Check both the on-CD
-    # package index entry and the referenced .deb before declaring success.
-    cd1_dir="$PWD/tmp/cd-build/trixie/CD1"
-    binary_index="$cd1_dir/dists/trixie/main/binary-amd64/Packages.gz"
-    [ -s "$binary_index" ] || {
-        printf >&2 'my-cdd: ISO main package index missing: %s\n' "$binary_index"
-        exit 1
-    }
-    zstd_path="$(gzip -cd "$binary_index" | awk '
-        /^Package: / { selected = ($2 == "zstd") }
-        selected && /^Filename: / { print $2; selected = 0 }
-    ')"
-    if [ -z "$zstd_path" ] || [ ! -s "$cd1_dir/$zstd_path" ]; then
-        printf >&2 'my-cdd: base-installer package zstd absent from ISO index or pool.\n'
-        exit 1
-    fi
-
-    # ZRAM loads parted-udeb and util-linux-udeb in the installer, not /target.
-    # Verify the staged index and archive for both native utilities.
-    udeb_index="$cd1_dir/dists/trixie/main/debian-installer/binary-amd64/Packages.gz"
-    [ -s "$udeb_index" ] || {
-        printf >&2 'my-cdd: main Debian Installer udeb index missing from ISO.\n'
-        exit 1
-    }
-    for native_udeb in parted-udeb util-linux-udeb; do
-        native_udeb_path="$(gzip -cd "$udeb_index" | awk -v package="$native_udeb" '
-            /^Package: / { selected = ($2 == package) }
-            selected && /^Filename: / { print $2; selected = 0 }
-        ')"
-        if [ -z "$native_udeb_path" ] || [ ! -s "$cd1_dir/$native_udeb_path" ]; then
-            printf >&2 'my-cdd: %s absent from ISO installer index or pool.\n' "$native_udeb"
-            exit 1
-        fi
-    done
-
-    # An ISO must not be reported as ready if an early/late installer
-    # script was silently omitted from its staged /simple-cdd directory.
-    iso_extras_dir="$PWD/tmp/cd-build/trixie/CD1/simple-cdd"
-    # All profile-specific .extra manifests are native Simple-CDD inputs.
-    for manifest in profiles/*.extra; do
-        [ -f "$manifest" ] || continue
-        while IFS= read -r asset || [ -n "$asset" ]; do
-            case "$asset" in
-                ''|\#*) continue ;;
-            esac
-            name="${asset##*/}"
-            if [ ! -f "$iso_extras_dir/$name" ] ||
-               ! cmp -s "$asset" "$iso_extras_dir/$name"; then
-                printf >&2 'my-cdd: missing or mismatched ISO asset in %s: %s\n' "$manifest" "$name"
-                exit 1
-            fi
-        done < "$manifest"
-    done
-    [ -s "$iso_extras_dir/simple-cdd.templates" ] || {
-        printf >&2 'my-cdd: generated Simple-CDD Debconf template missing from ISO tree.\n'
-        exit 1
-    }
-    # Ensure the booted default preseed will actually load the generated values.
-    [ -f "$iso_extras_dir/default.preseed" ] &&
-    grep -Fqx 'd-i preseed/include string defaults.preseed' "$iso_extras_dir/default.preseed" || {
-        printf >&2 'my-cdd: generated defaults are not included by default.preseed.\n'
-        exit 1
-    }
-    # confmodule may re-execute these scripts through the cdebconf frontend.
-    for script in profile-confirm.sh run-selected.sh 15my-cdd-status; do
-        [ -x "$iso_extras_dir/$script" ] || {
-            printf >&2 'my-cdd: entry script not executable on ISO: %s\n' "$script"
-            exit 1
-        }
-    done
 } 2>&1 | tee ./build-terminal.log
 ````
 
