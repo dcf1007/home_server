@@ -65,7 +65,7 @@ The main module is **sourced** by `run-selected.sh`; never execute it as a stand
 1. The early Simple-CDD checkbox offers the kernel profile but does not select it by default. **ZRAM requires this separate selection**; ZRAM must not automatically select a kernel.
 2. The dispatcher maps this profile ID to `profile_kernel()`, after any selected Backports stage has completed.
 3. The function inspects available **signed target APT repositories**. If Backports was selected, it tries a viable Backports pair first; otherwise it considers normal Debian suites only. It **does not add a repository**.
-4. It reads the image and header metapackage dependencies and requires **Linux 7.x**. APT simulations for both packages are reviewed together and must not remove the existing working kernel or GRUB.
+4. It reads the image and header metapackage dependencies and requires **Linux 7.x**. APT simulations for both packages are reviewed together; any dependency removals remain visible in the complete approval plan instead of being filtered by a project blacklist.
 5. A default-No Debian Installer approval shows the complete transaction. Only after approval does the function install into `/target`, regenerate initramfs/GRUB, check `dpkg --audit` and verify **an installed 7.x image has headers with the same ABI**.
 6. First boot still needs verification: the installed package presence does not prove the running kernel is actually 7.x.
 
@@ -91,7 +91,7 @@ chmod +x profiles/ensure-7x-kernel.postinst
 
 This only ensures the verifier has executable permission; it does not run it. You can use `git hash-object <filename>` to compare each recreated file with the original blob SHA in the listings below; differences mean the file content was not copied exactly.
 
-When the common framework and complete feature manifests are ready, run the project's `./build.sh`. Boot a **disposable VM** and test no 7.x candidate, a declined plan, Backports selected/unselected, unsafe removals, actual `uname -r` and matching headers after boot. **The current project has not yet passed those end-to-end checks.**
+When the common framework and complete feature manifests are ready, run the project's `./build.sh`. Boot a **disposable VM** and test no 7.x candidate, a declined plan, Backports selected/unselected, reviewed removals, actual `uname -r` and matching headers after boot. **The current project has not yet passed those end-to-end checks.**
 
 ## Exact, complete source listings
 
@@ -135,7 +135,7 @@ fi
 </details>
 
 <details>
-<summary><strong>installer/profile-kernel.sh</strong> — complete file (89 lines; blob <code>3134cb92c50632722d71a4974099a0fbf4c6a0f0</code>)</summary>
+<summary><strong>installer/profile-kernel.sh</strong> — complete file (84 lines; blob <code>5b1d797f60e6e959fbd0816f37365f76e233903c</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -160,16 +160,12 @@ try_kernel_suite() {
     is_7x_metapackage linux-headers-amd64 "$hv" || return 1
     if capture in-target apt-get -s install "linux-image-amd64/$ks" "linux-headers-amd64/$ks"; then
         cp "$WORK/output" "$WORK/plan"
-        if grep -E '^Remv (linux-image|linux-headers|grub)' "$WORK/plan" >/dev/null; then
-            log "Rejected candidate kernel suite: $ks would remove initial fallback/boot support"
-            return 1
-        fi
         KERNEL_SUITE=$ks
         KERNEL_IMAGE_VERSION=$iv
         KERNEL_HEADERS_VERSION=$hv
         return 0
     fi
-    log "Rejected candidate kernel suite: $ks did not resolve safely"
+    log "Kernel package simulation failed for suite: $ks"
     return 1
 }
 
