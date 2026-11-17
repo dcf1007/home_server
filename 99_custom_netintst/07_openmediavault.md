@@ -64,7 +64,7 @@ The OMV handler runs **only when selected**. It uses the same signed-APT install
 
 1. Confirm Debian Trixie, supported architecture and no installed desktop display manager.
 2. Install the signing/download tools with reviewed APT approval, retrieve the official public key, set its keyring to mode `0644` so APT's `_apt` signature verifier can read it despite the installer's private umask, and configure the first signed APT repository listed in [OMV's manual Debian installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html), without extra suites.
-3. Refresh signed APT metadata, verify the official package origin, show the entire `openmediavault` transaction and require **default-No approval** before installation. The official script's permissive downgrade/held-package flags are intentionally omitted for safety.
+3. Refresh signed APT metadata, verify the official package origin, show the entire `openmediavault` transaction (including proposed package removals) and require **default-No approval** before installation. The profile does not impose its own package-removal blacklist. The official script's permissive downgrade/held-package flags remain omitted; APT's ordinary dependency and confirmation semantics apply.
 4. Check that OMV 8 was installed and run the two official initialization commands: `omv-confdbadm populate` and `omv-salt deploy run hosts`.
 
 **Not allowed in the OMV CDD profile:** SSH configuration, user/group changes, automatic-update or notification policy, extra services, OMV-Extras, Docker, plugins or NAS configuration. OMV's own package maintainer scripts may modify services as part of normal installation; the CDD adds no further policy. OMV's manual guide additionally warns that `systemd-resolved` and DNS must be configured before installation; verify this independently rather than silently changing network policy in the OMV handler.
@@ -127,7 +127,7 @@ fi
 </details>
 
 <details>
-<summary><strong>installer/profile-omv.sh</strong> — complete file (62 lines; Git blob <code>26ae2cc166cb8921abf56d5511ed7787ccfbf210</code>)</summary>
+<summary><strong>installer/profile-omv.sh</strong> — complete file (61 lines; Git blob <code>e27d37eda5ec2b27422026b456d48dc82e8ed2ad</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -178,7 +178,6 @@ EOF
     # Preserve full default-No APT approval, but do not accept upstream's
     # unreviewed --allow-downgrades/--allow-change-held-packages flags.
     simulate_target install --no-install-recommends openmediavault
-    check_critical_removals
     review_plan 'Official OpenMediaVault 8 package and dependencies' "$WORK/plan"
     run_target apt-get -y install --no-install-recommends openmediavault
     run_target dpkg --audit
