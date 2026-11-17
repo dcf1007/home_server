@@ -391,7 +391,7 @@ profile_zram() {
 </details>
 
 <details>
-<summary><strong>installer/zram-selection.sh</strong> — complete file; 268 lines; original blob <code>2dade85359c624c0b5228103e19e12d084fbe069</code></summary>
+<summary><strong>installer/zram-selection.sh</strong> — complete file; 267 lines; original blob <code>e600dff3e04641bc4e7cb51d4eb08d31b0e093c3</code></summary>
 
 ````sh
 #!/bin/sh
@@ -660,7 +660,6 @@ zram_prepare_fstab() {
         fi
         printf '%s\n' "$zf_line" >> "$WORK/zram-safe-fstab"
     done < "$WORK/zram-original-fstab"
-
 }
 ````
 
