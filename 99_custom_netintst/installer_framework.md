@@ -379,7 +379,7 @@ Description: Remove the package ${MYCDD_REMOVAL}?
 
 
 <details>
-<summary><strong>Complete file: installer/run-selected.sh</strong> (331 lines, current Git blob <code>6097a7bbcf04688a07d6ec136219fb65f847c757</code>)</summary>
+<summary><strong>Complete file: installer/run-selected.sh</strong> (331 lines, current Git blob <code>fa7d9709ff32588eb383e807cf1b1a38038b35d9</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -682,8 +682,8 @@ ensure_root_recovery
 if [ -n "$ordered" ]; then
     for source in /target/etc/apt/sources.list /target/etc/apt/sources.list.d/*.list; do
         [ -f "$source" ] || continue
-        if grep -Eq '^[[:space:]]*deb(-src)?[[:space:]]+(\\[[^]]*\\][[:space:]]+)?cdrom:' "$source"; then
-            sed -i -E '/^[[:space:]]*deb(-src)?[[:space:]]+(\\[[^]]*\\][[:space:]]+)?cdrom:/s/^/# my-cdd: disabled installer CD-ROM source: /' "$source" ||
+        if grep -Eq '^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:' "$source"; then
+            sed -i -E '/^[[:space:]]*deb(-src)?[[:space:]]+(\[[^]]*\][[:space:]]+)?cdrom:/s/^/# my-cdd: disabled installer CD-ROM source: /' "$source" ||
                 fatal "Cannot disable installer-only APT CD-ROM entry in $source"
             log "Disabled installer CD-ROM APT entry in $source"
         fi
