@@ -16,7 +16,7 @@ The optional profile ID is `openmediavault`. Its installer handler is `installer
 | `profiles/openmediavault.extra` | Stages the OMV installer handler and first-boot assets on the ISO. |
 | `profiles/openmediavault.postinst` | Verifies the successful package installation and first-boot scheduling marker, not post-boot initialization. |
 | `installer/openmediavault.sh` | Reviewed package installation and registration of the one-time first-boot job. |
-| `installer/openmediavault-firstboot.sh` | Runs the same two upstream commands once after boot and records progress/failure. |
+| `installer/openmediavault-firstboot.sh` | Runs the same upstream commands once after boot, logs the result and removes the temporary service and itself. |
 | `installer/openmediavault-firstboot.service` | Native systemd oneshot unit, enabled only when OMV is selected. |
 
 Create source directories if absent:
@@ -62,9 +62,9 @@ The OMV handler runs **only when selected**. It uses the same signed-APT install
 2. Install the signing/download tools with reviewed APT approval, retrieve the official public key, set its keyring to mode `0644` so APT's `_apt` signature verifier can read it despite the installer's private umask, and configure the first signed APT repository listed in [OMV's manual Debian installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html), without extra suites.
 3. Refresh signed APT metadata, show the entire `openmediavault` transaction (including proposed package removals) and require **default-No approval** before installation. The profile does not impose its own package-removal blacklist. The official script's permissive downgrade/held-package flags remain omitted; APT's ordinary dependency and confirmation semantics apply.
 4. Check that OMV 8 packages installed and passed `dpkg --audit`, then stage the two official commands in a **one-time** systemd service instead of executing them in the unfinished installer target.
-5. On first boot, run `omv-confdbadm populate` followed by `omv-salt deploy run hosts` in the running systemd/D-Bus environment. Record `PENDING` → `RUNNING` → `COMPLETE` or `FAILED` separately from Debian Installer's package-completion marker. A first attempt is never retried automatically, including after failure. Output is sent to the boot console, system journal, persistent installer log and PAM-enabled login notice.
+5. On first boot, run `omv-confdbadm populate` followed by `omv-salt deploy run hosts` in the running systemd/D-Bus environment. Write the one retained log (`/var/log/installer/my-cdd-omv-firstboot.log`) **before** executing either command; it serves as the attempted-run record and keeps command outputs and final result. On success **or failure**, disable and remove the temporary systemd unit, enablement symlink and runner script, then reload systemd. No permanent status file, attempt marker or login notice is created. Console/journal show first-boot progress and errors. If interrupted before cleanup, a later invocation cleans up only, without retrying either OMV command.
 
-**Not allowed in the OMV CDD profile:** SSH configuration, user/group changes, automatic-update policy, unrelated services, OMV-Extras, Docker, plugins or NAS configuration. The sole new service is the explicitly approved, one-time OMV initialization job with a persistent status notice. OMV's own package maintainer scripts may modify services as part of normal installation; the CDD adds no further policy. OMV's manual guide additionally warns that `systemd-resolved` and DNS must be configured before installation; verify this independently rather than silently changing network policy in the OMV handler.
+**Not allowed in the OMV CDD profile:** SSH configuration, user/group changes, automatic-update policy, unrelated services, OMV-Extras, Docker, plugins or NAS configuration. The sole new service is the explicitly approved, one-time OMV initialization job which removes itself after the first attempt, retaining only the log. OMV's own package maintainer scripts may modify services as part of normal installation; the CDD adds no further policy. OMV's manual guide additionally warns that `systemd-resolved` and DNS must be configured before installation; verify this independently rather than silently changing network policy in the OMV handler.
 
 ## Step 4 — Verify source and build
 
@@ -83,7 +83,7 @@ This checks the separate first-boot runner's syntax without executing either OMV
 
 This checks the selected handler's syntax. For byte-for-byte checking, `git hash-object <path>` prints a Git blob SHA; compare it with the SHA printed in the complete file heading below.
 
-Once the entire shared framework is assembled, run `./build.sh`. Boot a **disposable VM** and test selected/unselected, APT signature verification, refusal of the package plan, OMV 8 version, registration of the unit **without** executing `populate` in the installer, and first-boot database population/hosts deployment. Deliberately fail each command in isolation, check that `FAILED` identifies the failing command and exit code, verify the login/console notice, and reboot to confirm there is **no automatic retry**. Confirm the OMV module made **no SSH, account, update or notification changes**. **The isolated shell tests passed, but a rebuilt ISO and disposable-VM end-to-end test have not yet been performed for this change.**
+Once the entire shared framework is assembled, run `./build.sh`. Boot a **disposable VM** and test selected/unselected, APT signature verification, refusal of the package plan, OMV 8 version, registration of the unit **without** executing `populate` in the installer, and first-boot database population/hosts deployment. Deliberately fail each command in isolation, check that `FAILED` identifies the failing command and exit code, verify console/journal output and retained log, inspect removal of the unit/symlink/runner, and reboot to confirm there is **no automatic retry**. Confirm the OMV module made **no SSH, account, update or notification changes**. **Six isolated shell mock tests passed: success, failure of either command, interruption recovery, cleanup recovery, and a disable-command failure. An end-to-end ISO/VM first-boot test has not been performed for this self-cleaning revision.**
 
 ## Exact source files
 
@@ -112,7 +112,7 @@ installer/openmediavault-firstboot.service
 
 
 <details>
-<summary><strong>installer/openmediavault.sh</strong> — complete file (109 lines; Git blob <code>18f697468d6abf8691ae68fd0d03d43f02e9cc59</code>)</summary>
+<summary><strong>installer/openmediavault.sh</strong> — complete file (98 lines; Git blob <code>6a8171c179bdde926f2f66612c71ba713ba1dfa8</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -173,10 +173,7 @@ EOF
     [ -r "$MEDIA/openmediavault-firstboot.service" ] ||
         fatal 'OMV first-boot service missing from installer media'
 
-    mkdir -p /target/usr/local/sbin \
-        /target/etc/systemd/system \
-        /target/var/lib/my-cdd \
-        /target/etc/motd.d ||
+    mkdir -p /target/usr/local/sbin /target/etc/systemd/system ||
         fatal 'Cannot create OMV first-boot directories'
 
     cp "$MEDIA/openmediavault-firstboot.sh" \
@@ -192,162 +189,148 @@ EOF
         /target/etc/systemd/system/my-cdd-omv-firstboot.service ||
         fatal 'Cannot set OMV service file permissions'
 
-    # Pending is distinct from successful OMV runtime initialization.
-    printf 'PENDING\n' > /target/var/lib/my-cdd/omv-firstboot.status ||
-        fatal 'Cannot record pending OMV initialization'
-
-    cat > /target/etc/motd.d/90-my-cdd-omv <<'EOT'
-OpenMediaVault initialization is scheduled for the first boot.
-The system will run the official OMV initialization commands automatically.
-Check the login notice after boot for the result.
-EOT
-    chmod 0644 /target/etc/motd.d/90-my-cdd-omv ||
-        fatal 'Cannot configure OMV initialization notice'
-
-    # Offline systemd enabling registers the service, but does not start it.
+    # Only enable here: no OMV initialization in the installer chroot.
+    # The one-time service deletes its own files after the first attempt;
+    # only /var/log/installer/my-cdd-omv-firstboot.log remains.
     run_target systemctl enable my-cdd-omv-firstboot.service
 
     cat > "$WORK/omv-firstboot-info" <<'EOT'
 OpenMediaVault 8 packages were installed successfully.
 
-Final initialization will run automatically on the first boot:
+Final initialization runs automatically on first boot:
   1. omv-confdbadm populate
   2. omv-salt deploy run hosts
 
-Progress and errors will be recorded in the system journal and
-/var/log/installer/my-cdd-omv-firstboot.log.
-The login message will report the result.
+Progress, the result and any errors appear on the boot console and
+in /var/log/installer/my-cdd-omv-firstboot.log.
+
+After success or failure, the temporary service and script remove
+themselves. No automatic retry occurs. The log is retained.
 EOT
     show_note 'OpenMediaVault first-boot initialization' \
         "$WORK/omv-firstboot-info" ||
-        log 'Could not display OMV first-boot note; login notice remains'
+        log 'Could not display OMV first-boot note; installer log remains'
 
-    log 'OMV 8 packages installed; first-boot initialization PENDING'
+    log 'OMV 8 packages installed; one-time first-boot initialization scheduled'
 }
 ````
 
 </details>
 
 <details>
-<summary><strong>installer/openmediavault-firstboot.sh</strong> — complete file (99 lines; Git blob <code>adffb42cba7e29dbbd5dad5be1a34b28ac59e4e7</code>)</summary>
+<summary><strong>installer/openmediavault-firstboot.sh</strong> — complete file (97 lines; Git blob <code>56d7ed069e2380785fc126dd2e4c42e9ff420edc</code>)</summary>
 
 ````sh
 #!/bin/sh
-# Run official OMV initialization once on a normally booted Debian system.
-# Never install packages or alter other OMV configuration policy here.
+# Official OMV initialization on the first real systemd boot, then self-delete.
+# Only the root-readable log is retained; never retry the OMV commands.
 set -eu
 umask 077
 
-STATE_DIR=/var/lib/my-cdd
-STATUS="$STATE_DIR/omv-firstboot.status"
-ATTEMPTED="$STATE_DIR/omv-firstboot.attempted"
+SERVICE=my-cdd-omv-firstboot.service
+UNIT=/etc/systemd/system/my-cdd-omv-firstboot.service
+LINK=/etc/systemd/system/multi-user.target.wants/my-cdd-omv-firstboot.service
+SCRIPT=/usr/local/sbin/my-cdd-omv-firstboot.sh
 LOG=/var/log/installer/my-cdd-omv-firstboot.log
-NOTICE=/etc/motd.d/90-my-cdd-omv
+step='preparing first-boot initialization'
 
-step='Preparing initialization'
-mkdir -p "$STATE_DIR" /var/log/installer /etc/motd.d
+mkdir -p /var/log/installer
 
-# Never repeat an earlier attempt automatically, even if it failed.
-if [ -e "$ATTEMPTED" ]; then
-    printf '%s\n' 'OMV initialization was already attempted; no commands rerun.'
-    exit 0
-fi
-
-on_failure() {
-    rc=$1
-    [ "$rc" -ne 0 ] || return 0
-    trap - 0
-
-    {
-        printf 'FAILED\n'
-        printf 'command=%s\n' "$step"
-        printf 'exit_status=%s\n' "$rc"
-    } > "$STATUS" || :
-
-    {
-        printf '%s\n' 'WARNING: OpenMediaVault initialization FAILED.'
-        printf 'Failed step: %s\n' "$step"
-        printf 'Exit status: %s\n' "$rc"
-        printf '%s\n' 'The initialization will NOT retry automatically.'
-        printf 'Log: %s\n' "$LOG"
-        printf '%s\n' \
-            'Service: systemctl status my-cdd-omv-firstboot.service'
-    } > "$NOTICE" || :
-    chmod 0644 "$NOTICE" || :
-
-    printf 'FAILED: %s (exit %s)\n' "$step" "$rc" >> "$LOG" || :
-    printf >&2 'ERROR: OMV initialization failed at %s (exit %s)\n' \
-        "$step" "$rc" || :
-    printf >&2 'Read %s for diagnostics.\n' "$LOG" || :
+cleanup() {
+    cleanup_rc=0
+    # Do not stop the running service: disable, never disable --now.
+    if ! systemctl disable "$SERVICE" >> "$LOG" 2>&1; then
+        printf '%s\n' 'WARNING: systemctl disable failed; removing the link directly' >> "$LOG" || :
+    fi
+    for file in "$LINK" "$UNIT" "$SCRIPT"; do
+        if ! rm -f -- "$file" >> "$LOG" 2>&1; then
+            printf 'CLEANUP FAILED: %s\n' "$file" >> "$LOG" || :
+            cleanup_rc=1
+        fi
+    done
+    if ! systemctl daemon-reload >> "$LOG" 2>&1; then
+        printf '%s\n' 'CLEANUP FAILED: systemctl daemon-reload' >> "$LOG" || :
+        cleanup_rc=1
+    fi
+    return "$cleanup_rc"
 }
 
-trap 'on_failure "$?"' 0
+finish() {
+    rc=$1
+    trap - 0 HUP INT TERM
+    if [ "$rc" -eq 0 ]; then
+        printf '%s\n' 'RESULT: COMPLETE (both OMV commands succeeded)' >> "$LOG" || :
+        printf '%s\n' 'OpenMediaVault first-boot initialization completed successfully.'
+    else
+        printf 'RESULT: FAILED; command=%s; exit_status=%s\n' \
+            "$step" "$rc" >> "$LOG" || :
+        printf >&2 'OpenMediaVault initialization FAILED: %s (exit %s).\n' "$step" "$rc" || :
+        printf >&2 'Details: %s\n' "$LOG" || :
+    fi
+
+    # Perform the same cleanup on success and failure.
+    # Keep the log so the reason for failure survives self-removal.
+    if ! cleanup; then
+        printf >&2 'OMV first-boot cleanup FAILED; see %s\n' "$LOG" || :
+        [ "$rc" -ne 0 ] || rc=1
+    fi
+    exit "$rc"
+}
+
+# If a previous attempt was interrupted before cleanup, leave its log
+# intact and clean up ONLY. Never rerun either OMV command.
+if [ -e "$LOG" ]; then
+    if grep -q '^RESULT: ' "$LOG"; then
+        printf '%s\n' 'RECOVERY: removing leftover one-time service files; OMV commands not rerun.' >> "$LOG" || :
+    else
+        printf '%s\n' 'RESULT: INTERRUPTED; previous attempt did not finish; OMV commands not rerun.' >> "$LOG" || :
+    fi
+    printf 'Prior OMV attempt detected. Cleaning up without rerunning. Log: %s\n' "$LOG"
+    cleanup
+    exit $?
+fi
+
+# The log is the sole durable attempt record; create it before any OMV command.
+# noclobber makes creation exclusive even if called outside systemd.
+if ! (set -C; : > "$LOG") 2>/dev/null; then
+    printf >&2 'Cannot create OMV attempt log: %s\n' "$LOG"
+    exit 1
+fi
+printf '%s\n' 'STARTED: one-time OMV first-boot initialization' >> "$LOG"
+# Flush the attempt record before making changes to minimize reboot replay risk.
+sync "$LOG" || :
+
+trap 'finish "$?"' 0
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-printf 'RUNNING\n' > "$STATUS"
-{
-    printf '%s\n' 'OpenMediaVault first-boot initialization has started.'
-    printf '%s\n' \
-        'If this notice persists after boot, initialization may have been interrupted.'
-    printf 'Log: %s\n' "$LOG"
-} > "$NOTICE"
-chmod 0644 "$NOTICE"
-
-# Set the one-time latch BEFORE either upstream command runs.
-: > "$ATTEMPTED"
-
-printf '%s\n' 'Starting OpenMediaVault first-boot initialization.' > "$LOG"
-printf '%s\n' 'OpenMediaVault first-boot initialization started.'
-
 run_step() {
     step=$1
     shift
-
+    printf 'RUNNING: %s\n' "$step" >> "$LOG"
     printf 'RUNNING: %s\n' "$step"
-    printf '\nRUNNING: %s\n' "$step" >> "$LOG"
-
     "$@" >> "$LOG" 2>&1
-
-    printf 'COMPLETED: %s\n' "$step"
     printf 'COMPLETED: %s\n' "$step" >> "$LOG"
+    printf 'COMPLETED: %s\n' "$step"
 }
 
-# Exactly the two commands in OpenMediaVault's upstream install.sh.
+# Exactly the two upstream install.sh initialization commands, unchanged.
 run_step 'omv-confdbadm populate' omv-confdbadm populate
 run_step 'omv-salt deploy run hosts' omv-salt deploy run hosts
-
-step='Recording successful initialization'
-printf 'COMPLETE\n' > "$STATUS"
-{
-    printf '%s\n' 'OpenMediaVault initialization completed successfully.'
-    printf '%s\n' 'Both official initialization commands succeeded.'
-    printf 'Log: %s\n' "$LOG"
-} > "$NOTICE"
-chmod 0644 "$NOTICE"
-
-printf '%s\n' 'OpenMediaVault initialization COMPLETE.' >> "$LOG"
-printf '%s\n' 'OpenMediaVault initialization completed successfully.'
-trap - 0
-exit 0
 ````
 
 </details>
 
 <details>
-<summary><strong>installer/openmediavault-firstboot.service</strong> — complete file (19 lines; Git blob <code>0eeb9071dc771afc9e9ec5d1a8c46e4c2da24bed</code>)</summary>
+<summary><strong>installer/openmediavault-firstboot.service</strong> — complete file (15 lines; Git blob <code>e07349bfdb12c16e7497505ebbbc45dcfd27a305</code>)</summary>
 
 ````ini
 [Unit]
-Description=One-time OpenMediaVault first-boot initialization
+Description=Self-cleaning one-time OpenMediaVault first-boot initialization
 Documentation=https://docs.openmediavault.org/en/8.x/installation/on_debian.html
-
 Wants=dbus.socket
 After=dbus.socket network.target
-
-ConditionPathExists=/var/lib/my-cdd/omv-firstboot.status
-ConditionPathExists=!/var/lib/my-cdd/omv-firstboot.attempted
 
 [Service]
 Type=oneshot

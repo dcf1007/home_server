@@ -10,7 +10,7 @@ This directory contains **Debian Installer integration**, not generic post-insta
 - `profile-common.sh`: shared suite/version lookup, profile selection context, and signed APT refresh, without extra package-removal or priority restrictions.
 - `backports.sh`, `ensure-7x-kernel.sh`, `extended-device-support.sh`, `zram-writeback.sh`, `debian-tweaks.sh`, `openmediavault.sh`, `docker.sh`: selected-only installer adaptations of the corresponding feature guides; filenames now match the native Simple-CDD profile IDs.
 - `zram-writeback-selection.sh`: installer-native GPT selection using `util-linux-udeb` `blkid`, sysfs, /proc mount/swap state and BusyBox, with separate exact-device approvals.
-- `openmediavault-firstboot.sh` and `openmediavault-firstboot.service`: OMV-only native systemd oneshot job staged by the selected profile; runs upstream `omv-confdbadm populate` and `omv-salt deploy run hosts` on first boot, records status, and shows console and login notices without automatic retries.
+- `openmediavault-firstboot.sh` and `openmediavault-firstboot.service`: OMV-only native systemd oneshot job staged by the selected profile; runs upstream `omv-confdbadm populate` and `omv-salt deploy run hosts` on first boot, logs output and final status, shows console/journal progress and errors, and deletes the unit, enablement symlink and own script on success or failure. The log remains as the only permanent artifact and prevents reruns.
 - `15my-cdd-status`: native finish-install stage 15, checks final `COMPLETE` plus each explicitly selected profile's individual completion record, returning exit 10 when any required check fails.
 - `IMPLEMENTATION_GATES.md`: actual runtime and first-boot issues still requiring testing.
 
