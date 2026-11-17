@@ -18,7 +18,7 @@ cd home_server/99_custom_netintst/my-cdd
 
 For an existing clone, `git pull --ff-only` first and then run `./build.sh` from this directory. Intended output: `images/debian-13-amd64-CD-1.iso`. Build logs are produced here (`build-mirror-debug.log`, `build-debug.log`, `build-terminal.log`, `tmp/log/`).
 
-The complete [build-project construction guide](../build_project.md) explains every required file and check. The [build.sh](build.sh) script keeps upstream Simple-CDD `default.*` inputs, runs mirror-only then build-only to handle installer `UDebComponents`, generates editable preseed suggestions from [profile_defaults.conf](profile_defaults.conf), validates shell syntax and staged assets, and checks that `zstd` plus `parted-udeb` and `util-linux-udeb` are present on the ISO.
+The complete [build-project construction guide](../build_project.md) explains the build inputs and commands. [build.sh](build.sh) generates editable preseed suggestions from [profile_defaults.conf](profile_defaults.conf), runs Simple-CDD's mirror-only and build-only stages and propagates native build errors. The extra custom build refusal/ISO-content checks have been removed as requested.
 
 ## Source layout
 
