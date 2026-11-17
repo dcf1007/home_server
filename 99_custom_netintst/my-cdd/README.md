@@ -23,8 +23,8 @@ The complete [build-project construction guide](../build_project.md) explains th
 ## Source layout
 
 - [simple-cdd.conf](simple-cdd.conf): seven optional profiles, all initially unchecked, no automatic selection.
-- [profiles/](profiles): profile descriptions, `.extra` packaging inputs, completion-verifying postinst scripts, and the **build-only** media profile.
-- [installer/](installer): native GTK/text Debconf confirmation, ordered late-command dispatcher, selected-only modules and fail-closed completion guard.
+- [profiles/](profiles): profile descriptions, `.extra` staging inputs, no redundant optional `.postinst` files, and the **build-only** media profile.
+- [installer/](installer): native GTK/text Debconf confirmation, selected-only stage-11 finish-install dispatcher, and single stage-15 completion guard.
 - [scripts/](scripts): inputs staged on the ISO (Backports source, firmware inventory, ZRAM generator and monitor).
 - [profile_defaults.conf](profile_defaults.conf): editable suggestions for native installer questions, **not** passwords, disk selection or preapproved optional profiles.
 - [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md): detailed chronological source provenance and past defects.
@@ -33,7 +33,7 @@ The complete [build-project construction guide](../build_project.md) explains th
 
 ### Why the installer differs from the standalone guides
 
-`udebs` are not ordinary Debian packages: Debian Installer is a stripped-down environment. Partition discovery/conversion uses native `blkid` from `util-linux-udeb`, `parted-udeb`, BusyBox, `/sys` and `/proc`. The ordinary [ZRAM guide](../../06_zram_writeback/README.md) can use full `wipefs` and `sgdisk` instead. Other installer-only mechanisms include `in-target`, cdebconf and preseed/late_command.
+`udebs` are not ordinary Debian packages: Debian Installer is a stripped-down environment. Partition discovery/conversion uses native `blkid` from `util-linux-udeb`, `parted-udeb`, BusyBox, `/sys` and `/proc`. The ordinary [ZRAM guide](../../06_zram_writeback/README.md) can use full `wipefs` and `sgdisk` instead. Other installer-only mechanisms include `in-target`, cdebconf and Debian's native finish-install hook directory. The stage-10 CD-ROM cleanup now precedes the stage-11 profile executor without a custom source editor or double invocation.
 
 **Validation:** The latest 2026-11-16 VM progressed through the approved ZRAM conversion and OMV signed APT repository to its complete package simulation. The custom, unrequested essential-package blacklist stopped the installation on a proposed `systemd-timesyncd` replacement before transaction approval. This review branch removes that policy and the other unapproved installer restrictions; APT plans and explicit approvals remain. **A rebuilt ISO, full OMV/Docker installation and first-boot ZRAM checks are still pending.** See [active release gates](../validation_and_pending.md).
 
