@@ -64,7 +64,7 @@ This changes permissions only. The main module is sourced by the confirmed insta
 2. The `review_install` helper shows and approves target installation of `ca-certificates` and `curl`, the signing-key prerequisites.
 3. The handler downloads Docker's official public key to the target's APT keyring and creates the signed Deb822 repository for **Debian Trixie amd64**.
 4. It verifies the Docker package origin, then simulates installing **five packages together**: `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin` and `docker-compose-plugin`.
-5. The complete plan is shown through the installer Debconf frontend with **default-No** approval. The code rejects removal of essential packages, then installs the approved set and audits dpkg.
+5. The complete APT plan, including any removals, is shown through the installer Debconf frontend with **default-No** approval. The user decides whether to proceed; no project-defined essential-package blacklist intervenes. The approved set is installed and dpkg audited.
 6. It does **not** mask/disable Docker services, create containers, give users the root-equivalent Docker group, or install OMV Compose integrations.
 
 ## Step 4 — Check and test the rebuilt files
@@ -125,7 +125,7 @@ fi
 </details>
 
 <details>
-<summary><strong>installer/profile-docker.sh</strong> — complete file; 38 lines; Git blob <code>a5a40fb5fe8ad22fcffc879173ab749327dc48b3</code></summary>
+<summary><strong>installer/profile-docker.sh</strong> — complete file; 36 lines; Git blob <code>53ad42442591b94c35b67a9bdef46a90fdf306e7</code></summary>
 
 ````sh
 #!/bin/sh
@@ -159,7 +159,6 @@ EOT
     # preserve the packages' own install-time and first-boot defaults.
     # OMV remains independent; OMV-Extras/Compose is never installed here.
     simulate_target install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    check_critical_removals
     review_plan 'Docker: official packages and normal service defaults' "$WORK/plan"
     run_target apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     run_target dpkg --audit
