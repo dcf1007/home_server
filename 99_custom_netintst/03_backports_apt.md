@@ -13,7 +13,7 @@ Complete the shared [Build project](build_project.md), [Shared profile helpers](
 | `profiles/backports.description` | The checkbox's plain-language label. |
 | `profiles/backports.extra` | Which Backports module and source template must be copied to installer media. |
 | `profiles/backports.postinst` | A success-marker verifier only; it must be executable. |
-| `installer/profile-backports.sh` | The complete selected-only function: signed source, APT priority, upgrade consent, individual cleanup and audit. |
+| `installer/profile-backports.sh` | The complete selected-only function: signed source, reviewed upgrade, individual cleanup consent and audit. |
 | `scripts/debian-backports.sources` | The signed Trixie Backports configuration installed in the target only when selected. |
 
 ## Step 2 — Create those exact files
@@ -44,7 +44,7 @@ Open `profiles/backports.postinst` in a text editor, paste the indicated content
 
 Expand the **matching complete file listing below**, Save the document after reviewing the pasted contents. This editor command does not execute the file.
 
-**4. Open `installer/profile-backports.sh`.** The complete selected-only function: signed source, APT priority, upgrade consent, individual cleanup and audit.
+**4. Open `installer/profile-backports.sh`.** The complete selected-only function: signed source, reviewed upgrade, individual cleanup consent and audit.
 
 Open `installer/profile-backports.sh` in a text editor, paste the indicated contents and save it at that path.
 
@@ -70,8 +70,8 @@ This sets the permission expected by Simple-CDD. `installer/profile-backports.sh
 1. `simple-cdd.conf` offers `backports` as a **user-selected checkbox**; `auto_profiles` remains empty.
 2. The `.extra` file places the complete handler and signed source on the ISO. Staging is **not** installing.
 3. The dispatcher maps the selected ID `backports` to `profile_backports()` inside `installer/profile-backports.sh`.
-4. The function adds the signed source to `/target`, refreshes package indexes and confirms Backports' effective default priority **100**. It rejects an unexpected high-priority override.
-5. It performs its own upgrade simulation, essential-package removal check and default-No native Debconf approval directly in `profile_backports()`—no single-use shared upgrade wrapper. The same complete plan is reviewed before the real transaction.
+4. The function adds the signed source to `/target` and refreshes package indexes. Debian APT applies repository priorities and resolves dependencies; the profile does not create its own priority-refusal policy.
+5. It performs its own full-upgrade simulation and obtains default-No native Debconf approval directly in `profile_backports()`. The complete plan, including any removals, is reviewed by the user; the profile adds no package blacklist.
 6. Cleanup is reviewed **per named package** before removal. The module finishes with package audits.
 7. The dispatcher writes a completion marker **only if the handler succeeds**; `backports.postinst` verifies that marker and does not repeat the installation.
 
@@ -89,7 +89,7 @@ sh -n profiles/backports.postinst
 
 This checks the verifier's syntax. For every file below, `git hash-object <file>` prints the **Git blob SHA**; compare it with the value in the listing heading to detect omissions or accidental edits. This is read-only.
 
-After all shared files and the other expected Simple-CDD profile inputs are in place, run `./build.sh` from `my-cdd`. **Do not run the handler on your Debian host.** Boot a disposable VM and test unchecked, accepted, declined, unsafe-removal and cleanup-approval cases. An ISO build alone does not prove runtime behavior.
+After all shared files and the other expected Simple-CDD profile inputs are in place, run `./build.sh` from `my-cdd`. **Do not run the handler on your Debian host.** Boot a disposable VM and test unchecked, accepted, declined, full APT removal-plan review and cleanup-approval cases. An ISO build alone does not prove runtime behavior.
 
 ## Complete source — nothing omitted
 
@@ -134,7 +134,7 @@ fi
 </details>
 
 <details>
-<summary><strong>Complete installer/profile-backports.sh</strong> (68 lines; original blob <code>18a09e6ba73537042d0dd1f591ad7583832588a0</code>)</summary>
+<summary><strong>Complete installer/profile-backports.sh</strong> (49 lines; original blob <code>f8ac2e847636e5eb367afdde23d5b3283851ffeb</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -143,31 +143,16 @@ fi
 profile_backports() {
     [ -r "$MEDIA/debian-backports.sources" ] ||
         fatal 'Signed Backports repository template missing'
-    [ ! -e /target/etc/apt/preferences.d/90-local-backports.pref ] ||
-        fatal 'Unexpected old Backports pin; manual review required'
     mkdir -p /target/etc/apt/sources.list.d
     cp "$MEDIA/debian-backports.sources" /target/etc/apt/sources.list.d/debian-backports.sources
     chmod 644 /target/etc/apt/sources.list.d/debian-backports.sources
     update_signed_apt
-    grep -E '^[[:space:]]*100[[:space:]].*trixie-backports' "$WORK/output" >/dev/null ||
-        fatal 'Cannot confirm effective Backports priority 100'
-    if grep -E '^[[:space:]]*[0-9]+[[:space:]].*trixie-backports' "$WORK/output" |
-        grep -Ev '^[[:space:]]*100[[:space:]]' > "$WORK/pin-errors"; then
-        cat "$WORK/pin-errors" >> "$LOG"
-        fatal 'Backports repository has an unexpected effective priority'
-    fi
     # Review this profile's complete Backports upgrade, then execute it.
     simulate_target dist-upgrade
-    check_critical_removals
     review_plan 'Backports: complete eligible-package full-upgrade' "$WORK/plan"
     run_target apt-get -y dist-upgrade
     run_target dpkg --audit
-    simulate_target dist-upgrade
-    if grep -E '^Inst |^Remv ' "$WORK/plan" >/dev/null; then
-        fatal 'Eligible upgrades/removals remain following approved full-upgrade'
-    fi
     simulate_target autoremove --purge
-    check_critical_removals
     if grep -E '^Remv |^Purg ' "$WORK/plan" >/dev/null; then
         show_note 'Backports: review full autoremove/purge simulation' "$WORK/plan" ||
             fatal 'Could not display the complete cleanup plan'
@@ -200,10 +185,6 @@ profile_backports() {
         done < "$WORK/residual"
     fi
     run_target dpkg --audit
-    simulate_target autoremove --purge
-    if grep -E '^Remv |^Purg ' "$WORK/plan" >/dev/null; then
-        fatal 'Autoremove still proposes changes after approved cleanup'
-    fi
 }
 
 ````
