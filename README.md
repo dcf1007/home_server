@@ -14,6 +14,7 @@ The recommended order is:
 | [06 — ZSTD ZRAM writeback](06_zram_writeback/README.md) | Configure compressed swap using a separately approved partition |
 | [07 — OpenMediaVault 8](07_openmediavault/README.md) | Add NAS management without OMV-Extras or Compose |
 | [08 — Docker](08_docker/README.md) | Install official Docker Engine and Compose independently |
+| [09 — Optional local Wayland session](09_labwc/README.md) | Manual labwc + terminal/browser configuration (not included in custom ISO) |
 | [99 — Custom netinst construction](99_custom_netintst/README.md) | Build the corresponding optional installer profiles and ISO |
 
 ## How to follow a guide

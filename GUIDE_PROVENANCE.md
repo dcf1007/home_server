@@ -1,5 +1,16 @@
 # Guide provenance and scope
 
+## Optional manual labwc configuration guide — 2026-11-19
+
+**Nearest user prompt:** “read this whole repository and add this as an extra manual configuration guide, so i can wget or curl the config file from the repo from my headless setup. [https://github.com/dcf1007/home_server](https://github.com/dcf1007/home_server)”.
+
+**Repository inspection:** Inspected the complete tracked 100-file tree on main (normal Debian 13 chapters, construction docs, current installer source, manifests and history). The repository is explicitly based on Debian 13/OMV 8 and keeps normally installed-server how-tos separate from the seven selected Simple-CDD profiles. No pre-existing labwc feature or installer profile was found.
+
+**Implemented:** Add 09_labwc/README.md as an independent, opt-in manual configuration guide. Publish two plain-text files, 09_labwc/files/menu.xml and 09_labwc/files/rc.xml, for direct HTTPS curl/wget downloads into the regular user's ~/.config/labwc directory. The menu launches foot, Firefox ESR, optional Thunar, reconfiguration and session exit; the keybinding retains labwc defaults and binds Super+Enter to foot. Document safe downloads, backup of existing configuration, optional package simulation, local-console requirements, Pixman fallback after an EGL error, and OMV storage/network boundaries. Link chapter 09 in the root contents and clarify its exclusion from the Simple-CDD construction scope.
+
+**Provenance/verification boundary:** Source syntax was compared with published labwc menu and keyboard documentation. Repository contents and links can be validated statically, but labwc/Firefox/Thunar runtime on a particular GPU, dependency plan, SSH context or OMV installation is not established by repository documentation. The software-rendering fallback was reported to start labwc in the conversation; no new first-boot, live OMV, ISO or graphical runtime test is claimed. No installer implementation, systemd unit, OMV source or profile was modified.
+
+
 ## Approved self-cleaning OMV first boot — 2026-11-17
 
 **Nearest user prompt:** “i agree with the suggestion”, following the explicit request for a one-time script which leaves only logs and cleans up its own systemd files on success and failure.

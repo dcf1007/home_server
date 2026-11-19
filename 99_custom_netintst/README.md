@@ -2,7 +2,7 @@
 
 This section teaches you **how to construct the Simple-CDD scripts**, not how to operate the finished installer. Each feature chapter explains its source files, why they exist, what the code does, and how to verify the resulting files. Full copyable source listings are included.
 
-For manual configuration of a **normally installed Debian system**, use the corresponding [01–08 how-tos](../README.md).
+For manual configuration of a **normally installed Debian system**, use the corresponding [01–09 how-tos](../README.md). **09 is an optional post-install graphical-session guide, not a Simple-CDD profile or ISO feature.**
 
 ## Choose your starting point
 

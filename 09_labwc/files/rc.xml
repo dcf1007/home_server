@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Retain defaults; make Super/Windows+Enter launch the installed foot terminal. -->
+<labwc_config>
+  <keyboard>
+    <default />
+    <keybind key="W-Return">
+      <action name="Execute" command="foot" />
+    </keybind>
+  </keyboard>
+</labwc_config>
