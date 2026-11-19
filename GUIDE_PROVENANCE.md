@@ -1,5 +1,16 @@
 # Guide provenance and scope
 
+## Remove optional labwc keybinding file; document privileged browsing — 2026-11-19
+
+**Nearest user prompt:** “erase the rc. with the menu is more than enough. how can i make it so i can explore root only folders in thunar?”
+
+**Implementation:** Delete \`09_labwc/files/rc.xml\` from the public repository, eliminate its download/install instructions and shortcut claims from \`09_labwc/README.md\`, and keep \`menu.xml\` as the sole downloadable labwc configuration. No keybindings are installed or overridden. Add an optional, separate Thunar administrator-browsing section using the GVfs admin URI and an interactive Polkit agent, with APT simulation and an explicit warning that elevated browsing is **not read-only** and brings additional user-session integration. Do not add administrator Thunar commands to the menu or introduce GUI installer profiles.
+
+**Observed context:** User supplied \`lspci\` showing VMware SVGA II Adapter (15ad:0405), \`/dev/dri/card0\` and \`/dev/dri/renderD128\`, and local \`tty1\` environment. Their prior attempt with \`WLR_RENDERER=pixman labwc\` worked. This identifies the current setup as a VMware virtual graphics environment; it does **not** prove the exact Mesa/EGL cause.
+
+**Validation boundary:** GitHub repository content/deletion verification and upstream Debian package manifests support the documented paths; no live APT transaction, OMV compatibility test, Polkit prompt, or elevated filesystem access was performed. All installer implementation remains unchanged.
+
+
 ## Optional manual labwc configuration guide — 2026-11-19
 
 **Nearest user prompt:** “read this whole repository and add this as an extra manual configuration guide, so i can wget or curl the config file from the repo from my headless setup. [https://github.com/dcf1007/home_server](https://github.com/dcf1007/home_server)”.

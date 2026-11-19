@@ -48,12 +48,9 @@ sudo apt-get install --no-install-recommends thunar
 
 Thunar is optional. Avoid installing its recommended volume-management helpers merely for file browsing. Disable Thunar's **Enable Volume Management** setting; browse OMV mounts as a regular user, and administer NAS disks, shares and permissions through OMV. The supplied menu includes a Files entry; it only works if Thunar is actually installed.
 
-## Step 2 — Download the two optional labwc configuration files
+## Step 2 — Download the optional labwc menu configuration
 
-The files in this repository are:
-
-- [files/menu.xml](files/menu.xml): right-click desktop menu for **Terminal**, **Firefox ESR**, **Files (Thunar)**, **Reconfigure**, and **Exit labwc**. No power-off, reboot, automount or session autostart command.
-- [files/rc.xml](files/rc.xml): retains labwc's normal shortcuts and explicitly binds **Super (Windows key) + Enter** to **foot**.
+The **only configuration file supplied** is [files/menu.xml](files/menu.xml): a right-click desktop menu for **Terminal**, **Firefox ESR**, **Files (Thunar)**, **Reconfigure**, and **Exit labwc**. No power-off, reboot, automount, shortcut override or session autostart command is included. No custom `rc.xml` is needed; labwc uses its native/default keybinding behavior.
 
 Use your **normal user** account. The files belong in that user's home directory, **not** in /root or /etc. Create the directory:
 
@@ -67,37 +64,32 @@ With curl:
 
 ~~~sh
 curl -fL --output "$HOME/.config/labwc/menu.xml.new" https://raw.githubusercontent.com/dcf1007/home_server/main/09_labwc/files/menu.xml
-curl -fL --output "$HOME/.config/labwc/rc.xml.new" https://raw.githubusercontent.com/dcf1007/home_server/main/09_labwc/files/rc.xml
 ~~~
 
 Or with wget (use these **instead** of the curl commands):
 
 ~~~sh
 wget -O "$HOME/.config/labwc/menu.xml.new" https://raw.githubusercontent.com/dcf1007/home_server/main/09_labwc/files/menu.xml
-wget -O "$HOME/.config/labwc/rc.xml.new" https://raw.githubusercontent.com/dcf1007/home_server/main/09_labwc/files/rc.xml
 ~~~
 
 Inspect exactly what was downloaded **before** replacing any files:
 
 ~~~sh
 cat "$HOME/.config/labwc/menu.xml.new"
-cat "$HOME/.config/labwc/rc.xml.new"
 ~~~
 
-Do not proceed if either download failed, is empty, or contains unexpected text. If you already have custom menu/shortcut configuration, **read it and merge the required items rather than replacing it**. The following install step is for a fresh setup or one where replacing these two files is intentional.
+Do not proceed if the download failed, is empty, or contains unexpected text. If you already have a custom menu, **read it and merge the required entries rather than replacing it**. The following install step is for a fresh setup or one where replacing the menu is intentional.
 
 Preserve pre-existing files with dated backups, then activate the downloaded files:
 
 ~~~sh
-for f in menu.xml rc.xml; do
-    if [ -e "$HOME/.config/labwc/$f" ]; then
-        cp -a "$HOME/.config/labwc/$f" "$HOME/.config/labwc/$f.backup.$(date +%Y%m%d-%H%M%S)"
-    fi
-    mv "$HOME/.config/labwc/$f.new" "$HOME/.config/labwc/$f"
-done
+if [ -e "$HOME/.config/labwc/menu.xml" ]; then
+    cp -a "$HOME/.config/labwc/menu.xml" "$HOME/.config/labwc/menu.xml.backup.$(date +%Y%m%d-%H%M%S)"
+fi
+mv "$HOME/.config/labwc/menu.xml.new" "$HOME/.config/labwc/menu.xml"
 ~~~
 
-This affects **only these two user-level files**. No system service, target, network setting, storage mount or OMV configuration is edited. The repository's plain XML files are downloaded as data; **do not pipe them to a shell**.
+This affects **only the user-level menu file**. No system service, boot target, network setting, storage mount, keybinding or OMV configuration is edited. The repository's plain XML is downloaded as data; **do not pipe it to a shell**.
 
 ## Step 3 — Launch locally when needed
 
@@ -115,7 +107,7 @@ WLR_RENDERER=pixman labwc
 
 This selects Pixman software rendering **for that invocation only**. It was reported to make labwc start on one Debian 14 installation; this is **not** proof of hardware acceleration, Firefox performance or universal device support. Do not modify system-wide environment files merely to use this fallback.
 
-Once inside labwc, right-click the empty background for Terminal, Firefox, Files (if installed), Reconfigure and Exit. **Super** is the Windows-logo key; **Super + Enter** should start foot via the supplied rc.xml. Neither component is automatically launched at boot.
+Once inside labwc, **right-click the empty background** for Terminal, Firefox, Files (if installed), Reconfigure and Exit. No custom keybinding is supplied. Launch programs from the menu; labwc is not automatically started at boot.
 
 When leaving labwc, use **Exit labwc**. This ends the user's graphical session, not the OMV/NAS services.
 
@@ -146,6 +138,52 @@ The last command starts labwc in diagnostic mode; run it **after exiting** any e
 Inside Firefox, open **about:support** and inspect **Window Protocol**. The menu requests the Wayland backend using **MOZ_ENABLE_WAYLAND=1**; actual behavior should be verified rather than assumed.
 
 If Thunar is installed, keep its volume-management feature disabled, leave NAS disks mounted and configured by OMV, and avoid using the file manager as root. Ordinary file deletion or permission changes can still affect NAS users if your normal account has the corresponding access.
+
+## Optional: browse administrator-only directories in Thunar
+
+The safest default on an OMV server is to leave Thunar unprivileged and use a terminal with sudo for occasional inspection:
+
+~~~sh
+sudo ls -la /root
+~~~
+
+If you **specifically require graphical privileged browsing**, Thunar can use the GVfs **admin:///** URI backend (for example, **admin:///root**) after explicit Polkit authorization. This does **not** run the entire Thunar GUI as root, but it **does** permit root-level changes through the authorized backend. It is not read-only.
+
+First check existing packages; inspection makes no changes:
+
+~~~sh
+dpkg-query -W gvfs-backends lxqt-policykit 2>/dev/null
+~~~
+
+On a system missing them, simulate the smallest useful authorization setup:
+
+~~~sh
+sudo apt-get -s --no-install-recommends install gvfs-backends lxqt-policykit
+~~~
+
+The **gvfs-backends** package includes the GVfs admin backend, other remote filesystem backends and user-session volume-monitor components. The **lxqt-policykit** package supplies a graphical authentication agent. These introduce extra session integration. Carefully review the complete APT proposal and any new services before deciding whether they meet your OMV isolation requirements. Install only after review:
+
+~~~sh
+sudo apt-get install --no-install-recommends gvfs-backends lxqt-policykit
+~~~
+
+Inside the **existing local labwc session**, start the user-level authorization agent from foot if one is not already running:
+
+~~~sh
+lxqt-policykit-agent &
+~~~
+
+Then in Thunar press **Ctrl+L**, enter **admin:///root** and authenticate when prompted. You may also try:
+
+~~~sh
+thunar admin:///root
+~~~
+
+If no prompt appears, check the user-session D-Bus/Polkit agent rather than using \`sudo thunar\` or \`pkexec thunar\`. On Debian 13/14, policy/agent availability and local-session status affect authentication.
+
+Do **not** add an always-privileged Thunar shortcut to the menu, loosen permissions recursively, or use this elevated view to change OMV-managed mounts, ACLs, owners or system configuration. For simply reading root-protected files without requiring a GUI, a limited **sudo terminal command** is more conservative.
+
+**References:** [Debian gvfs-backends package contents](https://packages.debian.org/forky/amd64/gvfs-backends/filelist), [Debian lxqt-policykit package contents](https://packages.debian.org/forky/amd64/lxqt-policykit/filelist), [Polkit privilege-elevation guidance](https://wiki.archlinux.org/title/Privilege_elevation_for_graphical_applications).
 
 ## Keep this an optional local session
 
