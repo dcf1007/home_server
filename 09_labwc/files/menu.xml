@@ -8,9 +8,15 @@
     <item label="Firefox ESR">
       <action name="Execute" command="env MOZ_ENABLE_WAYLAND=1 firefox-esr" />
     </item>
-    <item label="Files (Thunar; optional)">
+    <item label="Files (Thunar)">
       <action name="Execute" command="env GDK_BACKEND=wayland thunar" />
     </item>
+    <item label="Geany">
+      <action name="Execute" command="env GDK_BACKEND=wayland geany" />
+    </item>
+    <separator />
+    <!-- Labwc built-in window list, including minimized windows; no panel needed. -->
+    <menu id="client-list-combined-menu" label="Running Windows" />
     <separator />
     <item label="Reconfigure">
       <action name="Reconfigure" />

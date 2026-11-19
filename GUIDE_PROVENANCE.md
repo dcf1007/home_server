@@ -1,5 +1,14 @@
 # Guide provenance and scope
 
+## Final six-package labwc selection and built-in minimized-window list — 2026-11-19
+
+**Nearest user prompt:** “so in the end use geany, no shellcheck, lxpolkit, firefox, thunar and foot. for labwc, firefox and foot with recommended, for thunar, geany and lxpolkit just the bare minimum. Where do minimized windows go?”
+
+**Implemented:** Retain a manual-only labwc installation chapter with two reviewed APT groups: labwc/firefox-esr/foot **with Recommends**, and thunar/geany/lxpolkit **without Recommends**. Do not install ShellCheck. Update the downloadable \`09_labwc/files/menu.xml\` to include Geany and labwc's built-in \`client-list-combined-menu\`, labelled Running Windows, which provides access to hidden/minimized windows without a taskbar or another service. Keep \`rc.xml\` deleted. Replace previous lxqt-policykit optional admin-backend guidance with the selected lxpolkit agent; keep GVfs admin browsing an explicit, separately reviewed option because gvfs-backends is **not** among the six packages.
+
+**Basis and validation boundary:** Debian 13 Trixie package metadata for labwc/foot/Firefox ESR and lxpolkit, plus labwc's upstream menu.xml example and labwc-menu(5), support the package and menu semantics. Static repository inspection and source verification do **not** establish real APT solver results, the appearance of auth prompts or a successful live labwc session on the user's machine. Existing OpenMediaVault, Docker and Simple-CDD code is unchanged.
+
+
 ## Remove optional labwc keybinding file; document privileged browsing — 2026-11-19
 
 **Nearest user prompt:** “erase the rc. with the menu is more than enough. how can i make it so i can explore root only folders in thunar?”
