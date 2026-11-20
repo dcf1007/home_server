@@ -1,5 +1,15 @@
 # Validation — Test the scripts and generated Debian installer
 
+## ZRAM conversion resume correction — 2026-11-21
+
+User screenshots show the first boot completed (including OMV first-boot population and hosts deployment), but initramfs waited for a suspend/resume device while repeatedly invoking mdadm scans. The actual old resume UUID was not supplied.
+
+- [ ] Fresh ISO: convert the only conventional swap partition; verify `/etc/initramfs-tools/conf.d/resume` contains `RESUME=none` and all installed initramfs images were regenerated before the profile marker.
+- [ ] Convert the explicitly configured resume partition with another conventional swap entry remaining: confirm resume is disabled without changing that other entry.
+- [ ] Convert a different swap partition while a valid separate resume device is configured: preserve that configuration and remaining swap.
+- [ ] Check the manual conversion path and compare boot logs/timing; the obsolete suspend/resume wait should disappear. Check `cat /proc/cmdline`, `lsblk`, `swapon --show` and ZRAM backing/monitor state. Distinguish unrelated RAID probing.
+- [ ] Verify update-initramfs failures surface through the existing profile failure path. Custom resume overrides and kernel command-line settings require separate manual review.
+
 ## Post-network native hook sequence
 
 **Current lifecycle — 2026-11-20:** Native stages 10, 50, 55 and 60 run before the selected-profile executor at `61my-cdd`; the unmodified Simple-CDD verifier, custom status guard, unmodified CD-ROM eject and unmodified final message follow at `62simple-cdd`, `63my-cdd-status`, `64cdrom-detect` and `65final-message`. The early selector registers 61/63; `partman/early_command` calls `finish-order.sh` before partitioning, checks all three original native scripts and then renames them. Native udebs and script contents are unchanged. The CD-ROM APT-source preseed remains; no forced network backend or suppressed completion dialog. Relocation failure returns nonzero to native preseed error handling, which does not guarantee installation termination. No stage-00 guard or additional repeated-execution restriction is introduced. ISO/GTK/text/first-boot testing is pending.

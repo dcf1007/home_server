@@ -97,6 +97,21 @@ profile_zram() {
     [ -z "$active_used" ] ||
         fatal 'Selected backing is active swap; cannot overwrite its signature'
 
+    # Identify the configured resume device while its old swap signature
+    # and UUID/label aliases still exist. Read the native Debian resume file
+    # in the target, not the installer's own initramfs configuration.
+    resume_ref="$(chroot /target /bin/sh -c '
+        unset RESUME
+        if [ -f /etc/initramfs-tools/conf.d/resume ]; then
+            . /etc/initramfs-tools/conf.d/resume || exit 1
+        fi
+        printf "%s" "${RESUME-}"
+    ')" || fatal 'Cannot read target hibernation resume configuration'
+    resume_on_backing=false
+    if zram_ref_matches "$resume_ref" "$uuid" "$device" "$former_uuid" "$former_label"; then
+        resume_on_backing=true
+    fi
+
     # Write only the approved partition's first 1 MiB, never its parent disk.
     # The GPT layout and PARTUUID are preserved; no filesystem is created.
     cmp -s /target/etc/fstab "$WORK/zram-original-fstab" ||
@@ -144,8 +159,22 @@ profile_zram() {
             fatal 'Confirmed backing is still referenced as conventional swap'
         fi
     done < "$WORK/zram-residual-swaps"
+    # The converted raw backing cannot serve as a hibernation resume device.
+    # Disable resume if it pointed to this partition or no conventional
+    # target fstab swap remains. Preserve other configured resume devices.
+    if [ "$resume_on_backing" = true ] || [ ! -s "$WORK/zram-residual-swaps" ]; then
+        progress_status 'Updating hibernation resume configuration'
+        mkdir -p /target/etc/initramfs-tools/conf.d ||
+            fatal 'Cannot locate target initramfs configuration directory'
+        printf 'RESUME=none\n' > /target/etc/initramfs-tools/conf.d/resume ||
+            fatal 'Cannot disable obsolete hibernation resume configuration'
+        log 'ZRAM conversion: RESUME=none (converted resume device or no remaining fstab swap)'
+    fi
+    # Rebuild every installed initramfs after removing the old swap signature
+    # and fstab entry, including when resume configuration is preserved.
+    run_target update-initramfs -u -k all
     # No other ZRAM provisioning occurs until the partition conversion
-    # (type, name, PARTUUID, signatures and active-swap state) has passed.
+    # (type, name, PARTUUID, signatures, swap and resume state) has passed.
 
     review_install 'ZRAM generator package and all dependencies' systemd-zram-generator
     mkdir -p /target/etc/systemd/system/systemd-zram-setup@zram0.service.d \
