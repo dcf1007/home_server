@@ -2,10 +2,11 @@
 # Loaded by /cdrom/simple-cdd/profile-confirm.sh BEFORE the original
 # anna-install simple-cdd-profiles command; the upstream udeb is unmodified.
 
-Template: my-cdd/profile-summary
-Type: note
-Description: Review the selected custom installation profiles
- All seven optional profiles are shown in their required execution order.
+Template: my-cdd/profile-confirm
+Type: boolean
+Default: false
+Description: Proceed with these profiles?
+ Review all seven profiles in execution order:
  .
   Debian tweaks: ${MYCDD_TWEAKS}
   Backports: ${MYCDD_BACKPORTS}
@@ -15,10 +16,10 @@ Description: Review the selected custom installation profiles
   OpenMediaVault 8: ${MYCDD_OMV}
   Docker: ${MYCDD_DOCKER}
  .
- Selection does not grant permission for destructive partition changes,
- package transactions, or individual firmware omissions. The installer
- will request their separate approvals. Services installed through an
- approved package transaction follow their normal package startup defaults.
+ Select No to change the selection.
+ .
+ Package changes, destructive partition operations and individual
+ firmware omissions still require their own approvals.
 
 Template: my-cdd/profile-invalid
 Type: note
@@ -27,23 +28,6 @@ Description: Invalid or incomplete custom profile selection
  Linux 7.x profile to be separately selected; unknown profile names are
  not accepted. Return to profile selection and correct the choice.
  Nothing has been enabled automatically.
-
-Template: my-cdd/profile-confirm
-Type: boolean
-Default: false
-Description: Proceed with exactly these selected installation profiles?
- Select No to return to the profile selection screen. The default is No.
- Other required operation-specific confirmations still apply.
-
-# These existing cdebconf question types are reused by the selected-profile
-# late_command; all state-changing approvals default to No.
-Template: my-cdd/transaction-approve
-Type: boolean
-Default: false
-Description: Approve the reviewed operation: ${MYCDD_OPERATION}?
- The complete transaction, versions, origins, proposed removals and
- consequences were displayed immediately before this question.
- Choose No to stop without executing the proposed operation.
 
 Template: my-cdd/approve-omission
 Type: boolean
@@ -64,41 +48,43 @@ Description: Select the partition for ZRAM raw writeback backing
  /etc/fstab. Select the specific swap or previously converted raw backing
  partition you wish to use. Partitions may belong to another operating
  system; using one can permanently disrupt that other system.
+ .
  The first choice stops without changing any partition. Selecting a
  partition does NOT approve its conversion; a separate confirmation follows.
 
 Template: my-cdd/zram-destructive
 Type: boolean
 Default: false
-Description: Convert ${MYCDD_PARTITION} into raw ZRAM backing?
- Confirmed partition: ${MYCDD_PARTITION}
- Confirmed PARTUUID: ${MYCDD_PARTUUID}
- Confirmed size: ${MYCDD_SIZE}
- Parent disk: ${MYCDD_DISK}
- Selection: ${MYCDD_SELECTION}
+Description: Convert the selected partition to ZRAM backing?
+  Partition: ${MYCDD_PARTITION}
+  Parent disk: ${MYCDD_DISK}
+  Capacity: ${MYCDD_SIZE}
+  PARTUUID: ${MYCDD_PARTUUID}
+  Selection: ${MYCDD_SELECTION}
  .
- Reusing this partition may break conventional swap in another operating
- system, including one not currently running.
- The first 1 MiB of ONLY this partition will be erased, destroying its
- existing swap signature and any data in that area. The partition will
- become GPT type 8300 with PARTLABEL zram-writeback, without a
- filesystem or ordinary swap activation. Default is No.
+ Only this partition is changed:
+ .
+  Erase its first 1 MiB and existing swap signature.
+  Set GPT type to Linux data (8300).
+  Set PARTLABEL to zram-writeback.
+  Remove its old swap activation and obsolete resume reference.
+ .
+ Existing data in the erased area will be lost. Reusing this partition
+ may break swap in another operating system.
+ .
+ No filesystem is created. Select No to stop without conversion.
 
 Template: my-cdd/zram-swapoff
 Type: boolean
 Default: false
-Description: Deactivate exactly ${MYCDD_PARTITION} as swap before conversion?
- This specific partition currently contains ${MYCDD_USED} bytes of used swap.
- Moving those pages into RAM may cause memory pressure or failure.
- Only this partition will be passed to swapoff. Default is No.
-
-Template: my-cdd/approve-removal
-Type: boolean
-Default: false
-Description: Remove the package ${MYCDD_REMOVAL}?
- This is one individually identified package from the displayed APT
- autoremove/purge simulation. Choose No to stop the cleanup rather than
- execute an unapproved removal.
+Description: Deactivate the selected swap partition?
+  Partition: ${MYCDD_PARTITION}
+  Used swap: ${MYCDD_USED} bytes
+ .
+ Moving these pages into RAM may cause memory pressure or failure.
+ Only the selected partition will be passed to swapoff.
+ .
+ Select No to stop before conversion.
 
 Template: my-cdd/progress
 Type: text

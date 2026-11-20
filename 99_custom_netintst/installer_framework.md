@@ -1,5 +1,7 @@
 # Installer framework — Build hooks, confirmations and the dispatcher
 
+**Current dialogue workflow — 2026-11-21:** Native cdebconf profile selection → combined selected/unselected default-No confirmation. State-changing APT operations run once, without `-y`, under the existing `in-target debconf-apt-progress` path. The temporary target-side Perl helper relays the actual APT prompt to a native boolean question using the wrapper's Debconf descriptors; the same APT process receives the answer. If APT does not prompt, a transaction-scoped `DPkg::Pre-Install-Pkgs` protocol 2 hook uses the real package actions and asks before dpkg acts; downloads and existing preconfiguration hooks may precede that approval. Already approved transactions do not prompt a second time. Only kernel/firmware compatibility simulations remain. Apt-get update needs no transaction confirmation; the residual dpkg purge has one native boolean review. No persistent APT hook or terminal UI. The actual GTK/text rendering and integrated ISO remain unverified; see [validation](validation_and_pending.md).
+
 **Approved stage 61–65 sequence (2026-11-20):** Early selection registers 61/63. Native `partman/early_command` calls `finish-order.sh` immediately before partitioning; the script checks all three originals before moving `14simple-cdd` → `62simple-cdd`, `15cdrom-detect` → `64cdrom-detect`, `20final-message` → `65final-message` in the installer ramdisk (not the ISO or upstream udebs). Missing originals or a failed move return nonzero to native preseed error handling, which does not guarantee installation termination. No extra stage-00 hook or custom repeated-execution restriction. Native `finish-install` 2.124 snapshots its hook glob before execution. Stage 10 preseed retained, 50/55 and 60 unchanged; 61 installs, 62 verifies, 63 checks markers, 64 ejects, 65 displays the original final message. Native 70–99 unchanged. No forced network backend or suppressed dialog. Sources: [Debian Trixie advanced preseed options](https://www.debian.org/releases/trixie/amd64/apbs05.en.html), [finish-install 2.124](https://sources.debian.org/src/finish-install/2.124/debian/postinst), [Simple-CDD 0.6.9](https://sources.debian.org/src/simple-cdd/0.6.9/debian/14simple-cdd). Runtime hook availability, partitioner re-entry, Back/failure behavior and normal finish/reboot require VM validation.
 
 **Native operation status (2026-11-20):** Stage 61 initially updates Debian's native finish-install progress display using `db_progress INFO`. cdebconf 0.280 GTK replaces an existing bar on a new START, and the protocol can return success for INFO even when the bar was destroyed. After a handoff to the existing native APT/anna-install UI, start a separate native custom progress bar between native transactions, with a range equal to the selected profile count and SET equal to the number whose success markers have been written. Stop only the custom bar before another native transaction, failure or hook exit. This does not restore Debian's already-replaced outer bar. Status labels show actual operation/profile and firmware candidate count, not estimated completion time. No terminal widget, concurrent protocol writers, raw command arguments, credentials or new confirmation prompts. Native APT progress and prior review/error paths remain unchanged. GTK/text rendering requires VM testing.
@@ -22,7 +24,7 @@ This creates the folders in which the installer code and media lists belong; it 
 
 | File | Purpose |
 | --- | --- |
-| `profiles/default.extra` | Copies the shared hooks, templates, selector, dispatcher and generated defaults onto the ISO. |
+| `profiles/default.extra` | Copies the shared hooks, templates, selector, dispatcher, APT interaction helper and generated defaults onto the ISO. |
 | `profiles/default.preseed` | Uses Simple-CDD's original early profile question and Debian Installer's native finish-install hook sequence; no custom late command. |
 
 Open each named file in a text editor, paste its **complete listing** from below, review the contents and save it at the specified path. The important distinction is timing: early selection records consent; the stage-61 native finish-install hook works on the installed Debian system under `/target`.
@@ -31,7 +33,7 @@ Open each named file in a text editor, paste its **complete listing** from below
 
 | File | Purpose |
 | --- | --- |
-| `installer/profile-confirm.templates` | Defines the real native cdebconf questions: summary, package approval, omissions, destructive ZRAM scope and targeted swapoff. Default for destructive decisions is **No**. |
+| `installer/profile-confirm.templates` | Defines native cdebconf questions for combined selection summary/confirmation, omissions, destructive ZRAM scope and targeted swapoff. Package approvals are generated from actual APT output by the helper. Approval defaults to **No**. |
 | `installer/profile-confirm.sh` | Loads the *real* generated Simple-CDD choices, validates each name and dependency, displays a complete selected/unselected summary and stores the exact approved selection. |
 
 Paste the complete matching listings below. The early hook must run **before** `anna-install simple-cdd-profiles`; otherwise the selection cannot be reviewed first. The existing Debian Installer GUI and text frontend own these dialogs.
@@ -41,17 +43,18 @@ Paste the complete matching listings below. The early hook must run **before** `
 | File | Purpose |
 | --- | --- |
 | `installer/run-selected.sh` | Supplies native Debconf review, command diagnostics and execution of the approved selected handlers at stage `61my-cdd`; writes an individual success marker after each selected handler returns successfully and an overall final status. |
+| `installer/apt-interactive.pl` | Temporary target-side APT prompt relay and actual pre-install action fallback, reusing native progress and Debconf passthrough. |
 | `installer/finish-order.sh` | Relocates the three unchanged native hooks via `partman/early_command` before partitioning. |
 | `installer/63my-cdd-status` | Finish-install hook that backs up if selection confirmation, final `COMPLETE` status or any selected profile's success marker is missing. |
 
-Paste all three entire listings below. **Do not trim `run-selected.sh` down to the short dispatcher excerpt.** It preserves native transaction approval and direct command failures, without a project-defined package-removal blacklist, APT operation whitelist, or unrelated environment preflights. Target stderr is redirected to stdout **inside the `in-target` chroot**, because Debian Installer otherwise sends it only to syslog. On failure, the native GTK/text note shows the failed command, return status, recognized APT/dpkg error lines and the last 100 lines of actual command output. The complete log is still retained in `/target/var/log/installer/my-cdd.log`. The guard uses Debian Installer's finish-install **exit status 10**, not a generic shell exit 1.
+Paste all four entire listings below. **Do not trim `run-selected.sh` down to the short dispatcher excerpt.** It preserves native transaction approval and direct command failures, without a project-defined package-removal blacklist, APT operation whitelist, or unrelated environment preflights. Target stderr is redirected to stdout **inside the `in-target` chroot**, because Debian Installer otherwise sends it only to syslog. On failure, the native GTK/text note shows the failed command, return status, recognized APT/dpkg error lines and the last 100 lines of actual command output. The complete log is still retained in `/target/var/log/installer/my-cdd.log`. The guard uses Debian Installer's finish-install **exit status 10**, not a generic shell exit 1.
 
 Each optional profile also has a native executable `profiles/<name>.postinst` verification script, whose complete source appears in its feature construction guide. The original Simple-CDD hook, relocated from `14simple-cdd` to `62simple-cdd`, executes selected verifiers within the target, not the installation handlers again. Enable executable permissions on those seven `.postinst` files, but not on the sourced feature handlers.
 
 Mark the shared **entry points** as executable:
 
 ~~~sh
-chmod +x installer/profile-confirm.sh installer/run-selected.sh installer/63my-cdd-status installer/finish-order.sh
+chmod +x installer/profile-confirm.sh installer/run-selected.sh installer/63my-cdd-status installer/finish-order.sh installer/apt-interactive.pl
 ~~~
 
 The ordinary `installer/<profile>.sh` feature modules are *sourced*, and should not be given a separate entry point.
@@ -75,10 +78,18 @@ sh -n installer/run-selected.sh
 This parses the late dispatcher without performing APT work or disk writes.
 
 ~~~sh
+perl -c installer/apt-interactive.pl
+~~~
+
+This checks the temporary APT interaction helper's Perl syntax without starting an APT transaction. It uses the target's existing Perl and the unmodified progress wrapper; it does not run in the minimal udeb environment.
+
+~~~sh
 sh -n installer/63my-cdd-status
 ~~~
 
 This checks the finish-install guard's syntax.
+
+The APT helper is staged in a private temporary directory in `/target/tmp` for each real package transaction and removed afterwards. APT keeps its original progress-wrapper PID so cancellation signals reach APT. Its own English prompt is recognized with C locale, quiet level 0, color/PTY disabled and versions displayed; native package Debconf uses the existing passthrough. Only a recognized transaction question can receive an affirmative response, default is No, and the fallback hook is transaction-scoped. No permanent APT configuration is installed.
 
 The complete files depend on [Shared profile helpers](profile_construction.md) and the seven feature functions. **Don't test a partial copy by executing it on your build host.** To test behavior, assemble the feature files, build the ISO and use a disposable VM.
 
@@ -99,7 +110,7 @@ Expand the file you want to create. **These are full files, not fragments.** Cop
 
 
 <details>
-<summary><strong>Complete file: profiles/default.extra</strong> (10 lines, current Git blob <code>3a2c95d6dc6d3dab645b1beedb4ded57176f90be</code>)</summary>
+<summary><strong>Complete file: profiles/default.extra</strong> (11 lines, current Git blob <code>44ae9b4fe3ab6a3149e0f8a67be8eb838ae731f0</code>)</summary>
 
 ````text
 # Common installer source assets for every build; copied by Simple-CDD.
@@ -109,6 +120,7 @@ installer/profile-confirm.sh
 installer/profile-confirm.templates
 installer/ordered-selection.sh
 installer/run-selected.sh
+installer/apt-interactive.pl
 installer/profile-common.sh
 installer/63my-cdd-status
 installer/finish-order.sh
@@ -149,7 +161,7 @@ d-i apt-setup/disable-cdrom-entries boolean true
 
 
 <details>
-<summary><strong>Complete file: installer/profile-confirm.sh</strong> (132 lines, current Git blob <code>a13b784ba8b7ea57508fa9f438ee96f6216c40b2</code>)</summary>
+<summary><strong>Complete file: installer/profile-confirm.sh</strong> (130 lines, current Git blob <code>de6ae81dc7e1899d938a736dee34d4140dd05bca</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -219,25 +231,23 @@ status_of() {
 
 display_summary() {
     status_of debian-tweaks
-    db_subst my-cdd/profile-summary MYCDD_TWEAKS "$profile_status" || return 1
+    db_subst my-cdd/profile-confirm MYCDD_TWEAKS "$profile_status" || return 1
     status_of backports
-    db_subst my-cdd/profile-summary MYCDD_BACKPORTS "$profile_status" || return 1
+    db_subst my-cdd/profile-confirm MYCDD_BACKPORTS "$profile_status" || return 1
     status_of ensure-7x-kernel
-    db_subst my-cdd/profile-summary MYCDD_KERNEL "$profile_status" || return 1
+    db_subst my-cdd/profile-confirm MYCDD_KERNEL "$profile_status" || return 1
     status_of extended-device-support
-    db_subst my-cdd/profile-summary MYCDD_FIRMWARE "$profile_status" || return 1
+    db_subst my-cdd/profile-confirm MYCDD_FIRMWARE "$profile_status" || return 1
     status_of zram-writeback
-    db_subst my-cdd/profile-summary MYCDD_ZRAM "$profile_status" || return 1
+    db_subst my-cdd/profile-confirm MYCDD_ZRAM "$profile_status" || return 1
     status_of openmediavault
-    db_subst my-cdd/profile-summary MYCDD_OMV "$profile_status" || return 1
+    db_subst my-cdd/profile-confirm MYCDD_OMV "$profile_status" || return 1
     status_of docker
-    db_subst my-cdd/profile-summary MYCDD_DOCKER "$profile_status" || return 1
+    db_subst my-cdd/profile-confirm MYCDD_DOCKER "$profile_status" || return 1
 
     # All substitutions are single-line tokens: no embedded newline in
     # the line-oriented Debconf SUBST protocol.
-    db_fset my-cdd/profile-summary seen false || return 1
-    db_input critical my-cdd/profile-summary || return 1
-    db_go || return 1
+    return 0
 }
 
 ask_profiles || stop 'selection screen unavailable or cancelled; no profile operations may start'
@@ -254,7 +264,7 @@ while :; do
         continue
     fi
 
-    display_summary || stop 'profile summary unavailable or cancelled'
+    display_summary || stop 'cannot prepare profile confirmation'
     db_set my-cdd/profile-confirm false || stop 'cannot set safe No default'
     db_fset my-cdd/profile-confirm seen false || stop 'cannot reset confirmation question'
     db_input critical my-cdd/profile-confirm || stop 'confirmation unavailable or cancelled'
@@ -290,17 +300,18 @@ done
 
 
 <details>
-<summary><strong>Complete file: installer/profile-confirm.templates</strong> (109 lines, current Git blob <code>ec3a34e64b0e451c2a9be2965884c11e80b1ec66</code>)</summary>
+<summary><strong>Complete file: installer/profile-confirm.templates</strong> (95 lines, current Git blob <code>29ab30727e65114f2a84c5ff0664baadf9b9f711</code>)</summary>
 
 ````text
 # Native Debconf templates for the user-approved early preseed confirmation.
 # Loaded by /cdrom/simple-cdd/profile-confirm.sh BEFORE the original
 # anna-install simple-cdd-profiles command; the upstream udeb is unmodified.
 
-Template: my-cdd/profile-summary
-Type: note
-Description: Review the selected custom installation profiles
- All seven optional profiles are shown in their required execution order.
+Template: my-cdd/profile-confirm
+Type: boolean
+Default: false
+Description: Proceed with these profiles?
+ Review all seven profiles in execution order:
  .
   Debian tweaks: ${MYCDD_TWEAKS}
   Backports: ${MYCDD_BACKPORTS}
@@ -310,10 +321,10 @@ Description: Review the selected custom installation profiles
   OpenMediaVault 8: ${MYCDD_OMV}
   Docker: ${MYCDD_DOCKER}
  .
- Selection does not grant permission for destructive partition changes,
- package transactions, or individual firmware omissions. The installer
- will request their separate approvals. Services installed through an
- approved package transaction follow their normal package startup defaults.
+ Select No to change the selection.
+ .
+ Package changes, destructive partition operations and individual
+ firmware omissions still require their own approvals.
 
 Template: my-cdd/profile-invalid
 Type: note
@@ -322,23 +333,6 @@ Description: Invalid or incomplete custom profile selection
  Linux 7.x profile to be separately selected; unknown profile names are
  not accepted. Return to profile selection and correct the choice.
  Nothing has been enabled automatically.
-
-Template: my-cdd/profile-confirm
-Type: boolean
-Default: false
-Description: Proceed with exactly these selected installation profiles?
- Select No to return to the profile selection screen. The default is No.
- Other required operation-specific confirmations still apply.
-
-# These existing cdebconf question types are reused by the selected-profile
-# late_command; all state-changing approvals default to No.
-Template: my-cdd/transaction-approve
-Type: boolean
-Default: false
-Description: Approve the reviewed operation: ${MYCDD_OPERATION}?
- The complete transaction, versions, origins, proposed removals and
- consequences were displayed immediately before this question.
- Choose No to stop without executing the proposed operation.
 
 Template: my-cdd/approve-omission
 Type: boolean
@@ -359,41 +353,43 @@ Description: Select the partition for ZRAM raw writeback backing
  /etc/fstab. Select the specific swap or previously converted raw backing
  partition you wish to use. Partitions may belong to another operating
  system; using one can permanently disrupt that other system.
+ .
  The first choice stops without changing any partition. Selecting a
  partition does NOT approve its conversion; a separate confirmation follows.
 
 Template: my-cdd/zram-destructive
 Type: boolean
 Default: false
-Description: Convert ${MYCDD_PARTITION} into raw ZRAM backing?
- Confirmed partition: ${MYCDD_PARTITION}
- Confirmed PARTUUID: ${MYCDD_PARTUUID}
- Confirmed size: ${MYCDD_SIZE}
- Parent disk: ${MYCDD_DISK}
- Selection: ${MYCDD_SELECTION}
+Description: Convert the selected partition to ZRAM backing?
+  Partition: ${MYCDD_PARTITION}
+  Parent disk: ${MYCDD_DISK}
+  Capacity: ${MYCDD_SIZE}
+  PARTUUID: ${MYCDD_PARTUUID}
+  Selection: ${MYCDD_SELECTION}
  .
- Reusing this partition may break conventional swap in another operating
- system, including one not currently running.
- The first 1 MiB of ONLY this partition will be erased, destroying its
- existing swap signature and any data in that area. The partition will
- become GPT type 8300 with PARTLABEL zram-writeback, without a
- filesystem or ordinary swap activation. Default is No.
+ Only this partition is changed:
+ .
+  Erase its first 1 MiB and existing swap signature.
+  Set GPT type to Linux data (8300).
+  Set PARTLABEL to zram-writeback.
+  Remove its old swap activation and obsolete resume reference.
+ .
+ Existing data in the erased area will be lost. Reusing this partition
+ may break swap in another operating system.
+ .
+ No filesystem is created. Select No to stop without conversion.
 
 Template: my-cdd/zram-swapoff
 Type: boolean
 Default: false
-Description: Deactivate exactly ${MYCDD_PARTITION} as swap before conversion?
- This specific partition currently contains ${MYCDD_USED} bytes of used swap.
- Moving those pages into RAM may cause memory pressure or failure.
- Only this partition will be passed to swapoff. Default is No.
-
-Template: my-cdd/approve-removal
-Type: boolean
-Default: false
-Description: Remove the package ${MYCDD_REMOVAL}?
- This is one individually identified package from the displayed APT
- autoremove/purge simulation. Choose No to stop the cleanup rather than
- execute an unapproved removal.
+Description: Deactivate the selected swap partition?
+  Partition: ${MYCDD_PARTITION}
+  Used swap: ${MYCDD_USED} bytes
+ .
+ Moving these pages into RAM may cause memory pressure or failure.
+ Only the selected partition will be passed to swapoff.
+ .
+ Select No to stop before conversion.
 
 Template: my-cdd/progress
 Type: text
@@ -408,7 +404,7 @@ Description: Configuring selected installation profiles
 
 
 <details>
-<summary><strong>Complete file: installer/run-selected.sh</strong> (384 lines, current Git blob <code>7dc677c320463bcc36149e821283b9ea27343396</code>)</summary>
+<summary><strong>Complete file: installer/run-selected.sh</strong> (415 lines, current Git blob <code>1897d71b861f4a1fea452c16c738b15ca17047b5</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -512,23 +508,35 @@ progress_status() {
 # Only close progress displays created by this script on unexpected exits.
 trap 'progress_stop_local' 0
 review_serial=0
-show_note() {
+show_dialog() {
     name=$1
     file=$2
+    dialog_type=$3
     review_serial=$((review_serial + 1))
     q="my-cdd/review-$review_serial"
     template="$WORK/review-$review_serial.templates"
     {
-        printf 'Template: %s\nType: note\nDescription: %s\n' "$q" "$name"
+        printf 'Template: %s\nType: %s\n' "$q" "$dialog_type"
+        [ "$dialog_type" != boolean ] || printf 'Default: false\n'
+        printf 'Description: %s\n' "$name"
         while IFS= read -r line || [ -n "$line" ]; do
-            if [ -z "$line" ]; then echo ' .'; else printf ' %s\n' "$line"; fi
+            # Debconf needs TWO spaces for preformatted lines and a dot for
+            # paragraph breaks. Preserve actual output and meaningful breaks.
+            if [ -z "$line" ]; then echo ' .'; else printf '  %s\n' "$line"; fi
         done < "$file"
     } > "$template"
     debconf-loadtemplate my-cdd "$template" || return 1
+    if [ "$dialog_type" = boolean ]; then db_set "$q" false || return 1; fi
     db_fset "$q" seen false || return 1
     db_input critical "$q" || return 1
     db_go || return 1
+    if [ "$dialog_type" = boolean ]; then
+        db_get "$q" || return 1
+        [ "$RET" = true ] || return 1
+    fi
+    return 0
 }
+show_note() { show_dialog "$1" "$2" note; }
 fatal() {
     progress_stop_local
     printf "FAILED\n" > "$STATUS"
@@ -572,21 +580,6 @@ fatal() {
     export_log || true
     exit 1
 }
-approve() {
-    db_subst my-cdd/transaction-approve MYCDD_OPERATION "$1" ||
-        fatal 'Cannot prepare transaction approval'
-    db_set my-cdd/transaction-approve false ||
-        fatal 'Cannot reset transaction approval'
-    db_fset my-cdd/transaction-approve seen false ||
-        fatal 'Cannot display transaction approval'
-    db_input critical my-cdd/transaction-approve ||
-        fatal 'Transaction approval cancelled or unavailable'
-    db_go || fatal 'Transaction confirmation cancelled'
-    db_get my-cdd/transaction-approve ||
-        fatal 'Cannot read transaction confirmation'
-    [ "$RET" = true ] || fatal "Transaction declined: $1"
-    log "USER APPROVED TRANSACTION: $1"
-}
 yes_no() {
     db_set "$1" false || fatal "Cannot reset $1"
     db_fset "$1" seen false || fatal "Cannot display $1"
@@ -595,24 +588,60 @@ yes_no() {
     db_get "$1" || fatal "Cannot read response: $1"
     [ "$RET" = true ]
 }
-review_plan() {
-    [ -s "$2" ] || fatal "Missing complete plan: $1"
-    cat "$2" >> "$LOG"
-    show_note "Review: $1" "$2" ||
-        fatal "Cannot display complete plan: $1"
-    approve "$1"
+apt_interactive() {
+    # Stage only this transaction's helper in a private target directory.
+    # The helper uses target Perl already required by debconf-apt-progress.
+    apt_work="$(mktemp -d /target/tmp/my-cdd-apt.XXXXXX)" ||
+        fatal 'Cannot create temporary APT approval directory'
+    apt_path=${apt_work#/target}
+    cp "$MEDIA/apt-interactive.pl" "$apt_work/apt-interactive.pl" &&
+        chmod 700 "$apt_work/apt-interactive.pl" ||
+        fatal 'Cannot stage temporary APT approval helper'
+    {
+        printf '%s\n\nCommand: apt-get %s\n' "${APT_REVIEW_LABEL:-$progress_context}" "$*"
+        if [ -n "${APT_REVIEW_FILE:-}" ]; then
+            printf '\n'
+            cat "$APT_REVIEW_FILE"
+        fi
+    } > "$apt_work/context" || fatal 'Cannot prepare APT approval context'
+    cat "$apt_work/context" >> "$LOG"
+    if capture in-target debconf-apt-progress --logstderr -- "$apt_path/apt-interactive.pl" "$@"; then
+        apt_result=0
+    else
+        apt_result=$?
+    fi
+    apt_decision=''
+    if [ -f "$apt_work/decision" ]; then apt_decision="$(cat "$apt_work/decision")"; fi
+    rm -f "$apt_work/apt-interactive.pl" "$apt_work/context" "$apt_work/decision" &&
+        rmdir "$apt_work" || log 'Could not remove temporary APT approval directory'
+    if [ "$apt_result" -ne 0 ]; then
+        case "$apt_decision" in
+            declined) fatal "Package transaction declined by user: apt-get $*" ;;
+            cancelled) fatal "Package transaction confirmation cancelled: apt-get $*" ;;
+            unavailable) fatal "Package transaction approval unavailable: apt-get $*" ;;
+            *) [ "$apt_result" != 30 ] || fatal "Package transaction cancelled: apt-get $*"
+               fatal "Target APT transaction failed: apt-get $*" ;;
+        esac
+    fi
+    if [ "$apt_decision" = approved ]; then
+        log "USER APPROVED ACTUAL APT TRANSACTION: apt-get $*"
+    fi
 }
 run_target() {
-    # Retain the native Debian Installer APT progress UI. Profile calls and
-    # the complete reviewed plan determine which operation executes.
+    # Preserve native APT progress and ask about the real state-changing
+    # package transaction, not a separate simulated transaction.
     if [ "$1" = apt-get ]; then
-        case "$*" in
-            update) progress_status 'Updating package indexes' ;;
-            *) progress_status 'Executing the approved APT transaction' ;;
-        esac
-        progress_handoff
-        capture in-target debconf-apt-progress --logstderr -- "$@" ||
-            fatal "Target APT transaction failed: $*"
+        if [ "$2" = update ]; then
+            progress_status 'Updating package indexes'
+            progress_handoff
+            capture in-target debconf-apt-progress --logstderr -- "$@" ||
+                fatal "Target APT index refresh failed: $*"
+        else
+            progress_status 'Resolving package changes'
+            progress_handoff
+            shift
+            apt_interactive "$@"
+        fi
     else
         case "$1" in
             update-grub) progress_status 'Regenerating GRUB configuration' ;;
@@ -625,17 +654,15 @@ run_target() {
     fi
 }
 simulate_target() {
-    progress_status 'Simulating the APT transaction'
+    progress_status 'Checking package dependency compatibility'
     capture in-target apt-get -s "$@" ||
         fatal "APT simulation failed: apt-get -s $*"
     cp "$WORK/output" "$WORK/plan"
 }
 review_install() {
-    name=$1
+    apt_label=$1
     shift
-    simulate_target install "$@"
-    review_plan "$name" "$WORK/plan"
-    run_target apt-get -y install "$@"
+    APT_REVIEW_LABEL="$apt_label" run_target apt-get install "$@"
     run_target dpkg --audit
 }
 report_omission() {
@@ -828,6 +855,189 @@ logger -t my-cdd 'Selected profiles did not all complete; returning to main menu
 printf >&2 '%s\n' 'my-cdd: selected profiles did not all complete. See /target/var/log/installer/my-cdd.log and my-cdd-status.' \
     'Returning to Debian Installer main menu instead of reporting Installation complete.'
 exit 10
+````
+
+</details>
+
+<details>
+<summary><strong>Complete file: installer/apt-interactive.pl</strong> (175 lines, current Git blob <code>a706865ea5d30bcada661dfa94d7859bdacfffb4</code>)</summary>
+
+````perl
+#!/usr/bin/perl
+# Temporary target-side command for Debian's native debconf-apt-progress.
+# The APT process remains the original progress-wrapper child (including PID).
+use strict;
+use warnings;
+use IO::Handle;
+use IO::Select;
+use File::Basename qw(dirname);
+use POSIX ();
+
+$^F = 6;
+my $self = $0;
+my $dir = dirname($self);
+die "Invalid temporary APT helper path\n" unless $self =~ m{^/[A-Za-z0-9_./-]+$};
+
+sub read_text {
+    my ($path) = @_;
+    open my $fh, '<', $path or die "Cannot read $path: $!\n";
+    local $/;
+    return <$fh> // '';
+}
+sub decision_state {
+    return -f "$dir/decision" ? read_text("$dir/decision") : '';
+}
+sub record_decision {
+    my ($state) = @_;
+    open my $fh, '>', "$dir/decision" or die "Cannot record APT decision: $!\n";
+    print {$fh} $state or die "Cannot write APT decision: $!\n";
+    close $fh or die "Cannot close APT decision: $!\n";
+    print STDERR "APT transaction approval: $state\n";
+}
+
+# debconf-apt-progress already supplies and relays these two descriptors.
+# Do not open a separate frontend, write to its parent shell's protocol, or
+# replace the native package Debconf/progress mechanisms.
+sub dc {
+    my ($command) = @_;
+    open my $out, '>&', 6 or die "Debconf write fd: $!\n";
+    open my $in, '<&', 5 or die "Debconf read fd: $!\n";
+    $out->autoflush(1);
+    print {$out} "$command\n" or die "Debconf request failed: $!\n";
+    my $reply = '';
+    while (1) {
+        my $n = sysread($in, my $c, 1);
+        die "Debconf reply missing\n" unless defined($n) && $n == 1;
+        last if $c eq "\n";
+        $reply .= $c;
+    }
+    return $reply;
+}
+sub checked_dc {
+    my $reply = dc($_[0]);
+    die "Debconf rejected command: $reply\n" unless $reply =~ /^0(?: |$)/;
+    return $reply;
+}
+sub encoded {
+    my ($s) = @_;
+    $s =~ s/[^\n]*\r//g; # omit overwritten progress counters, not transaction lines
+    $s =~ s/[\x00-\x08\x0b-\x1f\x7f]//g;
+    $s =~ s/\\/\\\\/g;
+    $s =~ s/\n/\\n/g;
+    return $s;
+}
+sub ask {
+    my ($details) = @_;
+    my $q = "my-cdd/apt-approval-$$";
+    my $state = eval {
+        my $heading = read_text("$dir/context");
+        checked_dc("DATA $q type boolean");
+        checked_dc("DATA $q description Apply these package changes?");
+        checked_dc("DATA $q extended_description " . encoded("$heading\n\n$details"));
+        checked_dc("SET $q false");
+        checked_dc("FSET $q seen false");
+        checked_dc("INPUT critical $q");
+        my $go = dc('GO');
+        if ($go =~ /^30(?: |$)/) { 'cancelled' }
+        else {
+            die "Debconf could not display approval: $go\n" unless $go =~ /^0(?: |$)/;
+            my $reply = checked_dc("GET $q");
+            if ($reply eq '0 true') { 'approved' }
+            elsif ($reply eq '0 false') { 'declined' }
+            else { die "Unexpected approval response\n"; }
+        }
+    };
+    if ($@) { warn "APT approval unavailable: $@"; $state = 'unavailable'; }
+    record_decision($state);
+    return $state eq 'approved';
+}
+
+# APT can omit its ordinary yes/no prompt for explicitly requested changes.
+# In that case use its actual Pre-Install-Pkgs protocol 2 action list before
+# dpkg acts. Downloads may have finished. Already approved transactions do
+# not prompt again. A failed or refused hook is a native APT failure.
+sub preinstall {
+    local $/;
+    my $payload = <STDIN> // '';
+    my ($header, $actions) = split /\n\n/, $payload, 2;
+    die "Invalid APT pre-install protocol\n"
+        unless defined($header) && $header =~ /^VERSION 2\n/ && defined($actions);
+    print STDERR "Actual APT pre-install actions (protocol 2):\n$actions";
+    my $state = decision_state();
+    return $state eq 'approved' ? 0 : 1 if $state ne '';
+    my @lines;
+    for my $line (split /\n/, $actions) {
+        my ($package, $old, $direction, $new, $action) = split ' ', $line, 5;
+        if (defined $action) {
+            $action = $action =~ m{^/} ? 'UNPACK' : $action;
+            $action =~ s/^\*\*(.+)\*\*$/$1/;
+            push @lines, "$package: $old $direction $new ($action)";
+        } else { push @lines, $line; }
+    }
+    return ask("Actual package actions before dpkg runs (old version, direction, new version):\n\n"
+        . join("\n", @lines) . "\n\nPackages may already have been downloaded.") ? 0 : 1;
+}
+exit preinstall() if @ARGV && $ARGV[0] eq '--pre-install';
+
+# Keep APT's prompt language predictable without altering package Debconf's
+# existing frontend or bypassing APT's own authentication/safety checks.
+$ENV{LC_ALL} = 'C';
+delete $ENV{LANGUAGE};
+my $hook = "$self --pre-install";
+pipe(my $apt_in, my $answer) or die "APT input pipe: $!\n";
+pipe(my $output, my $apt_out) or die "APT output pipe: $!\n";
+my $relay = fork();
+die "APT relay fork: $!\n" unless defined $relay;
+if ($relay) {
+    close $answer; close $output;
+    open STDIN, '<&', $apt_in or die "APT stdin: $!\n";
+    open STDOUT, '>&', $apt_out or die "APT stdout: $!\n";
+    open STDERR, '>&', \*STDOUT or die "APT stderr: $!\n";
+    close $apt_in; close $apt_out;
+    # Keep the original PID so debconf-apt-progress cancels APT itself.
+    exec('apt-get', @ARGV, '-o', 'quiet=0', '-o', 'APT::Get::Assume-Yes=false',
+        '-o', 'APT::Get::Show-Versions=true', '-o', 'APT::Color=false',
+        '-o', 'Dpkg::Use-Pty=0', '-o', "DPkg::Pre-Install-Pkgs::=$hook",
+        '-o', "DPkg::Tools::options::$self\::Version=2") or die "APT exec: $!\n";
+}
+# Do not keep APT's native status descriptor alive from the output relay.
+POSIX::close(4);
+close $apt_in; close $apt_out;
+$answer->autoflush(1);
+STDOUT->autoflush(1);
+my $select = IO::Select->new($output, \*STDIN);
+my $transcript = '';
+while ($select->exists($output)) {
+    for my $fh ($select->can_read()) {
+        my $n = sysread($fh, my $data, 8192);
+        die "APT relay read: $!\n" unless defined $n;
+        if (!$n) { $select->remove($fh); next; }
+        if (fileno($fh) == fileno($output)) {
+            print $data;
+            $transcript .= $data;
+            # APT's real confirmation is flushed without a final newline.
+            if ($transcript =~ /(?:^|\n)((?:Do you want to continue\?|Continue\?|Continue anyway\?) \[(?:Y\/n|y\/N)\] )$/) {
+                my $prompt = $1;
+                my $details = substr($transcript, 0, length($transcript)-length($prompt));
+                my $ok = decision_state() eq '' && ask($details);
+                print {$answer} ($ok ? "y\n" : "n\n") or die "APT response: $!\n";
+                $transcript = '';
+            } elsif ($transcript =~ /\[(?:Y\/n|y\/N)\] $/) {
+                # Never answer yes to an unrecognized APT question.
+                print {$answer} "n\n" or die "APT response: $!\n";
+                $transcript = '';
+            } elsif (decision_state() ne '' && length($transcript) > 1024) {
+                # After a decision we only need the tail to recognize prompts.
+                $transcript = substr($transcript, -1024);
+            }
+        } else {
+            # Native debconf-apt-progress can send a media-change response.
+            print {$answer} $data or die "APT media response: $!\n";
+        }
+    }
+}
+close $answer;
+exit 0;
 ````
 
 </details>

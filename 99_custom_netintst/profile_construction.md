@@ -9,7 +9,7 @@ This is a **build tutorial**. When you finish it you will have the two source fi
 | Create this file | Why it exists |
 | --- | --- |
 | `installer/ordered-selection.sh` | Takes the user's checkbox selection, rejects unknown combinations and produces a fixed execution order. ZRAM cannot be selected without the separately selected kernel profile. |
-| `installer/profile-common.sh` | Contains only the suite/version lookup, Backports-selection and signed-APT-refresh operations shared by multiple profiles. APT simulations and approvals belong to the dispatcher. |
+| `installer/profile-common.sh` | Contains only the suite/version lookup, Backports-selection and signed-APT-refresh operations shared by multiple profiles. Actual APT transaction approvals belong to the dispatcher and temporary target helper; internal compatibility simulations belong only to the kernel/firmware selection paths. |
 
 These files **define functions only**. The late installer dispatcher *sources* them; you must not invoke them as standalone commands.
 
@@ -27,7 +27,7 @@ Open each listed file in a text editor (for example a text editor for `installer
 
 ## Step 3 — Understand the control flow
 
-The selection parser first validates the approved profile names and cross-profile dependency; it never adds choices automatically. The shared source/version helpers inspect the **target system** in `/target`, not the installer's temporary package database. Repository refresh runs APT once and does not add an extra priority-policy check. One-time automatic-update configuration now belongs directly to the selected Debian tweaks module; no OpenSSH validation helper is retained. A complete APT plan is shown through the dispatcher's native Debconf UI before a target package transaction is performed.
+The selection parser first validates the approved profile names and cross-profile dependency; it never adds choices automatically. The shared source/version helpers inspect the **target system** in `/target`, not the installer's temporary package database. Repository refresh runs APT once and does not add an extra priority-policy check. One-time automatic-update configuration now belongs directly to the selected Debian tweaks module; no OpenSSH validation helper is retained. Actual APT package changes are shown through the native Debconf UI once, before dpkg acts. APT is not rerun after approval; only compatibility checks still simulate.
 
 The shared functions expect the dispatcher to provide `capture`, `fatal`, `WORK`, `LOG`, `MEDIA` and the cdebconf helper functions. That's why you must complete [Installer framework](installer_framework.md) before using a feature module.
 

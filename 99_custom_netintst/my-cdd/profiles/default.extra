@@ -5,6 +5,7 @@ installer/profile-confirm.sh
 installer/profile-confirm.templates
 installer/ordered-selection.sh
 installer/run-selected.sh
+installer/apt-interactive.pl
 installer/profile-common.sh
 installer/63my-cdd-status
 installer/finish-order.sh

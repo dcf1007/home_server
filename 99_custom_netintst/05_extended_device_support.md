@@ -67,10 +67,9 @@ Native Debian Installer stage `61my-cdd` runs each approved selected handler **o
 2. The `firmware-candidates.txt` file lists the **entire intended inventory**. **Both** `intel-microcode` and `amd64-microcode` remain listed even if the build machine uses only one CPU vendor. The installer does **not** limit packages to currently detected hardware.
 3. The repeated `normal_suite()` lookup belongs to this firmware handler, not the shared helper module. The handler inspects every requested package's actual signed APT candidates. If Backports was **separately selected**, a compatible Backports package is considered first; otherwise only normal Debian suites are used. Each candidate is simulated with the **accumulated** approved package set. APT determines compatibility; any proposed package removals appear in the complete transaction for user approval, not a project blacklist.
 4. If a package is absent or conflicting, the **specific** package and reason are displayed in a **default-No omission question**. The installer must not skip it without affirmative consent.
-5. The complete combined APT transaction (including dependencies, selected source suites, recorded fallbacks and omissions) is displayed for **default-No approval before installation**.
-6. `firmware-ipw2x00` and `firmware-ivtv` may contain vendor license questions. Their *exact selected Debian package archives* are downloaded and verified; the native Boolean template is checked. With `AUTO_ACCEPT_FIRMWARE_LICENSES=true` (the build default), acceptance is preauthorized only for these two packages and logged with the selected version. With `false`, the original full Debconf templates are loaded into **the installer's existing GTK/text frontend** for explicit acceptance. In both cases accepted consent is conveyed to and verified in the **target** Debconf database. Review the vendor terms before enabling or distributing an automatically accepting ISO.
-7. In interactive mode, a refused license means a separate explicit omission decision and a **new simulation of the remaining full package set**. Reject any dependency that would reinstall the declined package.
-8. Only the finally approved set is installed into `/target`, followed by a `dpkg --audit` check. No unselected feature should install any of these packages just because the media carries the manifest.
+5. `firmware-ipw2x00` and `firmware-ivtv` may contain vendor license questions. Their *exact selected Debian package archives* are downloaded and verified; the native Boolean template is checked. With `AUTO_ACCEPT_FIRMWARE_LICENSES=true` (the build default), acceptance is preauthorized only for these two packages and logged with the selected version. With `false`, the original full Debconf templates are loaded into **the installer's existing GTK/text frontend** for explicit acceptance. In both cases accepted consent is conveyed to and verified in the **target** Debconf database. Review the vendor terms before enabling or distributing an automatically accepting ISO.
+6. In interactive mode, a refused license means a separate explicit omission decision and a **new simulation of the remaining full package set**. Reject any dependency that would reinstall the declined package.
+7. The final real APT transaction is shown with selected source suites, fallback/omission context and actual package changes for **one default-No approval**. There is no separate final review simulation. The approved set is installed into `/target`, followed by `dpkg --audit`. No unselected feature should install any of these packages just because the media carries the manifest.
 
 **Why this is not one simple `apt install` command:** ordinary Debian's APT can display its native vendor license questions directly, whereas Debian Installer's cdebconf and the target's Debconf database are separate.
 
@@ -113,7 +112,7 @@ tmp/generated/firmware-license-policy
 
 
 <details>
-<summary><strong>Complete installer/extended-device-support.sh</strong> (233 lines; current blob <code>0b4fd921002fc38e2dd620ce88db06463fe60c25</code>)</summary>
+<summary><strong>Complete installer/extended-device-support.sh</strong> (226 lines; current blob <code>ab255d0f97b8fb5c63db6b278503f8cdee53ca9a</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -291,22 +290,9 @@ profile_firmware() {
         fi
     done
     [ -s "$WORK/firmware-selectors" ] || fatal 'No approved firmware packages remain'
-    simulate_target install $(cat "$WORK/firmware-selectors")
-    {
-        echo 'All chosen firmware/microcode package selectors:'
-        cat "$WORK/firmware-selectors"
-        echo 'Normal source fallbacks and specific reasons:'
-        cat "$WORK/firmware-fallbacks"
-        echo 'Individually approved package omissions:'
-        cat "$WORK/firmware-omissions"
-        echo 'Complete final joint APT simulation:'
-        cat "$WORK/plan"
-    } > "$WORK/firmware-review"
-    review_plan 'Extended support: entire mixed-source firmware transaction' "$WORK/firmware-review"
-
     # Ask the two complete package-native license questions BEFORE unpack.
     # Declines require a separate per-package omission approval and a
-    # fresh full APT simulation and transaction review.
+    # compatibility check before the actual APT transaction approval.
     license_omitted=false
     for licensed_pkg in firmware-ipw2x00 firmware-ivtv; do
         licensed_selector="$(grep "^$licensed_pkg/" "$WORK/firmware-selectors" || true)"
@@ -334,19 +320,27 @@ profile_firmware() {
                 fi
             fi
         done
-        {
-            echo 'Package selectors after individually approved license omissions:'
-            cat "$WORK/firmware-selectors"
+    fi
+    {
+        echo 'Selected firmware and microcode packages:'
+        cat "$WORK/firmware-selectors"
+        if [ -s "$WORK/firmware-fallbacks" ]; then
+            echo
+            echo 'Normal repository fallbacks and reasons:'
+            cat "$WORK/firmware-fallbacks"
+        fi
+        if [ -s "$WORK/firmware-omissions" ]; then
+            echo
             echo 'Individually approved omissions:'
             cat "$WORK/firmware-omissions"
-            echo 'Recomputed joint APT simulation:'
-            cat "$WORK/plan"
-        } > "$WORK/firmware-license-review"
-        review_plan 'Extended support: revised transaction after license omissions' "$WORK/firmware-license-review"
-    fi
-    run_target apt-get -y install $(cat "$WORK/firmware-selectors")
+        fi
+    } > "$WORK/firmware-review"
+    APT_REVIEW_LABEL='Extended device support' APT_REVIEW_FILE="$WORK/firmware-review" \
+        run_target apt-get install $(cat "$WORK/firmware-selectors")
     run_target dpkg --audit
 }
+
+
 ````
 
 </details>

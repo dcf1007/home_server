@@ -99,23 +99,35 @@ progress_status() {
 # Only close progress displays created by this script on unexpected exits.
 trap 'progress_stop_local' 0
 review_serial=0
-show_note() {
+show_dialog() {
     name=$1
     file=$2
+    dialog_type=$3
     review_serial=$((review_serial + 1))
     q="my-cdd/review-$review_serial"
     template="$WORK/review-$review_serial.templates"
     {
-        printf 'Template: %s\nType: note\nDescription: %s\n' "$q" "$name"
+        printf 'Template: %s\nType: %s\n' "$q" "$dialog_type"
+        [ "$dialog_type" != boolean ] || printf 'Default: false\n'
+        printf 'Description: %s\n' "$name"
         while IFS= read -r line || [ -n "$line" ]; do
-            if [ -z "$line" ]; then echo ' .'; else printf ' %s\n' "$line"; fi
+            # Debconf needs TWO spaces for preformatted lines and a dot for
+            # paragraph breaks. Preserve actual output and meaningful breaks.
+            if [ -z "$line" ]; then echo ' .'; else printf '  %s\n' "$line"; fi
         done < "$file"
     } > "$template"
     debconf-loadtemplate my-cdd "$template" || return 1
+    if [ "$dialog_type" = boolean ]; then db_set "$q" false || return 1; fi
     db_fset "$q" seen false || return 1
     db_input critical "$q" || return 1
     db_go || return 1
+    if [ "$dialog_type" = boolean ]; then
+        db_get "$q" || return 1
+        [ "$RET" = true ] || return 1
+    fi
+    return 0
 }
+show_note() { show_dialog "$1" "$2" note; }
 fatal() {
     progress_stop_local
     printf "FAILED\n" > "$STATUS"
@@ -159,21 +171,6 @@ fatal() {
     export_log || true
     exit 1
 }
-approve() {
-    db_subst my-cdd/transaction-approve MYCDD_OPERATION "$1" ||
-        fatal 'Cannot prepare transaction approval'
-    db_set my-cdd/transaction-approve false ||
-        fatal 'Cannot reset transaction approval'
-    db_fset my-cdd/transaction-approve seen false ||
-        fatal 'Cannot display transaction approval'
-    db_input critical my-cdd/transaction-approve ||
-        fatal 'Transaction approval cancelled or unavailable'
-    db_go || fatal 'Transaction confirmation cancelled'
-    db_get my-cdd/transaction-approve ||
-        fatal 'Cannot read transaction confirmation'
-    [ "$RET" = true ] || fatal "Transaction declined: $1"
-    log "USER APPROVED TRANSACTION: $1"
-}
 yes_no() {
     db_set "$1" false || fatal "Cannot reset $1"
     db_fset "$1" seen false || fatal "Cannot display $1"
@@ -182,24 +179,60 @@ yes_no() {
     db_get "$1" || fatal "Cannot read response: $1"
     [ "$RET" = true ]
 }
-review_plan() {
-    [ -s "$2" ] || fatal "Missing complete plan: $1"
-    cat "$2" >> "$LOG"
-    show_note "Review: $1" "$2" ||
-        fatal "Cannot display complete plan: $1"
-    approve "$1"
+apt_interactive() {
+    # Stage only this transaction's helper in a private target directory.
+    # The helper uses target Perl already required by debconf-apt-progress.
+    apt_work="$(mktemp -d /target/tmp/my-cdd-apt.XXXXXX)" ||
+        fatal 'Cannot create temporary APT approval directory'
+    apt_path=${apt_work#/target}
+    cp "$MEDIA/apt-interactive.pl" "$apt_work/apt-interactive.pl" &&
+        chmod 700 "$apt_work/apt-interactive.pl" ||
+        fatal 'Cannot stage temporary APT approval helper'
+    {
+        printf '%s\n\nCommand: apt-get %s\n' "${APT_REVIEW_LABEL:-$progress_context}" "$*"
+        if [ -n "${APT_REVIEW_FILE:-}" ]; then
+            printf '\n'
+            cat "$APT_REVIEW_FILE"
+        fi
+    } > "$apt_work/context" || fatal 'Cannot prepare APT approval context'
+    cat "$apt_work/context" >> "$LOG"
+    if capture in-target debconf-apt-progress --logstderr -- "$apt_path/apt-interactive.pl" "$@"; then
+        apt_result=0
+    else
+        apt_result=$?
+    fi
+    apt_decision=''
+    if [ -f "$apt_work/decision" ]; then apt_decision="$(cat "$apt_work/decision")"; fi
+    rm -f "$apt_work/apt-interactive.pl" "$apt_work/context" "$apt_work/decision" &&
+        rmdir "$apt_work" || log 'Could not remove temporary APT approval directory'
+    if [ "$apt_result" -ne 0 ]; then
+        case "$apt_decision" in
+            declined) fatal "Package transaction declined by user: apt-get $*" ;;
+            cancelled) fatal "Package transaction confirmation cancelled: apt-get $*" ;;
+            unavailable) fatal "Package transaction approval unavailable: apt-get $*" ;;
+            *) [ "$apt_result" != 30 ] || fatal "Package transaction cancelled: apt-get $*"
+               fatal "Target APT transaction failed: apt-get $*" ;;
+        esac
+    fi
+    if [ "$apt_decision" = approved ]; then
+        log "USER APPROVED ACTUAL APT TRANSACTION: apt-get $*"
+    fi
 }
 run_target() {
-    # Retain the native Debian Installer APT progress UI. Profile calls and
-    # the complete reviewed plan determine which operation executes.
+    # Preserve native APT progress and ask about the real state-changing
+    # package transaction, not a separate simulated transaction.
     if [ "$1" = apt-get ]; then
-        case "$*" in
-            update) progress_status 'Updating package indexes' ;;
-            *) progress_status 'Executing the approved APT transaction' ;;
-        esac
-        progress_handoff
-        capture in-target debconf-apt-progress --logstderr -- "$@" ||
-            fatal "Target APT transaction failed: $*"
+        if [ "$2" = update ]; then
+            progress_status 'Updating package indexes'
+            progress_handoff
+            capture in-target debconf-apt-progress --logstderr -- "$@" ||
+                fatal "Target APT index refresh failed: $*"
+        else
+            progress_status 'Resolving package changes'
+            progress_handoff
+            shift
+            apt_interactive "$@"
+        fi
     else
         case "$1" in
             update-grub) progress_status 'Regenerating GRUB configuration' ;;
@@ -212,17 +245,15 @@ run_target() {
     fi
 }
 simulate_target() {
-    progress_status 'Simulating the APT transaction'
+    progress_status 'Checking package dependency compatibility'
     capture in-target apt-get -s "$@" ||
         fatal "APT simulation failed: apt-get -s $*"
     cp "$WORK/output" "$WORK/plan"
 }
 review_install() {
-    name=$1
+    apt_label=$1
     shift
-    simulate_target install "$@"
-    review_plan "$name" "$WORK/plan"
-    run_target apt-get -y install "$@"
+    APT_REVIEW_LABEL="$apt_label" run_target apt-get install "$@"
     run_target dpkg --audit
 }
 report_omission() {

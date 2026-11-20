@@ -1,5 +1,7 @@
 # Simple-CDD 0.6.9 profile inputs
 
+**Current dialogue workflow — 2026-11-21:** Native cdebconf shows the profile multiselect and one combined default-No summary/confirmation. Real package-changing APT commands run once without `-y`; a temporary target-side helper under the existing `debconf-apt-progress` relays the actual APT prompt to a default-No native boolean question. When APT skips its prompt, a transaction-scoped `DPkg::Pre-Install-Pkgs` protocol 2 hook asks before dpkg acts (downloads and existing preconfiguration may precede approval). No repeat review prompt for already-approved transactions; no review-only simulations. Internal kernel/firmware compatibility simulations, named firmware omissions/licenses, ZRAM destructive/targeted swapoff consent, root recovery, signed APT, native stages and completion markers remain. Backports cleanup approval is per real transaction, not per package. The helper and its private state are temporary; no persistent APT configuration. GTK/text and integrated VM validation pending.
+
 **Current lifecycle — 2026-11-20:** Native stages 10, 50, 55 and 60 run before the selected-profile executor at `61my-cdd`; the unmodified Simple-CDD verifier, custom status guard, unmodified CD-ROM eject and unmodified final message follow at `62simple-cdd`, `63my-cdd-status`, `64cdrom-detect` and `65final-message`. The early selector registers 61/63; `partman/early_command` calls `finish-order.sh` before partitioning, checks all three original native scripts and then renames them. Native udebs and script contents are unchanged. The CD-ROM APT-source preseed remains; no forced network backend or suppressed completion dialog. Relocation failure returns nonzero to native preseed error handling, which does not guarantee installation termination. No stage-00 guard or additional repeated-execution restriction is introduced. ISO/GTK/text/first-boot testing is pending.
 
 The seven optional checkbox names stay in `simple-cdd.conf` and start unchecked. The native `simple-cdd/profiles` Debconf question is reused and explicitly confirmed before the original `simple-cdd-profiles` udeb processes selections. No optional profile is selected automatically.
@@ -7,7 +9,7 @@ The seven optional checkbox names stay in `simple-cdd.conf` and start unchecked.
 | Profile | Selected-only operation |
 |---|---|
 | `debian-tweaks` | Approved root filesystem, GRUB, SSH root-login and conditional manual-update settings |
-| `backports` | Signed Debian Backports, complete reviewed upgrade and individually approved cleanup |
+| `backports` | Signed Debian Backports, actual approved upgrade and cleanup transactions |
 | `ensure-7x-kernel` | Linux 7.x moving image and matching headers |
 | `extended-device-support` | Broad firmware and both CPU microcode families, explicit licenses and omissions |
 | `zram-writeback` | Confirmed raw GPT backing, compressed ZRAM writeback and monitor |

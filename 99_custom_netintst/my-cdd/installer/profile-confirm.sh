@@ -65,25 +65,23 @@ status_of() {
 
 display_summary() {
     status_of debian-tweaks
-    db_subst my-cdd/profile-summary MYCDD_TWEAKS "$profile_status" || return 1
+    db_subst my-cdd/profile-confirm MYCDD_TWEAKS "$profile_status" || return 1
     status_of backports
-    db_subst my-cdd/profile-summary MYCDD_BACKPORTS "$profile_status" || return 1
+    db_subst my-cdd/profile-confirm MYCDD_BACKPORTS "$profile_status" || return 1
     status_of ensure-7x-kernel
-    db_subst my-cdd/profile-summary MYCDD_KERNEL "$profile_status" || return 1
+    db_subst my-cdd/profile-confirm MYCDD_KERNEL "$profile_status" || return 1
     status_of extended-device-support
-    db_subst my-cdd/profile-summary MYCDD_FIRMWARE "$profile_status" || return 1
+    db_subst my-cdd/profile-confirm MYCDD_FIRMWARE "$profile_status" || return 1
     status_of zram-writeback
-    db_subst my-cdd/profile-summary MYCDD_ZRAM "$profile_status" || return 1
+    db_subst my-cdd/profile-confirm MYCDD_ZRAM "$profile_status" || return 1
     status_of openmediavault
-    db_subst my-cdd/profile-summary MYCDD_OMV "$profile_status" || return 1
+    db_subst my-cdd/profile-confirm MYCDD_OMV "$profile_status" || return 1
     status_of docker
-    db_subst my-cdd/profile-summary MYCDD_DOCKER "$profile_status" || return 1
+    db_subst my-cdd/profile-confirm MYCDD_DOCKER "$profile_status" || return 1
 
     # All substitutions are single-line tokens: no embedded newline in
     # the line-oriented Debconf SUBST protocol.
-    db_fset my-cdd/profile-summary seen false || return 1
-    db_input critical my-cdd/profile-summary || return 1
-    db_go || return 1
+    return 0
 }
 
 ask_profiles || stop 'selection screen unavailable or cancelled; no profile operations may start'
@@ -100,7 +98,7 @@ while :; do
         continue
     fi
 
-    display_summary || stop 'profile summary unavailable or cancelled'
+    display_summary || stop 'cannot prepare profile confirmation'
     db_set my-cdd/profile-confirm false || stop 'cannot set safe No default'
     db_fset my-cdd/profile-confirm seen false || stop 'cannot reset confirmation question'
     db_input critical my-cdd/profile-confirm || stop 'confirmation unavailable or cancelled'

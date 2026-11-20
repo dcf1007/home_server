@@ -8,28 +8,11 @@ profile_backports() {
     cp "$MEDIA/debian-backports.sources" /target/etc/apt/sources.list.d/debian-backports.sources
     chmod 644 /target/etc/apt/sources.list.d/debian-backports.sources
     update_signed_apt
-    # Review this profile's complete Backports upgrade, then execute it.
-    simulate_target dist-upgrade
-    review_plan 'Backports: complete eligible-package full-upgrade' "$WORK/plan"
-    run_target apt-get -y dist-upgrade
+    # APT resolves and presents each real transaction once.
+    APT_REVIEW_LABEL='Backports: full upgrade' run_target apt-get dist-upgrade
     run_target dpkg --audit
-    simulate_target autoremove --purge
-    if grep -E '^Remv |^Purg ' "$WORK/plan" >/dev/null; then
-        show_note 'Backports: review full autoremove/purge simulation' "$WORK/plan" ||
-            fatal 'Could not display the complete cleanup plan'
-        awk '/^Remv / || /^Purg / {print $2}' "$WORK/plan" |
-            sort -u > "$WORK/removal-list"
-        [ -s "$WORK/removal-list" ] ||
-            fatal 'Cleanup simulation proposed changes but no package names could be identified'
-        while IFS= read -r pkg; do
-            db_subst my-cdd/approve-removal MYCDD_REMOVAL "$pkg" ||
-                fatal "Could not show approval for removal of $pkg"
-            yes_no my-cdd/approve-removal ||
-                fatal "Individual removal not approved: $pkg"
-            log "USER APPROVED REMOVAL: $pkg"
-        done < "$WORK/removal-list"
-        run_target apt-get -y autoremove --purge
-    fi
+    APT_REVIEW_LABEL='Backports: remove unused packages and their configuration' \
+        run_target apt-get autoremove --purge
     capture in-target dpkg -l || fatal 'Cannot list residual dpkg configuration'
     awk '$1=="rc" {print $2}' "$WORK/output" > "$WORK/residual"
     if [ -s "$WORK/residual" ]; then
@@ -37,7 +20,10 @@ profile_backports() {
             echo 'The following exact residual configurations will be purged:'
             cat "$WORK/residual"
         } > "$WORK/residual-review"
-        review_plan 'Backports: purge only explicitly reviewed residual configurations' "$WORK/residual-review"
+        cat "$WORK/residual-review" >> "$LOG"
+        show_dialog 'Purge these residual package configurations?' "$WORK/residual-review" boolean ||
+            fatal 'Residual configuration purge declined or unavailable'
+        log 'USER APPROVED RESIDUAL CONFIGURATION PURGE'
         while IFS= read -r pkg; do
             case "$pkg" in
                 ''|*[!a-zA-Z0-9.+:~-]*) fatal "Invalid residual package: $pkg";;

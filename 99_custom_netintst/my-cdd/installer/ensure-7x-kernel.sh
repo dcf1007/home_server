@@ -19,7 +19,6 @@ try_kernel_suite() {
     is_7x_metapackage linux-image-amd64 "$iv" || return 1
     is_7x_metapackage linux-headers-amd64 "$hv" || return 1
     if capture in-target apt-get -s install "linux-image-amd64/$ks" "linux-headers-amd64/$ks"; then
-        cp "$WORK/output" "$WORK/plan"
         KERNEL_SUITE=$ks
         KERNEL_IMAGE_VERSION=$iv
         KERNEL_HEADERS_VERSION=$hv
@@ -65,10 +64,9 @@ profile_kernel() {
         if backports_is_selected && [ "$KERNEL_SUITE" != trixie-backports ]; then
             echo 'Stable fallback to a viable 7.x pair; rejected Backports reasons in full log'
         fi
-        cat "$WORK/plan"
     } > "$WORK/kernel-review"
-    review_plan 'Linux 7.x image, matching headers and complete APT simulation' "$WORK/kernel-review"
-    run_target apt-get -y install "linux-image-amd64/$KERNEL_SUITE" "linux-headers-amd64/$KERNEL_SUITE"
+    APT_REVIEW_LABEL='Linux 7.x image and matching headers' APT_REVIEW_FILE="$WORK/kernel-review" \
+        run_target apt-get install "linux-image-amd64/$KERNEL_SUITE" "linux-headers-amd64/$KERNEL_SUITE"
     run_target update-initramfs -u -k all
     run_target update-grub
     paired=0

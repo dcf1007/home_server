@@ -1,5 +1,18 @@
 # Validation — Test the scripts and generated Debian installer
 
+## Real APT interaction and native dialogue validation — 2026-11-21
+
+The approved approach keeps the existing native frontend and progress wrapper. Isolated tests with real Debian 13 apt 3.0.3, dpkg and debconf-apt-progress 1.5.91 used inert local packages and separate dpkg roots, not the host package state. The exact Perl helper passed syntax checking. Mocked native endpoint tests passed ordinary Yes/No, no-prompt fallback Yes/No, already installed/no changes, autoremove Yes/No, missing package and direct progress cancellation (exit 30, no package changes). Real Perl Debconf passthrough to a simulated endpoint passed normal transaction paths, but cancel shutdown timed out both with the helper and the original unmodified wrapper + apt-get -y. No live installer validation is claimed.
+
+- [ ] Build candidate ISO and confirm staged helper available, native selection → combined confirmation with all seven profiles, default No and correct multiline details in GTK and text.
+- [ ] Confirm actual package lists, versions, removals and download/disk summaries are readable; large package lists are not truncated, the No default is visible, and refusal does not alter installed packages.
+- [ ] Confirm ordinary APT prompt/answer and explicit no-prompt fallback each produce one confirmation, no second APT execution and no duplicate prompt; no-change transaction requires no package-change approval.
+- [ ] Confirm progress-wrapper cancellation during actual package retrieval and package-specific Debconf questions; verify the actual frontend returns normally and no unattended transaction continues. Test Back/cancel and unavailable question.
+- [ ] Test prerequisite installs, full upgrade, autoremove/purge, residual dpkg confirmation, kernel compatibility, firmware mixed-source fallbacks and both license modes, including declined license never reintroduced.
+- [ ] Validate signed repositories and actual error details for dependency/download/signature failures, user refusal wording, log completeness and completion markers; check temporary helper and state removed and no permanent APT hook installed.
+- [ ] Verify all selected profiles, including PR #37 resume correction and OMV first boot; no extra lifecycle/boot policy changes.
+
+
 ## ZRAM conversion resume correction — 2026-11-21
 
 User screenshots show the first boot completed (including OMV first-boot population and hosts deployment), but initramfs waited for a suspend/resume device while repeatedly invoking mdadm scans. The actual old resume UUID was not supplied.

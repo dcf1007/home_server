@@ -1,5 +1,7 @@
 # Installer-only implementation
 
+**Current dialogue workflow — 2026-11-21:** Native cdebconf shows the profile multiselect and one combined default-No summary/confirmation. Real package-changing APT commands run once without `-y`; a temporary target-side helper under the existing `debconf-apt-progress` relays the actual APT prompt to a default-No native boolean question. When APT skips its prompt, a transaction-scoped `DPkg::Pre-Install-Pkgs` protocol 2 hook asks before dpkg acts (downloads and existing preconfiguration may precede approval). No repeat review prompt for already-approved transactions; no review-only simulations. Internal kernel/firmware compatibility simulations, named firmware omissions/licenses, ZRAM destructive/targeted swapoff consent, root recovery, signed APT, native stages and completion markers remain. Backports cleanup approval is per real transaction, not per package. The helper and its private state are temporary; no persistent APT configuration. GTK/text and integrated VM validation pending.
+
 **Current lifecycle — 2026-11-20:** Native stages 10, 50, 55 and 60 run before the selected-profile executor at `61my-cdd`; the unmodified Simple-CDD verifier, custom status guard, unmodified CD-ROM eject and unmodified final message follow at `62simple-cdd`, `63my-cdd-status`, `64cdrom-detect` and `65final-message`. The early selector registers 61/63; `partman/early_command` calls `finish-order.sh` before partitioning, checks all three original native scripts and then renames them. Native udebs and script contents are unchanged. The CD-ROM APT-source preseed remains; no forced network backend or suppressed completion dialog. Relocation failure returns nonzero to native preseed error handling, which does not guarantee installation termination. No stage-00 guard or additional repeated-execution restriction is introduced. ISO/GTK/text/first-boot testing is pending.
 
 ## Native progress reporting — 2026-11-20
@@ -16,6 +18,7 @@ This directory contains **Debian Installer integration**, not generic post-insta
 ## Entry points and mechanisms
 
 - `profile-confirm.sh`, `profile-confirm.templates`: native early preseed Debconf selection summary, with explicit default-No approval before selected-profile operations.
+- `apt-interactive.pl`: temporary target-side real APT prompt relay; actual pre-install action fallback only when APT does not ask, no second prompt for an approved transaction.
 - `ordered-selection.sh`: read-only seven-profile order/dependency parser.
 - `finish-order.sh`: called by `partman/early_command` to check and rename the three native hooks before partitioning; returns nonzero on failure.
 - `run-selected.sh`: registered native finish-install stage `61my-cdd` executor, target logging, approval/recovery preflight and ordered dispatch. Its native GTK/text failure note displays the failed command, exit status and real captured stdout/stderr; `in-target` stderr is redirected to stdout within the target to avoid syslog-only diagnostics.

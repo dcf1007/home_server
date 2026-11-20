@@ -58,7 +58,7 @@ Native Debian Installer stage `61my-cdd` runs each approved selected handler **o
 2. The `review_install` helper shows and approves target installation of `ca-certificates` and `curl`, the signing-key prerequisites.
 3. The handler downloads Docker's official public key to the target's APT keyring and creates the signed Deb822 repository for **Debian Trixie amd64**.
 4. It refreshes the official signed Docker repository and simulates installing **five packages together**: `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin` and `docker-compose-plugin`.
-5. The complete APT plan, including any removals, is shown through the installer Debconf frontend with **default-No** approval. The user decides whether to proceed; no project-defined essential-package blacklist intervenes. The approved set is installed and dpkg audited.
+5. The real APT command's package changes (including removals) are shown through the installer Debconf frontend with **default-No** approval, without a preliminary review simulation or `-y`. The user decides whether to proceed; no project-defined essential-package blacklist intervenes. The approved set is installed and dpkg audited.
 6. It does **not** mask/disable Docker services, create containers, give users the root-equivalent Docker group, or install OMV Compose integrations.
 
 ## Step 4 — Check and test the rebuilt files
@@ -99,7 +99,7 @@ installer/docker.sh
 
 
 <details>
-<summary><strong>installer/docker.sh</strong> — complete file; 33 lines; Git blob <code>be05fdf0b5790ce9551ed8b14dc245b9330d7e60</code></summary>
+<summary><strong>installer/docker.sh</strong> — complete file; 32 lines; Git blob <code>c58a9c066b35f08d2481e220714350f37aeba4ee</code></summary>
 
 ````sh
 #!/bin/sh
@@ -128,12 +128,12 @@ EOT
     # No custom masking, disabling or starting of Docker/containerd units:
     # preserve the packages' own install-time and first-boot defaults.
     # OMV remains independent; OMV-Extras/Compose is never installed here.
-    simulate_target install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    review_plan 'Docker: official packages and normal service defaults' "$WORK/plan"
-    run_target apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    APT_REVIEW_LABEL='Docker official packages and normal service defaults' \
+        run_target apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     run_target dpkg --audit
     log 'Docker packages installed; service activation is governed by native package defaults'
 }
+
 ````
 
 </details>

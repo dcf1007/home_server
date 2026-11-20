@@ -63,8 +63,8 @@ Native Debian Installer stage `61my-cdd` runs each approved selected handler **o
 1. The early Simple-CDD checkbox offers the kernel profile but does not select it by default. **ZRAM requires this separate selection**; ZRAM must not automatically select a kernel.
 2. The dispatcher maps this profile ID to `profile_kernel()`, after any selected Backports stage has completed.
 3. The function inspects available **signed target APT repositories**. If Backports was selected, it tries a viable Backports pair first; otherwise it considers normal Debian suites only. It **does not add a repository**.
-4. It reads the image and header metapackage dependencies and requires **Linux 7.x**. APT simulations for both packages are reviewed together; any dependency removals remain visible in the complete approval plan instead of being filtered by a project blacklist.
-5. A default-No Debian Installer approval shows the complete transaction. Only after approval does the function install into `/target`, regenerate initramfs/GRUB, check `dpkg --audit` and verify **an installed 7.x image has headers with the same ABI**.
+4. It reads the image and header metapackage dependencies and requires **Linux 7.x**. Internal APT simulations determine joint image/header compatibility and suite fallback. They are not separate user approval screens; removals are presented in the actual transaction, not filtered by a project blacklist.
+5. The real APT command presents its transaction with the chosen suite/version context and default-No native approval. After consent to package changes it installs into `/target`, regenerate initramfs/GRUB, check `dpkg --audit` and verify **an installed 7.x image has headers with the same ABI**.
 6. First boot still needs verification: the installed package presence does not prove the running kernel is actually 7.x.
 
 **Important limitation from the actual source:** its checks establish that the moving packages depend on 7.x and verify an exact installed image/header match **after** installation; the guide should not imply that all image/header ABI strings are paired before installing.
@@ -110,7 +110,7 @@ installer/ensure-7x-kernel.sh
 
 
 <details>
-<summary><strong>installer/ensure-7x-kernel.sh</strong> — complete file (86 lines; blob <code>8fda85b85a018923f599ac7e3dc13b61bce7a426</code>)</summary>
+<summary><strong>installer/ensure-7x-kernel.sh</strong> — complete file (84 lines; blob <code>481584214659bab59588a86a2401476c1c0554f9</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -134,7 +134,6 @@ try_kernel_suite() {
     is_7x_metapackage linux-image-amd64 "$iv" || return 1
     is_7x_metapackage linux-headers-amd64 "$hv" || return 1
     if capture in-target apt-get -s install "linux-image-amd64/$ks" "linux-headers-amd64/$ks"; then
-        cp "$WORK/output" "$WORK/plan"
         KERNEL_SUITE=$ks
         KERNEL_IMAGE_VERSION=$iv
         KERNEL_HEADERS_VERSION=$hv
@@ -180,10 +179,9 @@ profile_kernel() {
         if backports_is_selected && [ "$KERNEL_SUITE" != trixie-backports ]; then
             echo 'Stable fallback to a viable 7.x pair; rejected Backports reasons in full log'
         fi
-        cat "$WORK/plan"
     } > "$WORK/kernel-review"
-    review_plan 'Linux 7.x image, matching headers and complete APT simulation' "$WORK/kernel-review"
-    run_target apt-get -y install "linux-image-amd64/$KERNEL_SUITE" "linux-headers-amd64/$KERNEL_SUITE"
+    APT_REVIEW_LABEL='Linux 7.x image and matching headers' APT_REVIEW_FILE="$WORK/kernel-review" \
+        run_target apt-get install "linux-image-amd64/$KERNEL_SUITE" "linux-headers-amd64/$KERNEL_SUITE"
     run_target update-initramfs -u -k all
     run_target update-grub
     paired=0
@@ -198,6 +196,7 @@ profile_kernel() {
         fatal 'No Linux 7.x boot image with exactly matching installed headers'
     run_target dpkg --audit
 }
+
 ````
 
 </details>

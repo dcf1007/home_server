@@ -62,7 +62,7 @@ The OMV handler runs **only when selected**. It uses the same signed-APT install
 
 1. Confirm Debian Trixie, supported architecture and no installed desktop display manager.
 2. Install the signing/download tools with reviewed APT approval, retrieve the official public key, set its keyring to mode `0644` so APT's `_apt` signature verifier can read it despite the installer's private umask, and configure the first signed APT repository listed in [OMV's manual Debian installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html), without extra suites.
-3. Refresh signed APT metadata, show the entire `openmediavault` transaction (including proposed package removals) and require **default-No approval** before installation. The profile does not impose its own package-removal blacklist. The official script's permissive downgrade/held-package flags remain omitted; APT's ordinary dependency and confirmation semantics apply.
+3. Refresh signed APT metadata, run the actual `apt-get install --no-install-recommends openmediavault` transaction with one **default-No native approval** of its real package changes, including removals. No review-only simulation or `-y`. The profile does not impose its own package-removal blacklist. The official script's permissive downgrade/held-package flags remain omitted; APT's ordinary dependency and confirmation semantics apply.
 4. Check that OMV 8 packages installed and passed `dpkg --audit`, then stage the two official commands in a **one-time** systemd service instead of executing them in the unfinished installer target.
 5. On first boot, run `omv-confdbadm populate` followed by `omv-salt deploy run hosts` in the running systemd/D-Bus environment. Write the one retained log (`/var/log/installer/my-cdd-omv-firstboot.log`) **before** executing either command; it serves as the attempted-run record and keeps command outputs and final result. On success **or failure**, disable and remove the temporary systemd unit, enablement symlink and runner script, then reload systemd. No permanent status file, attempt marker or login notice is created. Console/journal show first-boot progress and errors. If interrupted before cleanup, a later invocation cleans up only, without retrying either OMV command.
 
@@ -114,7 +114,7 @@ installer/openmediavault-firstboot.service
 
 
 <details>
-<summary><strong>installer/openmediavault.sh</strong> — complete file (99 lines; Git blob <code>bc0ee4df4aaff054b2c1e26f4af8d663c5a3f64f</code>)</summary>
+<summary><strong>installer/openmediavault.sh</strong> — complete file (98 lines; Git blob <code>773446ae73311defe1719d521243d3aa075785de</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -160,9 +160,8 @@ EOF
     update_signed_apt
     # Preserve full default-No APT approval, but do not accept upstream's
     # unreviewed --allow-downgrades/--allow-change-held-packages flags.
-    simulate_target install --no-install-recommends openmediavault
-    review_plan 'Official OpenMediaVault 8 package and dependencies' "$WORK/plan"
-    run_target apt-get -y install --no-install-recommends openmediavault
+    APT_REVIEW_LABEL='OpenMediaVault 8 and dependencies' \
+        run_target apt-get install --no-install-recommends openmediavault
     run_target dpkg --audit
     capture in-target dpkg-query -W '-f=${Version}\n' openmediavault ||
         fatal 'Cannot read installed OMV version'

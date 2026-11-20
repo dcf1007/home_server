@@ -173,22 +173,9 @@ profile_firmware() {
         fi
     done
     [ -s "$WORK/firmware-selectors" ] || fatal 'No approved firmware packages remain'
-    simulate_target install $(cat "$WORK/firmware-selectors")
-    {
-        echo 'All chosen firmware/microcode package selectors:'
-        cat "$WORK/firmware-selectors"
-        echo 'Normal source fallbacks and specific reasons:'
-        cat "$WORK/firmware-fallbacks"
-        echo 'Individually approved package omissions:'
-        cat "$WORK/firmware-omissions"
-        echo 'Complete final joint APT simulation:'
-        cat "$WORK/plan"
-    } > "$WORK/firmware-review"
-    review_plan 'Extended support: entire mixed-source firmware transaction' "$WORK/firmware-review"
-
     # Ask the two complete package-native license questions BEFORE unpack.
     # Declines require a separate per-package omission approval and a
-    # fresh full APT simulation and transaction review.
+    # compatibility check before the actual APT transaction approval.
     license_omitted=false
     for licensed_pkg in firmware-ipw2x00 firmware-ivtv; do
         licensed_selector="$(grep "^$licensed_pkg/" "$WORK/firmware-selectors" || true)"
@@ -216,17 +203,23 @@ profile_firmware() {
                 fi
             fi
         done
-        {
-            echo 'Package selectors after individually approved license omissions:'
-            cat "$WORK/firmware-selectors"
+    fi
+    {
+        echo 'Selected firmware and microcode packages:'
+        cat "$WORK/firmware-selectors"
+        if [ -s "$WORK/firmware-fallbacks" ]; then
+            echo
+            echo 'Normal repository fallbacks and reasons:'
+            cat "$WORK/firmware-fallbacks"
+        fi
+        if [ -s "$WORK/firmware-omissions" ]; then
+            echo
             echo 'Individually approved omissions:'
             cat "$WORK/firmware-omissions"
-            echo 'Recomputed joint APT simulation:'
-            cat "$WORK/plan"
-        } > "$WORK/firmware-license-review"
-        review_plan 'Extended support: revised transaction after license omissions' "$WORK/firmware-license-review"
-    fi
-    run_target apt-get -y install $(cat "$WORK/firmware-selectors")
+        fi
+    } > "$WORK/firmware-review"
+    APT_REVIEW_LABEL='Extended device support' APT_REVIEW_FILE="$WORK/firmware-review" \
+        run_target apt-get install $(cat "$WORK/firmware-selectors")
     run_target dpkg --audit
 }
 

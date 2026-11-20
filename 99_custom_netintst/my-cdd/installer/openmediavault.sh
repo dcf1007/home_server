@@ -41,9 +41,8 @@ EOF
     update_signed_apt
     # Preserve full default-No APT approval, but do not accept upstream's
     # unreviewed --allow-downgrades/--allow-change-held-packages flags.
-    simulate_target install --no-install-recommends openmediavault
-    review_plan 'Official OpenMediaVault 8 package and dependencies' "$WORK/plan"
-    run_target apt-get -y install --no-install-recommends openmediavault
+    APT_REVIEW_LABEL='OpenMediaVault 8 and dependencies' \
+        run_target apt-get install --no-install-recommends openmediavault
     run_target dpkg --audit
     capture in-target dpkg-query -W '-f=${Version}\n' openmediavault ||
         fatal 'Cannot read installed OMV version'

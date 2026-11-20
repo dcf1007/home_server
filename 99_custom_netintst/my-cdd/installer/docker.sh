@@ -24,9 +24,8 @@ EOT
     # No custom masking, disabling or starting of Docker/containerd units:
     # preserve the packages' own install-time and first-boot defaults.
     # OMV remains independent; OMV-Extras/Compose is never installed here.
-    simulate_target install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    review_plan 'Docker: official packages and normal service defaults' "$WORK/plan"
-    run_target apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    APT_REVIEW_LABEL='Docker official packages and normal service defaults' \
+        run_target apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     run_target dpkg --audit
     log 'Docker packages installed; service activation is governed by native package defaults'
 }
