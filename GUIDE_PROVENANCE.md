@@ -1,5 +1,25 @@
 # Guide provenance and scope
 
+## Adopt user-verified note cell layout — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “you should not fix the width of the second column. this actually works:” followed by a rendered table row with `width="100"` on the image cell, `width="100%"` on the image, and no width on the text cell.
+
+**Implemented:** Supersede the proposed inline superscript reservation. Set the first cell to `valign="top" width="100" align="center" nowrap=""` with image `width="100%"` and no explicit height; remove all spacer elements and leave the second cell as `<td valign="top">` with natural width. Keep the existing outer table width attribute of 100% and repository-relative image paths rather than hardcoding the rendered GitHub main-branch URL, so previews, branches and local copies refer to their own assets. Preserve SVG artwork, text, code, links and executable configuration.
+
+**Validation:** The user reports that the supplied row renders correctly. Exact round-trip verification confirms all 137 icon rows (32 OMV, 105 warnings) now follow that layout. No independent live GitHub or browser test was performed for this revision; the outer table's actual width and icon size remain dependent on the renderer.
+
+
+## Restore icon width reservation without a blank line — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “still not showing up since you erased the line of whitespaces.”
+
+**Observed:** The current main markup renders 45 × 45 images in local Chromium when its bare `nowrap` attribute is effective. Removing that attribute to simulate a renderer ignoring it reproduces a 27-pixel padded first cell and 0 × 0 image even with the 72-pixel width attribute present. This demonstrates a possible cause, not proof of the live GitHub DOM or sanitizer behavior.
+
+**Implemented:** Make `nowrap="nowrap"` explicit and append an aria-hidden inline `sup` containing 13 nonbreaking spaces after each icon. There is no `br` or separate paragraph. The whitespace supplies a nonzero intrinsic minimum width; superscript uses the renderer's existing compact line-height rather than a full extra text line. Keep 72-pixel requested cell width, 100% image width, automatic height and full-width table/right cell. No SVG artwork, note text, commands or executable configuration changed.
+
+**Validation (executed in local Chromium via Playwright):** CommonMark-rendered representative HTML, a square test SVG, Primer-like CSS with 13px horizontal padding, collapsed 1px borders, max-content tables, responsive images and superscript line-height zero. Twelve cases per variant (320, 375, 768, 1024px × short prose, long prose, unbreakable fenced code). Existing markup with effective nowrap: 72px cell and 45 × 45 image. Existing markup without nowrap: 27px cell and 0 × 0 image in all 12 cases. Revised inline reserve with explicit nowrap: 72px cell and 45 × 45 image, with no added height in the short-note case (58px before/after). Revised reserve with nowrap removed: approximately 70.34px cell and 43.34 × 43.34 image, no full blank line in the short-note case (56.34px height); the measured superscript box did not extend below the image in any case. Outer table width remained the available container width. Space-based reservation depends on font metrics and superscript styling and may not maintain exact dimensions or height in other renderers. Actual GitHub visual rendering remains unverified. Round-trip markup comparison verified all 137 replacements.
+
+
 ## Responsive icon width within 72-pixel column — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompt:** “unless you can make sure about the exact pixels of the margin and padding and set them manually, i would prefer to try 100%”.

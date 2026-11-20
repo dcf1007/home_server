@@ -4,8 +4,9 @@
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
 
 Do not assume that a particular 7.x version will remain available. Check the versions offered by your configured Debian repositories at the time of installation.
 
@@ -15,8 +16,9 @@ Do not assume that a particular 7.x version will remain available. Check the ver
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="100%" alt="OpenMediaVault-specific note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/omv.svg" width="100%" alt="OpenMediaVault-specific note">
+</td>
+<td valign="top">
 
 **When OMV is installed:** OMV may independently enable the kernel Backports repository and apply targeted image/header preferences. This can affect moving metapackage candidates and future kernel upgrades irrespective of the earlier manual Backports choice. Verify the actual package origins and matching ABI; OMV's preferences do not enforce this project's Linux 7.x requirement. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks). No kernel-retention or repository-policy change is implied by this note.
 
@@ -56,8 +58,9 @@ apt show linux-headers-amd64
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
 
 If you have Backports enabled, also inspect the package pages for **Trixie Backports** or the additional available versions listed by `apt policy`. The moving image and header packages must resolve to the **same 7.x kernel ABI**. Version numbers will change over time.
 
@@ -67,8 +70,9 @@ If you have Backports enabled, also inspect the package pages for **Trixie Backp
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
 
 If your enabled sources do not offer a compatible 7.x pair, **stop**. You can choose to enable [Backports](../03_backports/README.md); do not silently use a different kernel branch.
 
@@ -96,8 +100,9 @@ sudo apt install linux-image-amd64/trixie-backports linux-headers-amd64/trixie-b
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
 
 Use **only one** option after checking the offered versions. APT will show the planned changes before installing. If it proposes removing your working Debian kernel or bootloader, say **No** and investigate.
 
@@ -109,8 +114,9 @@ Use **only one** option after checking the offered versions. APT will show the p
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
 
 This regenerates initramfs images for **all installed kernels**, so the boot environment includes the drivers and configuration needed at startup. Check the output for failures and stop if any kernel image fails to update.
 
@@ -124,8 +130,9 @@ sudo update-initramfs -u -k all
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
 
 This regenerates GRUB’s boot menu entries. Confirm its messages detect the new 7.x kernel **and the older fallback**; this does not choose a kernel automatically for this session.
 
@@ -175,8 +182,9 @@ sudo dpkg --audit
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
 
 **Important:** A 7.x version alone does not prove that ZRAM compressed writeback is supported. Check the actual ZRAM features in [06](../06_zram_writeback/README.md).
 

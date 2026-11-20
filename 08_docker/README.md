@@ -6,8 +6,9 @@ Docker is independent of OpenMediaVault. Both guides use the same basic method�
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="100%" alt="OpenMediaVault-specific note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/omv.svg" width="100%" alt="OpenMediaVault-specific note">
+</td>
+<td valign="top">
 
 **When OMV is installed:** Docker remains a separate installation decision. OMV also manages APT settings and has its own web, network and storage services. Review the actual Docker package transaction on the OMV host, and do not assume that an ordinary Debian repository or service configuration is unchanged. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks). The guide still does not install OMV-Extras, Compose integrations or containers.
 
@@ -27,8 +28,9 @@ apt list --installed docker.io docker-compose docker-doc docker-buildx podman-do
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
 
 This checks just the potentially conflicting packages, rather than listing every installed package. If you find a conflicting package, follow the [official Docker removal guidance](https://docs.docker.com/engine/install/debian/) **after reviewing any existing containers and data**. Do not remove production data blindly.
 
@@ -62,8 +64,9 @@ Download Docker's signing key:
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
 
 This downloads Docker’s **official repository signing key** into the keyring directory over HTTPS. If the download fails or reports a certificate error, do not continue to the repository configuration.
 
@@ -110,8 +113,9 @@ This example is specifically for **Debian 13 amd64**, the system used by this pr
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
 
 This refreshes package indexes again, **now including the Docker repository**. Stop if Docker’s repository is unreachable or its signature cannot be verified.
 
@@ -125,8 +129,9 @@ sudo apt update
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
 
 If APT reports a signing-key or repository error, stop and correct it.
 
@@ -138,8 +143,9 @@ Check that Docker's official packages are available:
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
 
 This displays the available Docker Engine versions and their package origins. Verify the candidate comes from **`download.docker.com`**, not from a different repository.
 
@@ -163,8 +169,9 @@ sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin dock
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
 
 APT will show the packages and dependencies it intends to install or remove. Read the summary before accepting.
 
@@ -204,8 +211,9 @@ sudo systemctl status containerd
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
 
 The official packages normally manage their own startup. **Do not mask or disable these services** for this project.
 
@@ -226,8 +234,9 @@ This guide deliberately does **not**:
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
-<td valign="top" width="100%">
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
 
 If you later publish container ports, review Docker's [firewall considerations](https://docs.docker.com/engine/install/debian/). Published ports may behave differently from the host firewall rules you expect.
 
