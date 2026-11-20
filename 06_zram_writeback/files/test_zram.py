@@ -38,7 +38,6 @@ TUNE_MIN_GAIN = 0.05
 TUNE_BAD_DROP = 0.10
 TUNE_EXTRA_LEVELS = 3
 TUNE_BAD_WINDOWS = 2
-TUNE_RETRY_SECONDS = 60
 STAGES = ('retrieve', 'sha256', 'modify', 'discard')
 AGE_SECONDS = 65
 POLL = 1.0
@@ -105,7 +104,8 @@ CSV_FIELDS = ('elapsed_s', 'phase', 'occupancy_pct', 'psi_avg10_pct',
               'tune_cpu_busy_pct', 'tune_backing_mib_s', 'tune_verified_mib_s',
               'tune_state', 'record_type', 'tune_measured_threads',
               'tune_next_threads', 'tune_window_s', 'tune_gain_pct',
-              'tune_best_verified_mib_s', 'tune_best_threads')
+              'tune_best_verified_mib_s', 'tune_best_threads',
+              'tune_mode', 'tune_settled_reference_mib_s')
 
 
 def run(*args, timeout=10, check=True):
@@ -544,7 +544,9 @@ class Test:
         self.tune_reference = None
         self.tune_candidates = {}
         self.tune_trial = []
-        self.tune_hold_until = None
+        self.tune_history = {}
+        self.tune_settled_rate = None
+        self.tune_mode = 'search'
         self.tune_state = 'pending'
         self.tune_metrics = (None, None, None)
         self.stage_wall = [0]*len(STAGES)
@@ -817,7 +819,8 @@ class Test:
                 tune_cpu_busy_pct=self.tune_metrics[0], tune_backing_mib_s=self.tune_metrics[1],
                 tune_verified_mib_s=self.tune_metrics[2], tune_state=self.tune_state,
                 record_type='sample', tune_best_verified_mib_s=self.tune_best_rate,
-                tune_best_threads=self.tune_best_threads))
+                tune_best_threads=self.tune_best_threads, tune_mode=self.tune_mode,
+                tune_settled_reference_mib_s=self.tune_settled_rate))
 
     def receive(self, worker):
         while True:
@@ -943,49 +946,101 @@ class Test:
         except (OSError, ValueError, IndexError):
             return None
 
-    def reset_tune_search(self):
-        self.tune_best_rate = self.tune_best_threads = self.tune_reference = None
-        self.tune_candidates.clear()
-        self.tune_trial.clear()
-        self.tune_flat = 0
-        self.tune_hold_until = None
-
-    def tune_hold(self, now, reason):
-        self.tune_hold_until = now + TUNE_RETRY_SECONDS
-        self.tune_state = reason
-        self.tune_trial.clear()
-
     def remember_tune_rate(self, threads, rate):
         self.tune_candidates[threads] = rate
         self.tune_best_rate = max(self.tune_candidates.values())
-        # Among effectively equivalent rates, prefer less concurrency.
         self.tune_best_threads = min(k for k, v in self.tune_candidates.items()
                                      if v >= self.tune_best_rate*(1-TUNE_MIN_GAIN))
 
+    def settle_tune(self, reason):
+        self.readback_threads = self.tune_best_threads
+        self.tune_settled_rate = self.tune_candidates[self.readback_threads]
+        self.tune_mode = 'settled'
+        self.tune_trial.clear()
+        self.tune_state = reason
+
+    def historical_rates(self):
+        # Keep every window; exclude CPU-saturated samples from candidate ranking.
+        rates = {}
+        for threads, windows in self.tune_history.items():
+            safe = [(rate, dt) for rate, dt, cpu in windows if cpu < TUNE_CPU_TARGET]
+            if safe and windows[-1][2] < TUNE_CPU_TARGET:
+                rates[threads] = sum(r*t for r,t in safe)/sum(t for _,t in safe)
+        return rates
+
+    def retune_candidate(self, old):
+        rates = self.historical_rates()
+        if rates:
+            best = max(rates.values())
+            promising = [k for k, v in rates.items()
+                         if k != old and k <= self.tune_limit
+                         and v >= best*(1-TUNE_MIN_GAIN)]
+            if promising:
+                return min(promising)
+        # Prefer an unexplored level over repeating a known poor candidate.
+        saturated = [k for k, w in self.tune_history.items()
+                     if w[-1][2] >= TUNE_CPU_TARGET]
+        limit = min([self.tune_limit] + [k-1 for k in saturated])
+        return next((k for k in range(old+self.tune_step, limit+1, self.tune_step)
+                     if k not in self.tune_history), None)
+
     def tune_decision(self, now, cpu_pct, verified_rate, dt):
         old = self.readback_threads
-        best = self.tune_best_rate
+        self.tune_history.setdefault(old, []).append((verified_rate, dt, cpu_pct))
         if cpu_pct >= TUNE_CPU_TARGET:
             self.readback_threads = max(1, old-self.tune_step if old > self.tune_step else old//2)
-            self.tune_hold(now, 'CPU target; back off')
+            self.tune_mode = 'settled'
+            self.tune_settled_rate = None
+            self.tune_trial.clear()
+            self.tune_candidates.clear()
+            self.tune_best_rate = self.tune_best_threads = None
+            self.tune_state = 'CPU target; back off'
             return
-        if self.tune_hold_until is not None:
-            if now < self.tune_hold_until:
+        if self.tune_mode == 'settled':
+            if self.tune_settled_rate is None:
+                self.tune_settled_rate = verified_rate
+                self.tune_candidates.clear()
+                self.remember_tune_rate(old, verified_rate)
+                self.tune_state = 'settled baseline'
                 return
-            # Old samples must not permanently bias a changing workload.
-            self.reset_tune_search()
-            best = None
-            self.tune_state = 'retune baseline'
-        # A poor first window is not enough to reject a higher count.
+            if verified_rate >= self.tune_settled_rate*(1-TUNE_BAD_DROP):
+                self.tune_trial.clear()
+                self.tune_state = 'hold; stable throughput'
+                return
+            self.tune_trial.append((verified_rate, dt))
+            if len(self.tune_trial) < TUNE_BAD_WINDOWS:
+                self.tune_state = 'hold; confirm deterioration'
+                return
+            baseline = sum(r*t for r,t in self.tune_trial)/sum(t for _,t in self.tune_trial)
+            candidate = self.retune_candidate(old)
+            # Refresh the local comparison, never the lifetime history.
+            self.tune_candidates.clear()
+            self.remember_tune_rate(old, baseline)
+            self.tune_trial.clear()
+            if candidate is None:
+                self.tune_settled_rate = baseline
+                self.tune_state = 'hold; refreshed baseline, no useful candidate'
+                return
+            self.readback_threads = candidate
+            self.tune_mode = 'retune'
+            self.tune_state = 'sustained deterioration; compare candidate'
+            return
         self.tune_trial.append((verified_rate, dt))
         trial_rate = sum(r*t for r,t in self.tune_trial)/sum(t for _,t in self.tune_trial)
+        if self.tune_mode == 'retune':
+            if len(self.tune_trial) < TUNE_BAD_WINDOWS:
+                self.tune_state = 'confirm retune candidate'
+                return
+            self.remember_tune_rate(old, trial_rate)
+            self.settle_tune('retune complete; hold near-best count')
+            return
+        best = self.tune_best_rate
         bad = best is not None and trial_rate < best*(1-TUNE_BAD_DROP)
         if bad and len(self.tune_trial) < TUNE_BAD_WINDOWS:
             self.tune_state = 'confirm slowdown'
             return
         if bad:
-            self.readback_threads = self.tune_best_threads
-            self.tune_hold(now, 'confirmed slowdown; back off')
+            self.settle_tune('confirmed slowdown; hold near-best count')
             return
         self.remember_tune_rate(old, trial_rate)
         if self.tune_reference is None or trial_rate >= self.tune_reference*(1+TUNE_MIN_GAIN):
@@ -994,14 +1049,12 @@ class Test:
         else:
             self.tune_flat += 1
         self.tune_trial.clear()
-        # After the first flat level, try three further distinct higher levels.
         if self.tune_flat > TUNE_EXTRA_LEVELS:
-            self.readback_threads = self.tune_best_threads
-            self.tune_hold(now, 'plateau; hold near-best count')
+            self.settle_tune('plateau; hold near-best count')
             return
         self.readback_threads = min(self.tune_limit, old+self.tune_step)
         if self.readback_threads == old:
-            self.tune_hold(now, 'page-count limit; hold')
+            self.settle_tune('page-count limit; hold near-best count')
         else:
             self.tune_state = 'explore higher' if self.tune_flat else 'increase'
 
@@ -1037,7 +1090,10 @@ class Test:
         previous_best = self.tune_best_rate
         gain = 100*(verified_rate/previous_best-1) if previous_best else None
         # A resident/same-element-only window still represents useful work.
-        if dv > 0 or cpu_pct >= TUNE_CPU_TARGET:
+        if self.verified == self.total:
+            self.tune_history.setdefault(old, []).append((verified_rate, dt, cpu_pct))
+            self.tune_state = 'complete; no further tuning'
+        elif dv > 0 or cpu_pct >= TUNE_CPU_TARGET:
             self.tune_decision(point[0], cpu_pct, verified_rate, dt)
         else:
             self.tune_state = 'no verified progress; hold'
@@ -1053,7 +1109,8 @@ class Test:
                 tune_cpu_busy_pct=cpu_pct, tune_backing_mib_s=disk_rate,
                 tune_verified_mib_s=verified_rate, tune_gain_pct=gain,
                 tune_best_verified_mib_s=self.tune_best_rate,
-                tune_best_threads=self.tune_best_threads, tune_state=self.tune_state))
+                tune_best_threads=self.tune_best_threads, tune_state=self.tune_state,
+                tune_mode=self.tune_mode, tune_settled_reference_mib_s=self.tune_settled_rate))
 
     def readback(self):
         self.phase = 'READBACK'
@@ -1065,7 +1122,8 @@ class Test:
         say(f'No overall readback deadline; no-progress timeout {READBACK_STALL_SECONDS}s.')
         say(f'Parallel readback: starts at {self.readback_threads} threads; increase by {self.tune_step} per trial.')
         say(f'Tuning: >= {TUNE_SECONDS}s windows; {TUNE_CPU_TARGET:.0f}% busy CPU target; verified/discarded MiB/s objective.')
-        say(f'Explore {TUNE_EXTRA_LEVELS} further levels after first plateau; confirm >{TUNE_BAD_DROP*100:.0f}% slowdown twice; retry after {TUNE_RETRY_SECONDS}s hold.')
+        say(f'Explore {TUNE_EXTRA_LEVELS} further levels after first plateau; confirm >{TUNE_BAD_DROP*100:.0f}% slowdown twice; retune only after sustained deterioration.')
+        say('Keep all tuning measurements; prefer the lowest near-best count.')
         self.tune_state = 'ramping'
         if not self.total:
             raise Inconclusive('No cold data allocated')
@@ -1224,6 +1282,13 @@ class Test:
                 emit('Page events are normal VM operations, not data integrity or storage errors.')
                 best_text = f'{self.tune_best_rate:.2f} MiB/s' if self.tune_best_rate is not None else 'unavailable'
                 emit(f'Adaptive tuning: {self.tune_state}; recent best verified rate: {best_text}')
+                emit('TUNING HISTORY | all valid measurement windows, duration-weighted')
+                emit('Threads | Windows | Seconds | Done MiB/s | CPU busy%')
+                for threads, windows in sorted(self.tune_history.items()):
+                    seconds = sum(dt for _,dt,_ in windows)
+                    rate = sum(r*dt for r,dt,_ in windows)/seconds
+                    cpu = sum(p*dt for _,dt,p in windows)/seconds
+                    emit(f'{threads:7} | {len(windows):7} | {seconds:7.1f} | {rate:10.2f} | {cpu:9.1f}')
                 emit('See TUNE log lines for concurrency, busy CPU and separate backing/verified rates.')
                 emit('Retrieve wall vs CPU includes page faults, I/O, scheduling and kernel work; not isolated NVMe or decompression time.')
                 emit('CSV contains interval backing read latency, queue depth and system CPU steal when available.')
