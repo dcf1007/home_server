@@ -1,6 +1,6 @@
 # 05 — Recreate extended firmware and microcode support
 
-**Outcome:** assemble the complete **selected-only firmware source** that handles a broad inventory, both CPU vendors' microcode packages, reviewed Backports fallbacks, individual omissions and **the package vendors' original license questions**. The normal Debian version is simpler: [04 — Firmware](../05_extended_device_support/README.md).
+**Outcome:** assemble the complete **selected-only firmware source** that handles a broad inventory, both CPU vendors' microcode packages, reviewed Backports fallbacks, individual omissions and **preauthorized named vendor licenses or the original interactive questions**. The normal Debian version is simpler: [04 — Firmware](../05_extended_device_support/README.md).
 
 ## Step 1 — Prepare the shared installer framework
 
@@ -13,7 +13,7 @@ Work inside `99_custom_netintst/my-cdd/` in a **test branch or scratch copy**. D
 | Path | Responsibility |
 | --- | --- |
 | `profiles/extended-device-support.description` | Human-readable checkbox for additional firmware and both CPU microcode packages. |
-| `profiles/extended-device-support.extra` | Stages the firmware module and full list of requested packages on the ISO. |
+| `profiles/extended-device-support.extra` | Stages the firmware module, requested package inventory and generated firmware-license policy on the ISO. |
 | `profiles/extended-device-support.postinst` | Native Simple-CDD completion verifier; checks a marker without rerunning feature installation. |
 | `installer/extended-device-support.sh` | All selection, fallback, per-package omission, complete APT review and native vendor-license Debconf code. |
 | `scripts/firmware-candidates.txt` | The full approved package inventory, including both Intel and AMD CPU microcode. |
@@ -32,7 +32,7 @@ Open `profiles/extended-device-support.description` in a text editor, paste the 
 
 Open that specific file, expand the matching **complete source listing** below, paste all contents, Save the document after reviewing the pasted contents. This does **not** execute the file.
 
-**2. Create `profiles/extended-device-support.extra`.** Stages the firmware module and full list of requested packages on the ISO.
+**2. Create `profiles/extended-device-support.extra`.** Stages the firmware module, requested package inventory and generated firmware-license policy on the ISO.
 
 Open `profiles/extended-device-support.extra` in a text editor, paste the indicated contents and save it at that path.
 
@@ -64,8 +64,8 @@ Native Debian Installer stage `11my-cdd` runs each approved selected handler **o
 3. The repeated `normal_suite()` lookup belongs to this firmware handler, not the shared helper module. The handler inspects every requested package's actual signed APT candidates. If Backports was **separately selected**, a compatible Backports package is considered first; otherwise only normal Debian suites are used. Each candidate is simulated with the **accumulated** approved package set. APT determines compatibility; any proposed package removals appear in the complete transaction for user approval, not a project blacklist.
 4. If a package is absent or conflicting, the **specific** package and reason are displayed in a **default-No omission question**. The installer must not skip it without affirmative consent.
 5. The complete combined APT transaction (including dependencies, selected source suites, recorded fallbacks and omissions) is displayed for **default-No approval before installation**.
-6. `firmware-ipw2x00` and `firmware-ivtv` may contain vendor license questions. Their *exact selected Debian package archives* are downloaded, verified, and original full Debconf templates extracted and loaded into **the installer's existing GTK/text frontend**. Accepted consent is then conveyed to the **target** Debconf database.
-7. A refused license means a separate explicit omission decision and a **new simulation of the remaining full package set**. Reject any dependency that would reinstall the declined package.
+6. `firmware-ipw2x00` and `firmware-ivtv` may contain vendor license questions. Their *exact selected Debian package archives* are downloaded and verified; the native Boolean template is checked. With `AUTO_ACCEPT_FIRMWARE_LICENSES=true` (the build default), acceptance is preauthorized only for these two packages and logged with the selected version. With `false`, the original full Debconf templates are loaded into **the installer's existing GTK/text frontend** for explicit acceptance. In both cases accepted consent is conveyed to and verified in the **target** Debconf database. Review the vendor terms before enabling or distributing an automatically accepting ISO.
+7. In interactive mode, a refused license means a separate explicit omission decision and a **new simulation of the remaining full package set**. Reject any dependency that would reinstall the declined package.
 8. Only the finally approved set is installed into `/target`, followed by a `dpkg --audit` check. No unselected feature should install any of these packages just because the media carries the manifest.
 
 **Why this is not one simple `apt install` command:** ordinary Debian's APT can display its native vendor license questions directly, whereas Debian Installer's cdebconf and the target's Debconf database are separate.
@@ -80,7 +80,7 @@ This checks only POSIX shell syntax; it does **not** select packages or show ven
 
 
 
-Build via `./build.sh` only after every shared input is in place. Use a **throwaway VM** to test both full vendor license dialogs, a decline, an individual omitted package, absent Backports, safe fallback, conflict rejection and first-boot device logs.
+Build via `./build.sh` only after every shared input is in place. Use a **throwaway VM** to test default automatic acceptance without license dialogs; rebuild with `AUTO_ACCEPT_FIRMWARE_LICENSES=false` to test both full vendor license dialogs, a decline, an individual omitted package, absent Backports, safe fallback, conflict rejection and first-boot device logs.
 
 ## Complete source listings
 
@@ -95,12 +95,13 @@ Install all listed firmware and BOTH CPU microcodes; explicit approval for omiss
 </details>
 
 <details>
-<summary><strong>Complete profiles/extended-device-support.extra</strong> (3 lines; original blob <code>70a204cb03b22919da7f69c8c373318339540c95</code>)</summary>
+<summary><strong>Complete profiles/extended-device-support.extra</strong> (4 lines; current blob <code>3a8e9b33765f7bedd44bb82386447f1a3bd86f3d</code>)</summary>
 
 ````text
 # extended-device-support: source assets copied by Simple-CDD (not automatically installed).
 installer/extended-device-support.sh
 scripts/firmware-candidates.txt
+tmp/generated/firmware-license-policy
 ````
 
 </details>
@@ -108,7 +109,7 @@ scripts/firmware-candidates.txt
 
 
 <details>
-<summary><strong>Complete installer/extended-device-support.sh</strong> (213 lines; original blob <code>afc504d8d088c4d0818d3d2bd2d904dcebaaba45</code>)</summary>
+<summary><strong>Complete installer/extended-device-support.sh</strong> (226 lines; current blob <code>607e0837f32cf8bd84c845f790a6c438b351a901</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -133,9 +134,9 @@ normal_suite() {
 }
 
 # Read the original Debconf license question from the exact APT-selected
-# .deb, never from a copied or shortened license. Uses Simple-CDD's existing
-# .extra mechanism and Debian Installer's native cdebconf graphical frontend.
-# Returns 0 on explicit acceptance and 1 on explicit refusal.
+# .deb, never from a copied or shortened license. The build policy may
+# preauthorize these two named agreements; otherwise show the original
+# question in native cdebconf. Returns 0 on acceptance, 1 on refusal.
 firmware_license_decision() {
     licensed_pkg=$1
     licensed_selector=$2
@@ -182,27 +183,31 @@ firmware_license_decision() {
         fatal "No vendor license templates in $licensed_pkg binary"
     grep -Fx "Template: $license_question" "$license_templates" >/dev/null ||
         fatal "No native license acceptance question for $licensed_pkg"
-    debconf-loadtemplate "$licensed_pkg" "$license_templates" ||
-        fatal "Cannot load vendor license for $licensed_pkg"
-    db_set "$license_question" false ||
-        fatal "Cannot reset $licensed_pkg license answer"
-    db_fset "$license_question" seen false ||
-        fatal "Cannot display native $licensed_pkg license"
-    db_input critical "$license_question" ||
-        fatal "Native $licensed_pkg license question unavailable"
-    db_go || fatal "Native $licensed_pkg license dialog cancelled"
-    db_get "$license_question" ||
-        fatal "Cannot read the $licensed_pkg license decision"
-    if [ "$RET" != true ]; then
-        log "USER DECLINED LICENSE: $licensed_pkg"
-        rm -rf -- "/target$license_dir"
-        return 1
+    if [ "$firmware_license_policy" = true ]; then
+        log "PREAUTHORIZED LICENSE: $licensed_pkg; version=$licensed_version; policy=auto-accept"
+    else
+        debconf-loadtemplate "$licensed_pkg" "$license_templates" ||
+            fatal "Cannot load vendor license for $licensed_pkg"
+        db_set "$license_question" false ||
+            fatal "Cannot reset $licensed_pkg license answer"
+        db_fset "$license_question" seen false ||
+            fatal "Cannot display native $licensed_pkg license"
+        db_input critical "$license_question" ||
+            fatal "Native $licensed_pkg license question unavailable"
+        db_go || fatal "Native $licensed_pkg license dialog cancelled"
+        db_get "$license_question" ||
+            fatal "Cannot read the $licensed_pkg license decision"
+        if [ "$RET" != true ]; then
+            log "USER DECLINED LICENSE: $licensed_pkg"
+            rm -rf -- "/target$license_dir"
+            return 1
+        fi
+        log "USER ACCEPTED LICENSE: $licensed_pkg"
     fi
-    log "USER ACCEPTED LICENSE: $licensed_pkg"
 
-    # D-I and the installed target have different Debconf databases. Only
-    # after the above explicit GUI consent, store and verify the matching
-    # target boolean; the package's own preinst then sees its accepted value.
+    # D-I and the installed target have different Debconf databases. Store
+    # and verify only the accepted value, whether preauthorized at build time
+    # or explicitly accepted in the native license dialog.
     # Feed selections via stdin, never through command arguments or logs.
     printf '%s %s boolean true\n' "$licensed_pkg" "$license_question" |
         capture chroot /target /usr/bin/debconf-set-selections ||
@@ -218,6 +223,13 @@ firmware_license_decision() {
 }
 
 profile_firmware() {
+    [ -r "$MEDIA/firmware-license-policy" ] ||
+        fatal 'Missing build-time firmware license policy'
+    firmware_license_policy="$(cat "$MEDIA/firmware-license-policy")"
+    case "$firmware_license_policy" in
+        true|false) ;;
+        *) fatal 'Invalid build-time firmware license policy' ;;
+    esac
     update_signed_apt
     [ -r "$MEDIA/firmware-candidates.txt" ] || fatal 'Required firmware inventory missing'
     : > "$WORK/firmware-selectors"
@@ -324,8 +336,6 @@ profile_firmware() {
     run_target apt-get -y install $(cat "$WORK/firmware-selectors")
     run_target dpkg --audit
 }
-
-
 ````
 
 </details>
