@@ -1,5 +1,34 @@
 # Guide provenance and scope
 
+## Responsive icon width within 72-pixel column — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “unless you can make sure about the exact pixels of the margin and padding and set them manually, i would prefer to try 100%”.
+
+**Implemented:** Supersede the proposed explicit 44 × 44 displayed dimensions with `width="100%"` and no height attribute on every note image. Restore both SVGs' intrinsic dimensions to 72 × 72; artwork and viewBoxes are unchanged. Retain the 72-pixel left column, full-width table/right cell, alignment and absence of a spacer. Do not rely on custom CSS or a hardcoded padding calculation. No prose, commands or executable configuration changed.
+
+**Validation:** Actual in-memory Playwright/Chromium test with a representative square SVG and Primer-like CSS (`box-sizing:border-box`, collapsed 1px border, 6px/13px cell padding, responsive image max-width/height:auto, block/max-content table layout) measured left cell 72 pixels, image 45 × 45 pixels, table width equal to the main container, and successful image decoding in all 12 cases (320, 375, 768 and 1024px viewports × short prose, long prose and unbreakable preformatted text). Exact source-markup replacement verified for all 137 note cells. No live GitHub visual verification; percentage width may be handled differently by its renderer or other browsers, and exact displayed size depends on available cell content width. No claim that the reported empty cells are definitively resolved.
+
+
+## Compact 72-pixel note column — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “i rather get the cell width at 72 and reduce the image a bit (or set it at 100% width of the 72px column)”.
+
+**Implemented:** Supersede the proposed 100-pixel column with a 72-pixel column and explicit 44 × 44 CSS-pixel image dimensions in all 137 note cells and both SVG assets. The original viewBoxes, paths and colors are unchanged. Reserve 28 pixels for padding and borders, retain 100% table/right-cell width, and do not introduce a spacer. No instructional text, links, commands or executable configuration are changed.
+
+**Validation:** A local Chromium run via Playwright used a representative square SVG and Primer-like CSS (`box-sizing:border-box`, collapsed 1px borders, 6px/13px cell padding, responsive image max-width/height:auto and block/max-content table layout). At 320, 375, 768 and 1024 viewport widths, each with short prose, long prose and an unbreakable preformatted command, the left cell measured 72 and the image 44 × 44 CSS pixels in all 12 cases; the outer table width equaled the available main width. Long preformatted commands can still scroll. This does not independently verify GitHub's live sanitizer or rendering, nor establish that the user's reported empty cell is resolved. All 137 replacements were checked by exact round-trip comparison.
+
+
+## Correct note icon column padding — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “the icons are not showing. it shows an empty cell”.
+
+**Observed:** Both SVG blobs and all relative paths exist at the preceding main revision `bf13d25985f4dafba5ded0b70596a399f07074c6`. The previous 72-pixel left cell did not reserve additional space for the GitHub Primer table cell's 13-pixel padding on each side and 1-pixel borders, while responsive images are constrained by `max-width:100%`. This can compress images; the exact cause of the user's empty cell has not been independently reproduced on GitHub itself.
+
+**Implemented:** Reserve 100 pixels for the left cell across all 137 note blocks, keeping the SVG and image attributes at 72 × 72, table/right cell width 100%, top alignment, and no extra spacer line. No new asset, prose, command, policy or implementation changes.
+
+**Validation:** Executed a real local Chromium test using CommonMark parsing, representative Primer CSS including universal `box-sizing:border-box`, 6px/13px cell padding, 1px collapsed borders, responsive image max-width and table block/max-content layout. At 320, 375, 768 and 1024 CSS-pixel viewport widths, for short prose, long prose and long preformatted text (12 cases per version), the previous 72-pixel cell produced a 45 × 72 image, contradicting the prior recorded 72 × 72 claim for the spacer-free layout under these conditions. The corrected 100-pixel cell yielded 72 × 72 images and full-width outer tables in all 12 cases, with loaded test SVGs and no line breaks in icon cells. This is a representative local browser test, not live GitHub rendering or cross-browser verification. Long preformatted text may still scroll horizontally.
+
+
 ## Full-width note tables without spacer — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompt:** “also the table does not occupy 100% width all the time”.
