@@ -4,7 +4,7 @@
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 **Important:** This is the project's experimental ZRAM writeback design. Its actual Linux 7.x compatibility, monitor behavior and emergency recovery still need a **disposable VM test**. Do not use the first attempt on a disk containing important data.
@@ -15,7 +15,7 @@
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 Before starting, complete [04 — Linux 7.x](../04_kernel_7x/README.md) and make sure you have a working **local root recovery password**. You need a **separate GPT partition** that you are willing to dedicate completely to ZRAM. The example size is 16 GiB, but it is not fixed.
@@ -50,7 +50,7 @@ lsblk -o NAME,PATH,TYPE,SIZE,FSTYPE,UUID,PARTUUID,MOUNTPOINTS
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 Read the output carefully. Identify **one partition**, not a whole disk.
@@ -67,7 +67,7 @@ For example, if a partition is named `/dev/nvme0n1p3`:
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 **Those names are examples only. Your system will be different.** Never copy the example disk name without checking the actual output. The target must be a GPT partition, not your root filesystem, an EFI partition, a mounted filesystem, an LVM/RAID member or another system's data.
@@ -80,7 +80,7 @@ Check which swap devices are active:
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 This lists swap devices currently enabled by the kernel. If the intended backing partition is listed, it must be **safely deactivated** before conversion; do not mistake a different swap device for the chosen one.
@@ -97,7 +97,7 @@ If your chosen partition appears here, check current RAM and swap use:
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 This shows total RAM, available RAM, and used swap. It helps you judge whether the system can survive moving any used swap pages into RAM. **It cannot guarantee swapoff will succeed**; if the system is low on memory, do not attempt conversion.
@@ -112,7 +112,7 @@ free -h
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 Only if there is sufficient available RAM **and you approve deactivating this exact swap partition**, turn it off. Replace the example with your selected partition:
@@ -123,7 +123,7 @@ Only if there is sufficient available RAM **and you approve deactivating this ex
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 This disables swap **only on the named partition**; replace `/dev/YOUR_PARTITION` with the real device you approved. This can exhaust memory if the swap contains pages that cannot fit in RAM. It should succeed and the partition should disappear from `swapon --show`; if it fails, **stop**.
@@ -138,7 +138,7 @@ sudo swapoff /dev/YOUR_PARTITION
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 Run `sudo swapon --show` again. **Do not continue if the partition is still active.** Never use `swapoff -a` for this task.
@@ -149,7 +149,7 @@ Run `sudo swapon --show` again. **Do not continue if the partition is still acti
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 Also confirm the partition has **no mount point or device-mapper/RAID holders** in the `lsblk` device tree. If its purpose is uncertain, stop here.
@@ -172,7 +172,7 @@ Open it:
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 This opens the boot-time mount/swap list for manual editing. **Find the exact selected swap device by its original filesystem UUID**, then remove or comment out only its swap line. A different swap, the root filesystem and the EFI mount must stay untouched.
@@ -185,7 +185,7 @@ Open `/etc/fstab` in a text editor with administrator privileges; review the exi
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 Find the **one entry for your selected swap partition**. Its source may be shown as a filesystem UUID rather than a device name. Compare that UUID with the selected partition in `lsblk` before removing the entry.
@@ -196,7 +196,7 @@ Find the **one entry for your selected swap partition**. Its source may be shown
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 Remove or comment out **only that swap entry**. Leave root, EFI and all other mounts unchanged. Save the file.
@@ -207,7 +207,7 @@ Remove or comment out **only that swap entry**. Leave root, EFI and all other mo
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 If another tool or service separately activates the same swap partition, disable that activation too. This disk partition must never be activated as ordinary swap again.
@@ -220,7 +220,7 @@ If another tool or service separately activates the same swap partition, disable
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 **This step permanently makes the selected partition unsuitable for its old purpose.** Confirm the partition name, parent disk and number one final time. `wipefs` removes recognizable signatures; it does **not securely erase all previous data**.
@@ -233,7 +233,7 @@ You can see the current signatures without changing anything:
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 This displays recognized signatures (such as `swap`) on the **single specified partition** without erasing them. Compare the result with the identity you recorded; an unexpected filesystem or signature means you should **stop and investigate**.
@@ -248,7 +248,7 @@ sudo wipefs /dev/YOUR_PARTITION
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 Replace `YOUR_PARTITION` with the real name. If you see a filesystem you did **not** intend to destroy, stop.
@@ -261,7 +261,7 @@ When you have explicitly approved destroying the selected partition's previous c
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 This **destructively erases recognizable on-disk signatures** from the single specified partition, so it will no longer be recognized as conventional swap. It does not securely erase all data. Execute this only after confirming the exact partition and approving the loss of its old contents; do not target the whole disk.
@@ -278,7 +278,7 @@ Now set its GPT partition type to **Linux data (8300)** and give it the name **z
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 This changes the chosen GPT partition’s **type** to Linux data (`8300`) and its **name** to `zram-writeback` in the parent disk’s partition table. Replace `YOUR_NUMBER` and `/dev/YOUR_DISK` with the confirmed values, **not the example names**. It does not create a filesystem or delete other partitions; stop on any error.
@@ -295,7 +295,7 @@ Replace **both** `YOUR_NUMBER` entries with the selected partition number and `Y
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 This changes only that partition's GPT type and name. It does **not** format a filesystem. Do not use `sgdisk --zap-all`, `mklabel`, `mkfs` or `mkswap` here. If the partition table cannot be refreshed because the disk is in use, reboot and recheck the partition before proceeding.
@@ -321,7 +321,7 @@ Check that the chosen partition now:
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 Copy its **PARTUUID** somewhere safe temporarily. That is the real identifier to use below. **Do not copy the example PARTUUID of another machine.**
@@ -332,7 +332,7 @@ Copy its **PARTUUID** somewhere safe temporarily. That is the real identifier to
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="44" height="44" alt="OpenMediaVault-specific note"></td>
 <td valign="top" width="100%">
 
 **When OMV is installed:** the selected raw GPT ZRAM backing device remains a dedicated block device, not a NAS filesystem or conventional swap. OMV's fstab deployment rewrites its own marked block; do not add the backing partition to OMV storage or edit entries within that block. Verify the original PARTUUID, absence of ordinary swap on the backing partition, and the running generator/monitor after OMV installation. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
@@ -345,7 +345,7 @@ Copy its **PARTUUID** somewhere safe temporarily. That is the real identifier to
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="44" height="44" alt="OpenMediaVault-specific note"></td>
 <td valign="top" width="100%">
 
 **Important OMV interaction:** the inspected OMV 8 Salt state for a nonrotating root device can generate `/etc/sysctl.d/99-openmediavault-nonrot.conf` with `vm.swappiness = 1` (its default), then reload sysctl settings. This file sorts after this project's `90-zram.conf`, which requests 100. OMV can therefore change the effective value without modifying the ZRAM file. Check `sysctl vm.swappiness` after OMV installation, reboot or sysctl deployment, and review other assignments if it is not 100. OMV exposes the `OMV_SYSCTL_VM_SWAPPINESS` environment variable for the generated value; see [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks) for the supported customization mechanism. No automatic override, asset rename, or change to the pressure monitor is prescribed here.
@@ -367,7 +367,7 @@ If you cloned it elsewhere, use your actual directory.
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 Copy the project's generator configuration. **If `/etc/systemd/zram-generator.conf` already exists, inspect and back it up first** rather than overwriting another ZRAM setup without review:
@@ -386,7 +386,7 @@ Edit the copy:
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 This opens the **installed copy** of the generator configuration. Replace the two `YOUR_PARTUUID` placeholders with the actual identifier recorded earlier; if the two values differ or still contain placeholders, the device will not be configured as intended.
@@ -415,7 +415,7 @@ sudo cp files/zram-pressure.service /etc/systemd/system/
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 This installs the monitoring script under `/usr/local/sbin`, the path referenced by its systemd service. It is the project's planned pressure/writeback policy, and **has not been runtime-validated** against your selected kernel.
@@ -446,7 +446,7 @@ Copy the writeback setting:
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 This installs the **single** setup override: it enables compressed writeback before ZRAM initialization and requests emergency mode if ZRAM setup itself fails. The monitor has its own restart policy and must not force emergency mode. Both failure paths still require testing in a disposable VM.
@@ -461,7 +461,7 @@ sudo cp files/override.conf /etc/systemd/system/systemd-zram-setup@zram0.service
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 If you previously installed this project's older `10-compressed-writeback.conf` and `20-failure-emergency.conf` drop-ins, review and remove those superseded files so the setting is applied only once. Preserve any unrelated local overrides.
@@ -480,7 +480,7 @@ Open `/etc/default/grub` in a text editor with administrator privileges; review 
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 Find `GRUB_CMDLINE_LINUX_DEFAULT` and add `zswap.enabled=0` **inside the existing quotation marks**, preserving other options. That disables the separate kernel zswap feature so it does not compete with this ZRAM design.
@@ -521,7 +521,7 @@ After reboot:
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 This reports the **running** kernel after reboot. Confirm it is still the previously tested 7.x kernel; if it is a different branch, stop before evaluating ZRAM.
@@ -538,7 +538,7 @@ The running kernel must still be 7.x.
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 This lists active swap devices after boot. You want `/dev/zram0` to appear and the former physical backing **not** to appear as ordinary swap. If the physical partition is active, do not run writeback tests.
@@ -575,7 +575,7 @@ sudo systemctl status zram-pressure.service
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 This reads the kernel’s compressed-writeback capability/state flag. For this design the output should be **`1`**; a missing file or a different value means you must not claim compressed writeback works.
@@ -622,7 +622,7 @@ sudo journalctl -b -u zram-pressure.service
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 **Do not declare this production-ready solely because the units started.** Confirm actual writeback under controlled pressure and test the emergency/restart behavior on a disposable system.
@@ -635,7 +635,7 @@ sudo journalctl -b -u zram-pressure.service
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="100" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
 <td valign="top" width="100%">
 
 After Step 9 succeeds, use the standalone [ZRAM writeback diagnostic](test_zram.md) on a quiet disposable VM with console recovery available. The test deliberately generates memory pressure and backing-device I/O, then verifies normal and emergency writeback, complete page readback and data integrity. It uses Python 3's standard library and temporary systemd worker units; it does not install packages or change production configuration.

@@ -1,5 +1,14 @@
 # Guide provenance and scope
 
+## Compact 72-pixel note column — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “i rather get the cell width at 72 and reduce the image a bit (or set it at 100% width of the 72px column)”.
+
+**Implemented:** Supersede the proposed 100-pixel column with a 72-pixel column and explicit 44 × 44 CSS-pixel image dimensions in all 137 note cells and both SVG assets. The original viewBoxes, paths and colors are unchanged. Reserve 28 pixels for padding and borders, retain 100% table/right-cell width, and do not introduce a spacer. No instructional text, links, commands or executable configuration are changed.
+
+**Validation:** A local Chromium run via Playwright used a representative square SVG and Primer-like CSS (`box-sizing:border-box`, collapsed 1px borders, 6px/13px cell padding, responsive image max-width/height:auto and block/max-content table layout). At 320, 375, 768 and 1024 viewport widths, each with short prose, long prose and an unbreakable preformatted command, the left cell measured 72 and the image 44 × 44 CSS pixels in all 12 cases; the outer table width equaled the available main width. Long preformatted commands can still scroll. This does not independently verify GitHub's live sanitizer or rendering, nor establish that the user's reported empty cell is resolved. All 137 replacements were checked by exact round-trip comparison.
+
+
 ## Correct note icon column padding — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompt:** “the icons are not showing. it shows an empty cell”.
