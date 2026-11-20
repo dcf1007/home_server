@@ -41,7 +41,7 @@ Paste the complete matching listings below. The early hook must run **before** `
 
 Paste both entire listings below. **Do not trim `run-selected.sh` down to the short dispatcher excerpt.** It preserves native transaction approval and direct command failures, without a project-defined package-removal blacklist, APT operation whitelist, or unrelated environment preflights. Target stderr is redirected to stdout **inside the `in-target` chroot**, because Debian Installer otherwise sends it only to syslog. On failure, the native GTK/text note shows the failed command, return status, recognized APT/dpkg error lines and the last 100 lines of actual command output. The complete log is still retained in `/target/var/log/installer/my-cdd.log`. The guard uses Debian Installer's finish-install **exit status 10**, not a generic shell exit 1.
 
-Each optional profile also has a native executable `profiles/<name>.postinst` verification script, whose complete source appears in its feature construction guide. The original Simple-CDD stage `14simple-cdd` executes selected verifiers within the target, not the installation handlers again. Enable executable permissions on those seven `.postinst` files, but not on the sourced feature handlers.
+Each optional profile also has a native executable `profiles/<name>.postinst` verification script, whose complete source appears in its feature construction guide. The original Simple-CDD stage `14simple-cdd` executes selected verifiers within the target, not the installation handlers again. Enable executable permissions on those eight `.postinst` files, but not on the sourced feature handlers.
 
 Mark the shared **entry points** as executable:
 
@@ -71,14 +71,16 @@ sh -n installer/15my-cdd-status
 
 This checks the finish-install guard's syntax.
 
-The complete files depend on [Shared profile helpers](profile_construction.md) and the seven feature functions. **Don't test a partial copy by executing it on your build host.** To test behavior, assemble the feature files, build the ISO and use a disposable VM.
+The temporary [Netplan diagnostic](09_netplan_test.md) uses the same standard selected-only approval and completion-marker mechanism.
+
+The complete files depend on [Shared profile helpers](profile_construction.md) and the eight feature functions. **Don't test a partial copy by executing it on your build host.** To test behavior, assemble the feature files, build the ISO and use a disposable VM.
 
 ## Step 6 — Understand the required integration
 
 1. `profiles/default.preseed` loads generated editable defaults, then **early** selection and consent.
 2. The accepted profile list is stored only in private installer work data. During native Debian account setup, leave the root-password fields empty so the first user is granted sudo. Before optional profile operations, the late dispatcher verifies that the new account really belongs to the sudo group and that sudo exists; it then asks for a separate local root recovery password through Debian's own password questions.
 3. Debian continues with **native** partitioning, mirror, accounts and tasksel screens.
-4. Debian Installer runs native **`10apt-cdrom-setup`** with the unconditional `apt-setup/disable-cdrom-entries=true` setting, then the registered **`11my-cdd`** runner, then upstream **`14simple-cdd`**. The runner confirms the approved selection, establishes local root recovery and executes handlers in order: Debian tweaks → Backports → kernel → firmware → ZRAM → OMV → Docker. It never calls the CD-ROM hook again.
+4. Debian Installer runs native **`10apt-cdrom-setup`** with the unconditional `apt-setup/disable-cdrom-entries=true` setting, then the registered **`11my-cdd`** runner, then upstream **`14simple-cdd`**. The runner confirms the approved selection, establishes local root recovery and executes handlers in order: Debian tweaks → Backports → kernel → firmware → ZRAM → Netplan diagnostic → OMV → Docker. It never calls the CD-ROM hook again.
 5. After each selected handler returns successfully, the runner writes its individual completion record. Only after **all** approved handlers succeed does it write overall `COMPLETE`. Original Simple-CDD stage `14simple-cdd` executes each selected executable `profiles/<name>.postinst` in-target to verify the record without rerunning the installer handler.
 6. The final `15my-cdd-status` verifies the confirmed selection, overall `COMPLETE` and the presence of a completion marker **for every selected profile**. It returns native finish-install **exit 10** on failure, preventing an erroneous success screen.
 
@@ -136,7 +138,7 @@ d-i apt-setup/disable-cdrom-entries boolean true
 
 
 <details>
-<summary><strong>Complete file: installer/profile-confirm.sh</strong> (130 lines, current Git blob <code>322b8aba7ff6e1a262faaa13542d154960ff72c7</code>)</summary>
+<summary><strong>Complete file: installer/profile-confirm.sh</strong> (132 lines, current Git blob <code>65d293efff8e1174038e1ec64d3ee68193bb26c2</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -188,7 +190,7 @@ debconf-loadtemplate my-cdd "$TEMPLATE_CONFIRM" ||
 . /usr/share/debconf/confmodule
 
 ask_profiles() {
-    # Ensure a normal, explicit seven-choice multiselect is actually shown.
+    # Ensure a normal, explicit eight-choice multiselect is actually shown.
     # Do not silently leave a previously seen/auto-selected value.
     db_fset simple-cdd/profiles seen false || return 1
     db_input high simple-cdd/profiles || return 1
@@ -213,6 +215,8 @@ display_summary() {
     db_subst my-cdd/profile-summary MYCDD_FIRMWARE "$profile_status" || return 1
     status_of zram-writeback
     db_subst my-cdd/profile-summary MYCDD_ZRAM "$profile_status" || return 1
+    status_of netplan-test
+    db_subst my-cdd/profile-summary MYCDD_NETPLAN_TEST "$profile_status" || return 1
     status_of openmediavault
     db_subst my-cdd/profile-summary MYCDD_OMV "$profile_status" || return 1
     status_of docker
@@ -275,7 +279,7 @@ done
 
 
 <details>
-<summary><strong>Complete file: installer/profile-confirm.templates</strong> (101 lines, current Git blob <code>6fefa7c97820932eec3faceb96b41bea8ad08c1a</code>)</summary>
+<summary><strong>Complete file: installer/profile-confirm.templates</strong> (102 lines, current Git blob <code>dcb80804e53a1fd5f87eba4d9364c6a3be895acb</code>)</summary>
 
 ````text
 # Native Debconf templates for the user-approved early preseed confirmation.
@@ -285,13 +289,14 @@ done
 Template: my-cdd/profile-summary
 Type: note
 Description: Review the selected custom installation profiles
- All seven optional profiles are shown in their required execution order.
+ All eight optional profiles are shown in their required execution order.
  .
   Debian tweaks: ${MYCDD_TWEAKS}
   Backports: ${MYCDD_BACKPORTS}
   Ensure Linux 7.x kernel: ${MYCDD_KERNEL}
   Extended device support: ${MYCDD_FIRMWARE}
   ZSTD ZRAM writeback: ${MYCDD_ZRAM}
+  Netplan (diagnostic test): ${MYCDD_NETPLAN_TEST}
   OpenMediaVault 8: ${MYCDD_OMV}
   Docker: ${MYCDD_DOCKER}
  .
@@ -385,7 +390,7 @@ Description: Remove the package ${MYCDD_REMOVAL}?
 
 
 <details>
-<summary><strong>Complete file: installer/run-selected.sh</strong> (318 lines, current Git blob <code>0604f9f40b06e735a038249a4ba709d2a4a433f8</code>)</summary>
+<summary><strong>Complete file: installer/run-selected.sh</strong> (319 lines, current Git blob <code>13f94819e1c5b03714bcddb977852022b43f89d7</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -691,6 +696,7 @@ for profile in $ordered; do
         ensure-7x-kernel) module=ensure-7x-kernel; handler=profile_kernel ;;
         extended-device-support) module=extended-device-support; handler=profile_firmware ;;
         zram-writeback) module=zram-writeback; handler=profile_zram ;;
+        netplan-test) module=netplan-test; handler=profile_netplan_test ;;
         openmediavault) module=openmediavault; handler=profile_omv ;;
         docker) module=docker; handler=profile_docker ;;
         *) fatal "Unknown selected profile: $profile" ;;

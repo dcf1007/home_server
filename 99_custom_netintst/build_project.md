@@ -34,7 +34,7 @@ This downloads the existing source. It does not install or run any NAS software.
 mkdir home_server
 ~~~
 
-This creates an empty local folder. If you choose Option B, you must follow **all** base/framework and feature chapters; the shipped `simple-cdd.conf` expects seven optional profiles.
+This creates an empty local folder. If you choose Option B, you must follow **all** base/framework and feature chapters; the shipped `simple-cdd.conf` expects eight optional profiles.
 
 ## Step 2 — Make the source tree
 
@@ -85,7 +85,7 @@ This changes file permission only, so `./build.sh` can run later.
 
 ## Step 4 — Know why the pieces fit
 
-`simple-cdd.conf` offers seven optional features but starts none automatically. `build_profiles="installer-media"` is a separate *build input*, not another checkbox. `profile_defaults.conf` specifies suggestions for ordinary Debian Installer screens, not answers that suppress those screens.
+`simple-cdd.conf` offers eight optional features but starts none automatically. `build_profiles="installer-media"` is a separate *build input*, not another checkbox. `profile_defaults.conf` specifies suggestions for ordinary Debian Installer screens, not answers that suppress those screens.
 
 The build wrapper runs **mirror-only** first, adjusts only its **generated local mirror** for the installer udebs from required components, then runs **build-only**. Native build-command failures govern the outcome; it does not impose additional project-defined preflight or ISO-content rejection gates.
 
@@ -107,7 +107,7 @@ Expand the file you want to create. **These are full files, not fragments.** Cop
 
 
 <details>
-<summary><strong>Complete file: simple-cdd.conf</strong> (46 lines, current Git blob <code>3a546782f1e1e5e8b02fc878b96f7395ee2cdc7a</code>)</summary>
+<summary><strong>Complete file: simple-cdd.conf</strong> (46 lines, current Git blob <code>a449e49674e2bf076dbff41a80ccb56b40a167b9</code>)</summary>
 
 ````text
 # my-cdd Simple-CDD 0.6.9 build configuration for Debian 13 Trixie, amd64.
@@ -115,7 +115,7 @@ Expand the file you want to create. **These are full files, not fragments.** Cop
 # Status: source configuration; not evidence of a validated ISO.
 #
 # These are INCLUDED / OFFERED profiles, NOT AUTO-SELECTED profiles.
-profiles="debian-tweaks backports ensure-7x-kernel extended-device-support zram-writeback openmediavault docker"
+profiles="debian-tweaks backports ensure-7x-kernel extended-device-support zram-writeback netplan-test openmediavault docker"
 auto_profiles=""
 default_profiles=""
 # Build-only media packages; never offered or auto-selected in the installer.
@@ -219,12 +219,12 @@ DEFAULT_TASKSEL_TASKS="ssh-server,standard"
 
 
 <details>
-<summary><strong>Complete file: build.sh</strong> (74 lines, current Git blob <code>3f27ffd18ecae1c83e87e5ef8cf688aad862f3cc</code>)</summary>
+<summary><strong>Complete file: build.sh</strong> (74 lines, current Git blob <code>2d4bde39ec7ddf4109a9ced9a7b6185daa13b74d</code>)</summary>
 
 ````sh
 #!/bin/bash
 # Build the Debian 13 Trixie amd64 Simple-CDD project.
-# The seven optional profiles must be implemented before this can build an ISO.
+# All offered optional profiles must be implemented before this can build an ISO.
 # Keep build-simple-cdd's exit status when streaming output through tee.
 set -euo pipefail
 cd "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"

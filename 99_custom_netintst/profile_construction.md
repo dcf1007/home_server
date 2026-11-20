@@ -53,7 +53,7 @@ Expand the file you want to create. **These are full files, not fragments.** Cop
 
 
 <details>
-<summary><strong>Complete file: installer/ordered-selection.sh</strong> (25 lines, current Git blob <code>55445d43401de3209f7bbbc4ef08fa2eee54279d</code>)</summary>
+<summary><strong>Complete file: installer/ordered-selection.sh</strong> (25 lines, current Git blob <code>bdf73139a2e42499748fa570d763f3112d787312</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -62,7 +62,7 @@ Expand the file you want to create. **These are full files, not fragments.** Cop
 set -eu
 [ "$#" -eq 1 ] || { printf >&2 'Expected one comma-separated selection string\n'; exit 2; }
 selected="$(printf %s "$1" | tr ',' ' ')"
-order='debian-tweaks backports ensure-7x-kernel extended-device-support zram-writeback openmediavault docker'
+order='debian-tweaks backports ensure-7x-kernel extended-device-support zram-writeback netplan-test openmediavault docker'
 for token in $selected; do
   case " $order " in *" $token "*) ;; *)
     printf >&2 'Unknown/unapproved profile: %s\n' "$token"; exit 1;;
