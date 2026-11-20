@@ -76,7 +76,7 @@ The complete files depend on [Shared profile helpers](profile_construction.md) a
 ## Step 6 — Understand the required integration
 
 1. `profiles/default.preseed` loads generated editable defaults, then **early** selection and consent.
-2. The accepted profile list is stored only in private installer work data. During native Debian account setup, leave the root-password fields empty so the first user is granted sudo. Before optional profile operations, the late dispatcher verifies that the new account really belongs to the sudo group and that sudo exists; it then asks for a separate local root recovery password through Debian's own password questions.
+2. The accepted profile list is stored only in private installer work data. The generated preseed sets `passwd/root-login=false`, so native Debian account setup skips the initial root password fields and gives the first user sudo. Before optional profile operations, the late dispatcher verifies that the new account really belongs to the sudo group and that sudo exists; it then asks for a separate local root recovery password through Debian's own password questions.
 3. Debian continues with **native** partitioning, mirror, accounts and tasksel screens.
 4. Debian Installer runs native **`10apt-cdrom-setup`** with the unconditional `apt-setup/disable-cdrom-entries=true` setting, then the registered **`11my-cdd`** runner, then upstream **`14simple-cdd`**. The runner confirms the approved selection, establishes local root recovery and executes handlers in order: Debian tweaks → Backports → kernel → firmware → ZRAM → OMV → Docker. It never calls the CD-ROM hook again.
 5. After each selected handler returns successfully, the runner writes its individual completion record. Only after **all** approved handlers succeed does it write overall `COMPLETE`. Original Simple-CDD stage `14simple-cdd` executes each selected executable `profiles/<name>.postinst` in-target to verify the record without rerunning the installer handler.
@@ -385,7 +385,7 @@ Description: Remove the package ${MYCDD_REMOVAL}?
 
 
 <details>
-<summary><strong>Complete file: installer/run-selected.sh</strong> (318 lines, current Git blob <code>0604f9f40b06e735a038249a4ba709d2a4a433f8</code>)</summary>
+<summary><strong>Complete file: installer/run-selected.sh</strong> (318 lines, current Git blob <code>24d78b116d9432080a1006ffa31b413775bb7c49</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -586,9 +586,9 @@ report_omission() {
 # Use the existing Debian Installer password-type Debconf questions; never
 # log or write a password to a preseed, the ISO, or a command argument.
 ensure_root_recovery() {
-    # Debian's initial root password should be left blank to give the
-    # first ordinary account sudo. Verify it rather than granting sudo
-    # to an unexpected account silently.
+    # The native passwd/root-login=false preseed grants the first ordinary
+    # account sudo. Verify it rather than granting sudo to an unexpected
+    # account silently.
     db_get passwd/username || fatal 'Cannot read the native installer username'
     recovery_user=$RET
     [ -n "$recovery_user" ] || fatal 'Missing installer-created admin account'
@@ -596,7 +596,7 @@ ensure_root_recovery() {
         fatal 'Installer-created admin account is unavailable'
     case " $(cat "$WORK/output") " in
         *' sudo '*) log 'Verified native sudo administrator account' ;;
-        *) fatal 'Installer-created user is not in sudo group; leave initial root-password fields empty during Debian setup' ;;
+        *) fatal 'Installer-created user is not in sudo group; verify native passwd/root-login=false preseed' ;;
     esac
     capture in-target sh -c 'command -v sudo >/dev/null 2>&1' ||
         fatal 'sudo is not available in the installed target'

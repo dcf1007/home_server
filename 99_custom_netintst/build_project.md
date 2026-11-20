@@ -2,6 +2,8 @@
 
 **Outcome:** a working *build project* for Debian 13 amd64 containing the complete source of `simple-cdd.conf`, editable installer defaults and the two-stage `build.sh`. This does **not** yet include the per-feature implementation; those are constructed in [Shared profile helpers](profile_construction.md), [Installer framework](installer_framework.md) and the feature chapters.
 
+The build now also generates a data-only `tmp/generated/firmware-license-policy` from `AUTO_ACCEPT_FIRMWARE_LICENSES` (`true` by default, `false` for the original full vendor-license dialogs), copied via the Extended device support profile. Review the two named vendor agreements before leaving this enabled. The generated preseed sets `passwd/root-login=false` to skip only the initial root password question; the existing late root-recovery prompt remains.
+
 ## Step 1 — Prepare a Debian build computer
 
 You need a Debian machine or VM with Internet access and enough free disk for a temporary Debian repository and an ISO. **Do not do this on the NAS disk you intend to install onto.**
@@ -162,7 +164,7 @@ BOOT_TIMEOUT="0"
 
 
 <details>
-<summary><strong>Complete file: profile_defaults.conf</strong> (48 lines, current Git blob <code>c77b5a8028157d8f28b2a9eae5d3b3754449ef4d</code>)</summary>
+<summary><strong>Complete file: profile_defaults.conf</strong> (54 lines, current Git blob <code>527bdf8a05405bcd587943f817ce8477a2319a06</code>)</summary>
 
 ````text
 # profile_defaults.conf — Debian 13 Simple-CDD installation GUI suggested values
@@ -179,9 +181,9 @@ BOOT_TIMEOUT="0"
 # normal Debian Installer questions for the user to confirm or change.
 # Runtime GUI/text behavior remains to be validated in a fresh ISO install.
 #
-# Leave the native root-password fields empty so Debian makes the first
-# regular user a sudo administrator. The late recovery check verifies this
-# account and then requests a separate local root emergency password.
+# The generated preseed skips initial root login setup so Debian makes the
+# first regular user a sudo administrator. The unchanged late recovery check
+# verifies that account and requests a separate local root emergency password.
 # Never put user/root passwords, password hashes, hard-coded disk targets,
 # or silent profile-selection flags in this file.
 
@@ -199,6 +201,12 @@ DEFAULT_KEYBOARD_LAYOUT="es"
 # keyboard dialog; this file does not preselect a variant.
 DEFAULT_TIMEZONE="Europe/Berlin"
 DEFAULT_RTC_UTC="true"
+
+# Opt-in Extended device support only: preauthorize the two named firmware
+# vendor agreements (firmware-ipw2x00 and firmware-ivtv). Review their terms
+# before building/distributing this ISO. Set false for individual full-license
+# dialogs and the existing refusal/omission workflow.
+AUTO_ACCEPT_FIRMWARE_LICENSES="true"
 
 # Networking method (DHCP or manual/static configuration) is chosen in
 # Debian Installer's normal editable interface; the ISO does not force one.
@@ -219,7 +227,7 @@ DEFAULT_TASKSEL_TASKS="ssh-server,standard"
 
 
 <details>
-<summary><strong>Complete file: build.sh</strong> (74 lines, current Git blob <code>3f27ffd18ecae1c83e87e5ef8cf688aad862f3cc</code>)</summary>
+<summary><strong>Complete file: build.sh</strong> (82 lines, current Git blob <code>19b8a4ff7e96548c3eb8427969fa3f3aa488e37e</code>)</summary>
 
 ````sh
 #!/bin/bash
@@ -239,6 +247,12 @@ printf >&2 'my-cdd: NOTE: At Software selection, manually uncheck Desktop/GNOME 
 # the single canonical profile_defaults.conf. Do not modify tracked source files.
 . ./profile_defaults.conf
 mkdir -p ./tmp/generated
+case "${AUTO_ACCEPT_FIRMWARE_LICENSES:-}" in
+    true|false) ;;
+    *) printf >&2 '%s\n' 'AUTO_ACCEPT_FIRMWARE_LICENSES must be true or false'; exit 1 ;;
+esac
+# Data only, never a sourced shell file in the installer.
+printf '%s\n' "$AUTO_ACCEPT_FIRMWARE_LICENSES" > ./tmp/generated/firmware-license-policy
 {
     printf '# Generated from profile_defaults.conf; questions remain editable.\n'
     printf 'd-i netcfg/get_hostname string %s\n' "$DEFAULT_HOSTNAME"
@@ -247,6 +261,8 @@ mkdir -p ./tmp/generated
         printf 'd-i netcfg/get_domain string %s\n' "$DEFAULT_DOMAIN"
         printf 'd-i netcfg/get_domain seen false\n'
     fi
+    # Intentionally suppress the initial root question; preserve native sudo setup.
+    printf 'd-i passwd/root-login boolean false\n'
     printf 'd-i passwd/username string %s\n' "$DEFAULT_ADMIN_USERNAME"
     printf 'd-i passwd/username seen false\n'
     printf 'd-i clock-setup/utc boolean %s\n' "$DEFAULT_RTC_UTC"

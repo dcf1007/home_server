@@ -20,9 +20,9 @@ normal_suite() {
 }
 
 # Read the original Debconf license question from the exact APT-selected
-# .deb, never from a copied or shortened license. Uses Simple-CDD's existing
-# .extra mechanism and Debian Installer's native cdebconf graphical frontend.
-# Returns 0 on explicit acceptance and 1 on explicit refusal.
+# .deb, never from a copied or shortened license. The build policy may
+# preauthorize these two named agreements; otherwise show the original
+# question in native cdebconf. Returns 0 on acceptance, 1 on refusal.
 firmware_license_decision() {
     licensed_pkg=$1
     licensed_selector=$2
@@ -69,27 +69,31 @@ firmware_license_decision() {
         fatal "No vendor license templates in $licensed_pkg binary"
     grep -Fx "Template: $license_question" "$license_templates" >/dev/null ||
         fatal "No native license acceptance question for $licensed_pkg"
-    debconf-loadtemplate "$licensed_pkg" "$license_templates" ||
-        fatal "Cannot load vendor license for $licensed_pkg"
-    db_set "$license_question" false ||
-        fatal "Cannot reset $licensed_pkg license answer"
-    db_fset "$license_question" seen false ||
-        fatal "Cannot display native $licensed_pkg license"
-    db_input critical "$license_question" ||
-        fatal "Native $licensed_pkg license question unavailable"
-    db_go || fatal "Native $licensed_pkg license dialog cancelled"
-    db_get "$license_question" ||
-        fatal "Cannot read the $licensed_pkg license decision"
-    if [ "$RET" != true ]; then
-        log "USER DECLINED LICENSE: $licensed_pkg"
-        rm -rf -- "/target$license_dir"
-        return 1
+    if [ "$firmware_license_policy" = true ]; then
+        log "PREAUTHORIZED LICENSE: $licensed_pkg; version=$licensed_version; policy=auto-accept"
+    else
+        debconf-loadtemplate "$licensed_pkg" "$license_templates" ||
+            fatal "Cannot load vendor license for $licensed_pkg"
+        db_set "$license_question" false ||
+            fatal "Cannot reset $licensed_pkg license answer"
+        db_fset "$license_question" seen false ||
+            fatal "Cannot display native $licensed_pkg license"
+        db_input critical "$license_question" ||
+            fatal "Native $licensed_pkg license question unavailable"
+        db_go || fatal "Native $licensed_pkg license dialog cancelled"
+        db_get "$license_question" ||
+            fatal "Cannot read the $licensed_pkg license decision"
+        if [ "$RET" != true ]; then
+            log "USER DECLINED LICENSE: $licensed_pkg"
+            rm -rf -- "/target$license_dir"
+            return 1
+        fi
+        log "USER ACCEPTED LICENSE: $licensed_pkg"
     fi
-    log "USER ACCEPTED LICENSE: $licensed_pkg"
 
-    # D-I and the installed target have different Debconf databases. Only
-    # after the above explicit GUI consent, store and verify the matching
-    # target boolean; the package's own preinst then sees its accepted value.
+    # D-I and the installed target have different Debconf databases. Store
+    # and verify only the accepted value, whether preauthorized at build time
+    # or explicitly accepted in the native license dialog.
     # Feed selections via stdin, never through command arguments or logs.
     printf '%s %s boolean true\n' "$licensed_pkg" "$license_question" |
         capture chroot /target /usr/bin/debconf-set-selections ||
@@ -105,6 +109,13 @@ firmware_license_decision() {
 }
 
 profile_firmware() {
+    [ -r "$MEDIA/firmware-license-policy" ] ||
+        fatal 'Missing build-time firmware license policy'
+    firmware_license_policy="$(cat "$MEDIA/firmware-license-policy")"
+    case "$firmware_license_policy" in
+        true|false) ;;
+        *) fatal 'Invalid build-time firmware license policy' ;;
+    esac
     update_signed_apt
     [ -r "$MEDIA/firmware-candidates.txt" ] || fatal 'Required firmware inventory missing'
     : > "$WORK/firmware-selectors"
