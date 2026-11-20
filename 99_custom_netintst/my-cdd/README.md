@@ -1,5 +1,7 @@
 # my-cdd — Debian 13 custom Simple-CDD ISO source
 
+**Account setup and firmware consent (2026-11-20):** Initial root-password setup is skipped using the native `passwd/root-login=false` preseed; the existing late recovery-password dialog remains. Set `AUTO_ACCEPT_FIRMWARE_LICENSES=false` in `profile_defaults.conf` and rebuild to restore interactive vendor license dialogs. The default `true` preauthorizes only the two named agreements for selected Extended device support; review those terms before building/distributing. APT review remains mandatory.
+
 This is the **installer implementation**, not the first step for a normal Debian server. For the uncomplicated post-install path see the [repository's numbered howtos](../../README.md); for the installer strategy see [99 — custom netinst](../README.md).
 
 The source was relocated from `01_custom_netinst/my-cdd` to `99_custom_netintst/my-cdd`. **All executable build, profile and installer scripts, configuration and ISO assets were preserved without functional edits by that move.**

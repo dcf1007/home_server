@@ -1,5 +1,15 @@
 # Validation — Test the scripts and generated Debian installer
 
+## Initial root dialog and firmware license policy — 2026-11-20
+
+**Nearest user prompt:** “in the sequence, is it possible to exchange 5 and 6 in an easy way? if not leave them ass they are.these 2 changes should be an independent pr”
+
+- Native account setup: generated `defaults.preseed` now contains `d-i passwd/root-login boolean false`. This skips initial root-password questions and preserves ordinary interactive user setup plus native sudo membership. The existing stage-11 sudo verification and separate root-recovery password prompt remain unchanged in timing and behavior; moving that prompt into early account setup would need additional lifecycle/credential handling. No credentials are preseeded, and no SSH policy changes.
+- Firmware: `AUTO_ACCEPT_FIRMWARE_LICENSES="true"` in `profile_defaults.conf` preauthorizes only the two named vendor agreements (`firmware-ipw2x00` and `firmware-ivtv`) for the explicitly selected Extended device support profile. `build.sh` validates true/false and produces a data-only `tmp/generated/firmware-license-policy` staged by that profile's .extra. Exact candidate archive/template checks remain; acceptance is recorded in target Debconf and verified before installation. Log distinguishes preauthorization from interactive acceptance and records the selected version. Set false and rebuild to recover the original complete license, refusal, and omission workflow. Review vendor terms before enabling or distributing the ISO; later package versions may have changed terms.
+- Existing complete APT simulations and explicit transaction, omission and destructive approvals remain. No Netplan diagnostic changes from PR #33; no OMV/Docker changes.
+- Source changes require a fresh ISO build and disposable-VM verification in both automatic and interactive firmware modes (including refusal), with the initial root dialog absent, regular user sudo membership intact, late recovery password and normal completion. No ISO/runtime verification claimed.
+
+
 ## Standalone ZRAM diagnostic evidence — 2026-11-20
 
 The user supplied a completed v7 [standalone writeback diagnostic](https://github.com/dcf1007/home_server/blob/fc535233e04a1f9d85d28a81fd8d92d8bf966955/06_zram_writeback/README.md#observed-disposable-vm-result--v7-2026-11-20) terminal report: normal/emergency/readback all PASS, 5,213.6 MiB verified and discarded (1,334,685 pages), backing writes and reads each 3,475.7 MiB, final resident memory 0 MiB, transient-unit cleanup successful and exit status 0. Normal/emergency/readback elapsed times were 104.1/81.0/746.7 seconds. This validates the pressure and integrity paths exercised by that particular running VM. The full kernel version, installer build identity, partition-conversion procedure, deliberate failure/restart behavior and complete original logs are not established by the screenshots.

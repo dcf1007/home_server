@@ -1,5 +1,15 @@
 # my-cdd source manifest and provenance
 
+## Initial root dialog and firmware license policy — 2026-11-20
+
+**Nearest user prompt:** “in the sequence, is it possible to exchange 5 and 6 in an easy way? if not leave them ass they are.these 2 changes should be an independent pr”
+
+- Native account setup: generated `defaults.preseed` now contains `d-i passwd/root-login boolean false`. This skips initial root-password questions and preserves ordinary interactive user setup plus native sudo membership. The existing stage-11 sudo verification and separate root-recovery password prompt remain unchanged in timing and behavior; moving that prompt into early account setup would need additional lifecycle/credential handling. No credentials are preseeded, and no SSH policy changes.
+- Firmware: `AUTO_ACCEPT_FIRMWARE_LICENSES="true"` in `profile_defaults.conf` preauthorizes only the two named vendor agreements (`firmware-ipw2x00` and `firmware-ivtv`) for the explicitly selected Extended device support profile. `build.sh` validates true/false and produces a data-only `tmp/generated/firmware-license-policy` staged by that profile's .extra. Exact candidate archive/template checks remain; acceptance is recorded in target Debconf and verified before installation. Log distinguishes preauthorization from interactive acceptance and records the selected version. Set false and rebuild to recover the original complete license, refusal, and omission workflow. Review vendor terms before enabling or distributing the ISO; later package versions may have changed terms.
+- Existing complete APT simulations and explicit transaction, omission and destructive approvals remain. No Netplan diagnostic changes from PR #33; no OMV/Docker changes.
+- Source changes require a fresh ISO build and disposable-VM verification in both automatic and interactive firmware modes (including refusal), with the initial root dialog absent, regular user sudo membership intact, late recovery password and normal completion. No ISO/runtime verification claimed.
+
+
 ## OMV one-time job cleans up after itself — 2026-11-17
 
 **Nearest user prompt:** “i agree with the suggestion”, after requesting that the one-shot script, service and all state markers disappear after execution, leaving only logs.

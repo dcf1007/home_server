@@ -25,7 +25,7 @@ A single feature's source module is **not** a complete ISO: it depends on the sh
 | [02 — Debian tweaks](02_debian_tweaks.md) | Selected-only GRUB, root-filesystem-aware mount options, native SSH and one-time automatic-update policy |
 | [03 — Backports](03_backports_apt.md) | Signed Backports source, priority 100, reviewed upgrades and removals |
 | [04 — Linux 7.x kernel](04_ensure_7x_kernel.md) | Eligible suite selection, image and matching headers, GRUB |
-| [05 — Extended device support](05_extended_device_support.md) | Firmware manifest, microcode and original vendor-license dialogs |
+| [05 — Extended device support](05_extended_device_support.md) | Firmware manifest, microcode and configurable preauthorized/interactive vendor licenses |
 | [06 — ZRAM writeback](06_zram_writeback.md) | Native udeb disk selector, safe confirmation, GPT conversion and ZRAM generator |
 | [07 — OpenMediaVault 8](07_openmediavault.md) | One official signed APT source, reviewed package installation and native one-time first-boot OMV initialization |
 | [08 — Docker](08_docker.md) | One official signed APT source, reviewed package set; independent of OMV |
