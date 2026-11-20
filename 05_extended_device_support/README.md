@@ -6,7 +6,7 @@ Debian already detects and installs some required firmware during normal install
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="100%" alt="OpenMediaVault-specific note"></td>
+<td valign="top" align="center" width="72" nowrap="nowrap"><img src="../assets/omv.svg" width="100%" alt="OpenMediaVault-specific note"><sup aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</sup></td>
 <td valign="top" width="100%">
 
 **When OMV is installed:** OMV's own kernel Backports preferences also match `firmware-*` by default, so even ordinary APT commands may select Backports firmware. Its default preference does not match the names `intel-microcode` or `amd64-microcode`. Review the actual candidate and origin for each requested package; the existing inventory and individual omission decisions remain unchanged. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
@@ -31,7 +31,7 @@ APT itself asks for any package-specific license acceptance, including the compl
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap="nowrap"><img src="../assets/warning.svg" width="100%" alt="Important note"><sup aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</sup></td>
 <td valign="top" width="100%">
 
 This requests both Intel and AMD **CPU microcode** packages, as specified by the project. Microcode is low-level CPU firmware; APT shows the complete proposed changes and may report compatibility issues. Read the summary before confirming, and do not silently omit either package.
@@ -46,7 +46,7 @@ sudo apt install intel-microcode amd64-microcode
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap="nowrap"><img src="../assets/warning.svg" width="100%" alt="Important note"><sup aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</sup></td>
 <td valign="top" width="100%">
 
 The project deliberately attempts **both** packages. The CPU will only load the microcode appropriate to its manufacturer. Read APT's summary before confirming.
@@ -89,7 +89,7 @@ sudo apt install firmware-netxen firmware-qlogic
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap="nowrap"><img src="../assets/warning.svg" width="100%" alt="Important note"><sup aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</sup></td>
 <td valign="top" width="100%">
 
 This requests Atheros, Broadcom wireless and Intel Wi-Fi firmware. If APT reports a dependency conflict or missing package, **stop this group** and decide how to handle that package.
@@ -104,7 +104,7 @@ sudo apt install firmware-atheros firmware-brcm80211 firmware-iwlwifi
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap="nowrap"><img src="../assets/warning.svg" width="100%" alt="Important note"><sup aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</sup></td>
 <td valign="top" width="100%">
 
 This requests older Intel wireless, Libertas and MediaTek firmware. `firmware-ipw2x00` may display a **license agreement**; read it and explicitly accept or decline before continuing.
@@ -135,7 +135,7 @@ sudo apt install firmware-amd-graphics firmware-intel-graphics firmware-nvidia-g
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap="nowrap"><img src="../assets/warning.svg" width="100%" alt="Important note"><sup aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</sup></td>
 <td valign="top" width="100%">
 
 This requests ASPEED, Qualcomm, Samsung, Siano and IVTV graphics/media firmware. `firmware-ivtv` may prompt for an additional vendor license; read and decide explicitly.
@@ -150,7 +150,7 @@ sudo apt install firmware-ast firmware-qcom-soc firmware-samsung firmware-siano 
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap="nowrap"><img src="../assets/warning.svg" width="100%" alt="Important note"><sup aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</sup></td>
 <td valign="top" width="100%">
 
 Read the full license if `firmware-ivtv` asks for permission.
@@ -171,7 +171,7 @@ sudo apt install firmware-cirrus firmware-intel-sound firmware-sof-signed bluez-
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap="nowrap"><img src="../assets/warning.svg" width="100%" alt="Important note"><sup aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</sup></td>
 <td valign="top" width="100%">
 
 Stop that group and read the error. Do not blindly force the installation. You can check an individual name:
@@ -188,7 +188,7 @@ apt policy firmware-realtek
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap="nowrap"><img src="../assets/warning.svg" width="100%" alt="Important note"><sup aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</sup></td>
 <td valign="top" width="100%">
 
 Substitute the **actual problematic package name**. Decide whether to retry just that package, use a compatible Backports version (if [Backports](../03_backports/README.md) was explicitly enabled), or **deliberately omit** that one package. Record every omission and its reason; do not silently skip requested firmware.
@@ -201,7 +201,7 @@ With Backports enabled, APT still normally prefers Stable. To choose a compatibl
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap="nowrap"><img src="../assets/warning.svg" width="100%" alt="Important note"><sup aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</sup></td>
 <td valign="top" width="100%">
 
 This is an **example only** of requesting one package specifically from Trixie Backports. Use the *real* problematic package name only if Backports was intentionally enabled and the candidate is compatible; review APT’s changes before approving.
@@ -216,7 +216,7 @@ sudo apt install firmware-realtek/trixie-backports
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap="nowrap"><img src="../assets/warning.svg" width="100%" alt="Important note"><sup aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</sup></td>
 <td valign="top" width="100%">
 
 This is an **example**, not a requirement to replace the Stable version. Review dependencies and conflicts. Don't raise the global Backports priority.
@@ -229,7 +229,7 @@ This is an **example**, not a requirement to replace the Stable version. Review 
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap="nowrap"><img src="../assets/warning.svg" width="100%" alt="Important note"><sup aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</sup></td>
 <td valign="top" width="100%">
 
 This regenerates early-boot images so the installed firmware can be available to the kernel during startup. Read any warnings; if the operation fails, resolve it before rebooting.
