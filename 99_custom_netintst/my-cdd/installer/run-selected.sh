@@ -59,6 +59,23 @@ export_log() {
 }
 # Must load current Debian Installer's GTK or text cdebconf frontend.
 . /usr/share/debconf/confmodule
+# Observational UI only. Native finish-install owns the outer progress bar;
+# native debconf-apt-progress and installer package tools own their own UI.
+# Do not START/STOP a nested bar or change the parent's numeric progress.
+# Only caller-supplied, non-secret, single-line status text reaches Debconf.
+progress_context='Account recovery'
+progress_status() {
+    if db_subst my-cdd/progress MYCDD_STATUS "$progress_context: $1"; then
+        if db_progress INFO my-cdd/progress; then
+            :
+        else
+            # A nested native APT transaction may have stopped the outer bar.
+            # INFO is a non-blocking native status display, not an approval.
+            db_info my-cdd/progress || :
+        fi
+    fi
+    return 0
+}
 review_serial=0
 show_note() {
     name=$1
@@ -153,13 +170,25 @@ run_target() {
     # Retain the native Debian Installer APT progress UI. Profile calls and
     # the complete reviewed plan determine which operation executes.
     if [ "$1" = apt-get ]; then
+        case "$*" in
+            update) progress_status 'Updating package indexes' ;;
+            *) progress_status 'Executing the approved APT transaction' ;;
+        esac
         capture in-target debconf-apt-progress --logstderr -- "$@" ||
             fatal "Target APT transaction failed: $*"
     else
+        case "$1" in
+            update-grub) progress_status 'Regenerating GRUB configuration' ;;
+            update-initramfs) progress_status 'Regenerating initramfs images' ;;
+            dpkg) progress_status 'Checking or updating package state' ;;
+            systemctl) progress_status 'Applying service configuration' ;;
+            *) progress_status 'Applying target configuration' ;;
+        esac
         capture in-target "$@" || fatal "Target command failed: $*"
     fi
 }
 simulate_target() {
+    progress_status 'Simulating the APT transaction'
     capture in-target apt-get -s "$@" ||
         fatal "APT simulation failed: apt-get -s $*"
     cp "$WORK/output" "$WORK/plan"
@@ -291,9 +320,17 @@ db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 [ "$RET" = true ] || fatal 'The early profile summary was not approved'
 log "CONFIRMED SELECTION: $ordered"
 
+progress_status 'Verifying administrator and recovery access'
 ensure_root_recovery
 
+# Count only the approved profiles, maintaining their existing fixed order.
+profile_total=0
+for profile in $ordered; do profile_total=$((profile_total + 1)); done
+profile_index=0
 for profile in $ordered; do
+    profile_index=$((profile_index + 1))
+    progress_context="Profile $profile_index of $profile_total ($profile)"
+    progress_status 'Preparing selected profile'
     log "PROFILE BEGIN: $profile"
     case "$profile" in
         debian-tweaks) module=debian-tweaks; handler=profile_tweaks ;;
@@ -311,7 +348,10 @@ for profile in $ordered; do
     printf 'Completed: %s\n' "$profile" > "$LOG_DIR/my-cdd-completed/$profile"
     chmod 600 "$LOG_DIR/my-cdd-completed/$profile"
     log "PROFILE COMPLETE: $profile"
+    progress_status 'Completed'
 done
+progress_context='Custom installation'
+progress_status 'Finalizing completion records'
 log 'All selected optional profiles completed.'
 printf 'COMPLETE\n' > "$STATUS"
 export_log

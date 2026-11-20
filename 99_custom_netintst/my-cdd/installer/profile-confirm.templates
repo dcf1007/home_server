@@ -99,3 +99,7 @@ Description: Remove the package ${MYCDD_REMOVAL}?
  This is one individually identified package from the displayed APT
  autoremove/purge simulation. Choose No to stop the cleanup rather than
  execute an unapproved removal.
+
+Template: my-cdd/progress
+Type: text
+Description: ${MYCDD_STATUS}

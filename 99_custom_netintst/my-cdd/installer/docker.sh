@@ -4,6 +4,7 @@
 profile_docker() {
     review_install 'Docker signing prerequisites' ca-certificates curl
     mkdir -p /target/etc/apt/keyrings
+    progress_status 'Downloading Docker repository signing key'
     capture in-target curl -fsSL --proto '=https' \
         -o /etc/apt/keyrings/docker.asc https://download.docker.com/linux/debian/gpg ||
         fatal 'Official Docker signing key download failed'

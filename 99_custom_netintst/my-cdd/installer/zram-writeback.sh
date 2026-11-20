@@ -97,6 +97,7 @@ profile_zram() {
     cmp -s /target/etc/fstab "$WORK/zram-original-fstab" ||
         fatal 'Installed target fstab changed after verification; conversion stopped'
     log "USER APPROVED CONVERSION: $device, PARTUUID=$uuid, size=$size"
+    progress_status 'Preparing the explicitly approved writeback partition'
     capture busybox dd if=/dev/zero of="$device" bs=4096 count=256 conv=notrunc,fsync ||
         fatal 'Could not erase swap signature from the confirmed backing partition'
     capture parted -s "$disk" type "$partn" "$ZRAM_DATA_GUID" ||
