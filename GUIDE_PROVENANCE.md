@@ -1,5 +1,16 @@
 # Guide provenance and scope
 
+## Correct note icon column padding — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “the icons are not showing. it shows an empty cell”.
+
+**Observed:** Both SVG blobs and all relative paths exist at the preceding main revision `bf13d25985f4dafba5ded0b70596a399f07074c6`. The previous 72-pixel left cell did not reserve additional space for the GitHub Primer table cell's 13-pixel padding on each side and 1-pixel borders, while responsive images are constrained by `max-width:100%`. This can compress images; the exact cause of the user's empty cell has not been independently reproduced on GitHub itself.
+
+**Implemented:** Reserve 100 pixels for the left cell across all 137 note blocks, keeping the SVG and image attributes at 72 × 72, table/right cell width 100%, top alignment, and no extra spacer line. No new asset, prose, command, policy or implementation changes.
+
+**Validation:** Executed a real local Chromium test using CommonMark parsing, representative Primer CSS including universal `box-sizing:border-box`, 6px/13px cell padding, 1px collapsed borders, responsive image max-width and table block/max-content layout. At 320, 375, 768 and 1024 CSS-pixel viewport widths, for short prose, long prose and long preformatted text (12 cases per version), the previous 72-pixel cell produced a 45 × 72 image, contradicting the prior recorded 72 × 72 claim for the spacer-free layout under these conditions. The corrected 100-pixel cell yielded 72 × 72 images and full-width outer tables in all 12 cases, with loaded test SVGs and no line breaks in icon cells. This is a representative local browser test, not live GitHub rendering or cross-browser verification. Long preformatted text may still scroll horizontally.
+
+
 ## Full-width note tables without spacer — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompt:** “also the table does not occupy 100% width all the time”.
