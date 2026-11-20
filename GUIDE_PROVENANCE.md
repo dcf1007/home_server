@@ -1,5 +1,14 @@
 # Guide provenance and scope
 
+## Adopt user-verified note cell layout — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “you should not fix the width of the second column. this actually works:” followed by a rendered table row with `width="100"` on the image cell, `width="100%"` on the image, and no width on the text cell.
+
+**Implemented:** Supersede the proposed inline superscript reservation. Set the first cell to `valign="top" width="100" align="center" nowrap=""` with image `width="100%"` and no explicit height; remove all spacer elements and leave the second cell as `<td valign="top">` with natural width. Keep the existing outer table width attribute of 100% and repository-relative image paths rather than hardcoding the rendered GitHub main-branch URL, so previews, branches and local copies refer to their own assets. Preserve SVG artwork, text, code, links and executable configuration.
+
+**Validation:** The user reports that the supplied row renders correctly. Exact round-trip verification confirms all 137 icon rows (32 OMV, 105 warnings) now follow that layout. No independent live GitHub or browser test was performed for this revision; the outer table's actual width and icon size remain dependent on the renderer.
+
+
 ## Restore icon width reservation without a blank line — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompt:** “still not showing up since you erased the line of whitespaces.”
