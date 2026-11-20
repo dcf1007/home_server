@@ -98,7 +98,7 @@ Save the file. Invalid root options can prevent normal boot; preserve the backup
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **On an OMV system:** OMV regenerates the entries between its markers in `/etc/fstab`, not the entire file. The ordinary root entry should remain outside that managed block. Check the actual root mount and never edit OMV-managed NAS mount options directly. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
@@ -111,7 +111,7 @@ Save the file. Invalid root options can prevent normal boot; preserve the backup
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **When OMV is installed:** the direct edit below is for ordinary Debian. OMV generates the whole main SSH configuration from its database; the package installation can undo this edit and restrict the administrator's SSH access. On OMV, review the matching Root login option in Services | SSH and the administrator's `_ssh` membership instead of repeating the direct edit. Do not assume a drop-in overrides OMV: its current upstream template includes drop-ins after its generated settings. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
@@ -224,7 +224,7 @@ Recheck the effective configuration using `apt-config dump`. Confirm automatic i
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **When OMV is installed:** the normal Debian procedure above may no longer determine the effective setting. OMV depends on `unattended-upgrades` and manages its own higher-numbered APT configuration, including an optional security-update override. Inspect `apt-config dump` again after OMV installation or deployment; the corresponding OMV Update Management setting is the place to review the desired policy. Package-list refresh, download-only jobs, notification schedules and automatic installation are different operations. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
@@ -235,7 +235,7 @@ Recheck the effective configuration using `apt-config dump`. Confirm automatic i
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 The custom netinst implementation performs this policy step **once, inside the selected Debian tweaks profile**. It edits Debian's existing `20auto-upgrades` setting when present, using a single local override only if necessary. No later project profile explicitly rechecks or changes this policy; OMV's own package scripts and Salt deployments may nevertheless change the effective settings. The OMV CDD profile does not impose an update or notification policy.

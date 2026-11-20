@@ -15,7 +15,7 @@ Do not assume that a particular 7.x version will remain available. Check the ver
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **When OMV is installed:** OMV may independently enable the kernel Backports repository and apply targeted image/header preferences. This can affect moving metapackage candidates and future kernel upgrades irrespective of the earlier manual Backports choice. Verify the actual package origins and matching ABI; OMV's preferences do not enforce this project's Linux 7.x requirement. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks). No kernel-retention or repository-policy change is implied by this note.

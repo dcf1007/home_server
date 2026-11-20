@@ -6,7 +6,7 @@
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **When OMV is installed:** OMV's APT deployment enables kernel Backports by default in the inspected OMV 8 source, writes its own source and preferences, and pins `linux-base`, `linux-image-*`, `linux-headers-*` and `firmware-*` to priority 500 by default. This is not a global priority-900 pin; the ordinary Debian priority of 100 does not describe all packages on such a system. OMV also warns against arbitrary Backports software. Compare `apt policy` and the actual entries under `/etc/apt/sources.list.d/` and `/etc/apt/preferences.d/` before adding a duplicate source or approving a transaction. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
@@ -151,7 +151,7 @@ sudo dpkg --audit
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 On OMV, inspect its package-specific priorities separately as explained above.

@@ -4,7 +4,7 @@
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **Scope and release:** the repository's documented baseline is **Debian 13 (Trixie) with OpenMediaVault 8**. These commands may also work with packages on Debian 14 (Forky), but Debian 14 + OMV 8 is **not** an officially documented OMV 8 combination. Never mix Trixie and Forky APT sources to install a GUI. This guide is optional and follows the base Debian or OMV steps only when you specifically want a graphical session.
@@ -26,7 +26,7 @@
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **When OMV will be installed:** OMV's [Debian installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html) rejects detected desktop environments. If both features are desired, complete OMV installation and verify its operation before considering this optional local session; labwc is not a prerequisite for OMV. The existing manual-only GUI scope is unchanged. For OMV-managed services and configuration, see [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
@@ -72,7 +72,7 @@ sudo apt-get -s --no-install-recommends install thunar geany lxpolkit
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 Read **both** APT plans. Stop if either would remove **openmediavault**, introduce an unwanted display manager (LightDM, GDM, SDDM, etc.), install a competing network manager, unexpectedly upgrade OMV-critical packages or add undesirable system services. The Wayland graphics stack may use logind or seatd; check the actual planned transaction. In particular, **labwc with Recommends may introduce Xwayland**, which is optional for the selected native-Wayland applications. Avoid mixing Debian 13 and 14 sources to satisfy dependencies.
@@ -104,7 +104,7 @@ Do not install a full desktop/task metapackage, a graphical login manager, a sep
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **Thunar:** keep **Enable Volume Management** disabled and browse OMV's existing mounts under ordinary user permissions. Avoid installing Thunar's optional volume-management helpers unless needed for a separately approved use case. **Geany:** provides syntax highlighting and IDE-style editing for Bash and configuration files; no ShellCheck or plugins are required for basic editing. **lxpolkit:** only supplies a graphical authentication agent; it does not itself enable privileged Thunar browsing. Its use is described in the optional administrator-access section below.
@@ -260,7 +260,7 @@ Inside Firefox, open **about:support** and inspect **Window Protocol**. The menu
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 If Thunar is installed, keep its volume-management feature disabled, leave NAS disks mounted and configured by OMV, and avoid using the file manager as root. Ordinary file deletion or permission changes can still affect NAS users if your normal account has the corresponding access.
@@ -302,7 +302,7 @@ sudo apt-get -s --no-install-recommends install gvfs-backends
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 The **gvfs-backends** package is **not part of the selected six-package installation**; it provides the GVfs admin backend as well as additional remote-filesystem and user-session volume-monitor functionality. That additional integration may not fit your OMV isolation policy. The selected **lxpolkit** agent can display authorization prompts but cannot provide the admin backend itself. Carefully review the new APT proposal and any services; install only if privileged GUI browsing is specifically required:
@@ -340,7 +340,7 @@ If no prompt appears, check the user-session D-Bus/Polkit agent rather than usin
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 Do **not** add an always-privileged Thunar shortcut to the menu, loosen permissions recursively, or use this elevated view to change OMV-managed mounts, ACLs, owners or system configuration. For simply reading root-protected files without requiring a GUI, a limited **sudo terminal command** is more conservative.
@@ -355,7 +355,7 @@ Do **not** add an always-privileged Thunar shortcut to the menu, loosen permissi
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 Do **not** install or enable a display manager, graphical.target, a competing network manager, a desktop automounter or a power-management daemon for this procedure. The selected lxpolkit agent and the recommended dependency set for labwc/Firefox/foot may still introduce services or startup integration; inspect the actual APT plan and local session before relying on zero changes. No GUI component is added to the Simple-CDD ISO or OpenMediaVault profile. The existing default boot target and OMV-managed network/storage configuration remain the authority for the host.
