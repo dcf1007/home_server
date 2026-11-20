@@ -1,5 +1,14 @@
 # Guide provenance and scope
 
+## Full-width note tables without spacer — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “also the table does not occupy 100% width all the time”.
+
+**Implemented:** Add `width="100%"` to all 137 note tables and their right text cells, leaving the icon cell and image at 72 pixels and the whitespace spacer removed. Right-cell width is necessary because GitHub-like CSS can override the table's HTML width. No instructional content or executable configuration changed.
+
+**Validation:** Local in-memory Chromium tests with representative GitHub-like CSS (`display:block; width:max-content; max-width:100%; overflow:auto`) measured the table at 100% of available width and the icon at 72 pixels at 320, 375, 768 and 1024px widths, for short and long prose and an unbreakable preformatted command. Very long code can still require horizontal scrolling inside the table. Actual GitHub rendering and sanitizer output remain unverified.
+
+
 ## Remove blank line beneath note icons — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompt:** “below both logos there is a full line of whitespaces, i don't want that”.
