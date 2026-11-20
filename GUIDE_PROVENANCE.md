@@ -1,5 +1,14 @@
 # Guide provenance and scope
 
+## Remove blank line beneath note icons — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “below both logos there is a full line of whitespaces, i don't want that”.
+
+**Implemented:** Remove the line break and nonbreaking-space spacer from all 137 note icon cells (32 OMV and 105 general warnings). Keep both SVG assets, their intrinsic and HTML image dimensions of 72 × 72 pixels, and the existing top-aligned 72-pixel table cell width and nowrap attributes. No prose, command, policy or executable file is changed.
+
+**Validation boundary:** Verified exact markup-only removal in the 11 affected manual/reference Markdown files. GitHub's responsive table renderer may still shrink images in constrained columns; actual rendered dimensions have not been independently verified after removing the spacer. No claim of absolute fixed rendered dimensions on every viewport is made.
+
+
 ## Final note icon filenames — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompt:** “rename the exclamation to warning.svg and the other to omv.svg”.
