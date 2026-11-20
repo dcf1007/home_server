@@ -33,7 +33,7 @@ Ten source/configuration files make up the profile, including a native Simple-CD
 | `scripts/90-zram.conf` | Swappiness setting applicable only to the explicitly selected ZRAM feature. |
 
 
-Native Debian Installer stage `11my-cdd` runs each approved selected handler **once**, then writes that profile's success marker. Unmodified Simple-CDD stage `14simple-cdd` executes the selected profile's verification-only `.postinst` **in-target**. Stage `15my-cdd-status` independently checks all approved markers and overall `COMPLETE`, returning native exit 10 rather than falsely reporting success.
+Native Debian Installer stage `61my-cdd` runs each approved selected handler **once**, then writes that profile's success marker. Unmodified Simple-CDD stage `62simple-cdd` executes the selected profile's verification-only `.postinst` **in-target**. Stage `63my-cdd-status` independently checks all approved markers and overall `COMPLETE`, returning native exit 10 rather than falsely reporting success.
 
 ## Step 3 — Create each file
 
@@ -170,7 +170,7 @@ scripts/90-zram.conf
 
 
 <details>
-<summary><strong>installer/zram-writeback.sh</strong> — complete file; 173 lines; current Git blob <code>231df6770e2bbba2a023ffe51d5457d12fe5d088</code></summary>
+<summary><strong>installer/zram-writeback.sh</strong> — complete file; 172 lines; current Git blob <code>e3bf48291a71d511e496684acb1c903f26e00da4</code></summary>
 
 ````sh
 #!/bin/sh
@@ -178,7 +178,7 @@ scripts/90-zram.conf
 
 profile_zram() {
     # ordered-selection requires the separately selected kernel profile,
-    # and the native stage-11 runner executes it before ZRAM. Any failure
+    # and the native stage-61 runner executes it before ZRAM. Any failure
     # prevents reaching this handler; no duplicate completion marker needed.
     [ -r "$MEDIA/zram-generator.conf.template" ] ||
         fatal 'Original ZRAM generator source missing'
@@ -1157,14 +1157,14 @@ vm.swappiness = 100
 
 ## Native Simple-CDD completion verifier
 
-Create `profiles/zram-writeback.postinst` from the full source below, alongside its `.description` and `.extra` files. The stage-11 runner writes its record after successful handler execution; the original `14simple-cdd` hook runs this verifier in-target without installing the feature twice.
+Create `profiles/zram-writeback.postinst` from the full source below, alongside its `.description` and `.extra` files. The stage-61 runner writes its record after successful handler execution; the original `62simple-cdd` hook runs this verifier in-target without installing the feature twice.
 
 ~~~sh
 chmod +x profiles/zram-writeback.postinst
 sh -n profiles/zram-writeback.postinst
 ~~~
 
-The syntax check is read-only. The final `15my-cdd-status` guard also checks this selected profile's record, returning exit 10 if any required record is missing.
+The syntax check is read-only. The final `63my-cdd-status` guard also checks this selected profile's record, returning exit 10 if any required record is missing.
 
 <details>
 <summary><strong>profiles/zram-writeback.postinst</strong> — complete native verifier (11 lines; Git blob <code>9600b6690b1ea86d2e079fbd46ccad6434752137</code>)</summary>
@@ -1173,7 +1173,7 @@ The syntax check is read-only. The final `15my-cdd-status` guard also checks thi
 #!/bin/sh
 # Simple-CDD finish-install verification only.
 # The selected profile was performed beforehand by the native Debian
-# Installer stage-11 runner, where its Debconf approvals were visible.
+# Installer stage-61 runner, where its Debconf approvals were visible.
 # Never execute the profile twice or claim success from mere selection.
 set -eu
 marker="/var/log/installer/my-cdd-completed/zram-writeback"

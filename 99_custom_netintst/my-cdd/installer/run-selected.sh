@@ -1,6 +1,6 @@
 #!/bin/sh
 # Debian Installer-side executor: native cdebconf, no patched udeb.
-# Registered at 11my-cdd in Debian Installer finish-install, after native CD-ROM cleanup.
+# Registered at 61my-cdd, after native network finalization and APT cleanup.
 set -eu
 umask 077
 MEDIA=/cdrom/simple-cdd

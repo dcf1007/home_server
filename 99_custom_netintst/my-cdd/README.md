@@ -1,5 +1,7 @@
 # my-cdd — Debian 13 custom Simple-CDD ISO source
 
+**Current lifecycle — 2026-11-20:** Native stages 10, 50, 55 and 60 run before the selected-profile executor at `61my-cdd`; the unmodified Simple-CDD verifier, custom status guard, unmodified CD-ROM eject and unmodified final message follow at `62simple-cdd`, `63my-cdd-status`, `64cdrom-detect` and `65final-message`. The early selector registers 61/63; `partman/early_command` calls `finish-order.sh` before partitioning, checks all three original native scripts and then renames them. Native udebs and script contents are unchanged. The CD-ROM APT-source preseed remains; no forced network backend or suppressed completion dialog. Relocation failure returns nonzero to native preseed error handling, which does not guarantee installation termination. No stage-00 guard or additional repeated-execution restriction is introduced. ISO/GTK/text/first-boot testing is pending.
+
 ## Native progress reporting — 2026-11-20
 
 **Nearest user prompt:** “i would choose option A” (native Debian Installer progress feedback rather than embedded terminal or live output changes).
@@ -35,7 +37,7 @@ The complete [build-project construction guide](../build_project.md) explains th
 
 - [simple-cdd.conf](simple-cdd.conf): seven optional profiles, all initially unchecked, no automatic selection.
 - [profiles/](profiles): profile descriptions, `.extra` staging inputs, native per-profile `.postinst` success verifiers, and the **build-only** media profile.
-- [installer/](installer): native GTK/text Debconf confirmation, selected-only stage-11 finish-install dispatcher, and single stage-15 completion guard.
+- [installer/](installer): native GTK/text Debconf confirmation, selected-only stage-61 finish-install dispatcher, and single stage-63 completion guard.
 - [scripts/](scripts): inputs staged on the ISO (Backports source, firmware inventory, ZRAM generator and monitor).
 - [profile_defaults.conf](profile_defaults.conf): editable suggestions for native installer questions, **not** passwords, disk selection or preapproved optional profiles.
 - [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md): detailed chronological source provenance and past defects.
@@ -44,7 +46,7 @@ The complete [build-project construction guide](../build_project.md) explains th
 
 ### Why the installer differs from the standalone guides
 
-`udebs` are not ordinary Debian packages: Debian Installer is a stripped-down environment. Partition discovery/conversion uses native `blkid` from `util-linux-udeb`, `parted-udeb`, BusyBox, `/sys` and `/proc`. The ordinary [ZRAM guide](../../06_zram_writeback/README.md) can use full `wipefs` and `sgdisk` instead. Other installer-only mechanisms include `in-target`, cdebconf and Debian's native finish-install hook directory. The stage-10 CD-ROM cleanup now precedes the stage-11 profile executor without a custom source editor or double invocation.
+`udebs` are not ordinary Debian packages: Debian Installer is a stripped-down environment. Partition discovery/conversion uses native `blkid` from `util-linux-udeb`, `parted-udeb`, BusyBox, `/sys` and `/proc`. The ordinary [ZRAM guide](../../06_zram_writeback/README.md) can use full `wipefs` and `sgdisk` instead. Other installer-only mechanisms include `in-target`, cdebconf and Debian's native finish-install hook directory. The stage-10 CD-ROM cleanup now precedes the stage-61 profile executor without a custom source editor or double invocation.
 
 **Validation:** The latest 2026-11-16 VM progressed through the approved ZRAM conversion and OMV signed APT repository to its complete package simulation. The custom, unrequested essential-package blacklist stopped the installation on a proposed `systemd-timesyncd` replacement before transaction approval. This review branch removes that policy and the other unapproved installer restrictions; APT plans and explicit approvals remain. **A rebuilt ISO, full OMV/Docker installation and first-boot ZRAM checks are still pending.** See [active release gates](../validation_and_pending.md).
 
@@ -52,4 +54,4 @@ The previous long README, including the detailed VM failures and obsolete interi
 
 **2026-11-17 OMV first-boot correction:** The selected OMV handler installs approved packages and registers a one-time systemd service rather than running `omv-confdbadm populate` in the unfinished target chroot. The first boot runs upstream `populate` and `hosts` commands once; boot console/journal output reports progress/errors, and only `/var/log/installer/my-cdd-omv-firstboot.log` remains after the one-time unit, enablement link and runner delete themselves. The installer records package/scheduling success separately from runtime OMV initialization status. All Docker and shared completion code remains unchanged. Fresh ISO and VM validation remain necessary.
 
-**Current completion contract:** The existing stage-11 runner records individual selected-profile completion; native stage-14 Simple-CDD invokes each selected `.postinst` verifier; stage 15 refuses completion when any selected record or the overall status is missing. Installer modules share filenames with their Simple-CDD profile definitions. ISO and first-boot validation remain pending.
+**Current completion contract:** The existing stage-61 runner records individual selected-profile completion; native stage-62 Simple-CDD invokes each selected `.postinst` verifier; stage 63 refuses completion when any selected record or the overall status is missing. Installer modules share filenames with their Simple-CDD profile definitions. ISO and first-boot validation remain pending.

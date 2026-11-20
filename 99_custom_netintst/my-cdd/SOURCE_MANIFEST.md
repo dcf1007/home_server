@@ -1,5 +1,11 @@
 # my-cdd source manifest and provenance
 
+## Post-network native hook sequence
+
+**Current lifecycle — 2026-11-20:** Native stages 10, 50, 55 and 60 run before the selected-profile executor at `61my-cdd`; the unmodified Simple-CDD verifier, custom status guard, unmodified CD-ROM eject and unmodified final message follow at `62simple-cdd`, `63my-cdd-status`, `64cdrom-detect` and `65final-message`. The early selector registers 61/63; `partman/early_command` calls `finish-order.sh` before partitioning, checks all three original native scripts and then renames them. Native udebs and script contents are unchanged. The CD-ROM APT-source preseed remains; no forced network backend or suppressed completion dialog. Relocation failure returns nonzero to native preseed error handling, which does not guarantee installation termination. No stage-00 guard or additional repeated-execution restriction is introduced. ISO/GTK/text/first-boot testing is pending.
+
+**Nearest user prompts:** “i prefer prefer the `partman/early_command`” and “yes i agree” (approval of checking all three original hooks before moving and returning nonzero on failure to native preseed error handling). Creation date: 2026-11-20. Based on main `4b83df33fcdee83b518e9f650973d20e035af2aa` and earlier unmerged branch `8c76f467daf19fb76cd0878b4369de37c38903a0`. Implementation: `installer/finish-order.sh` (relocation only), `profiles/default.preseed` (native partman early command), `installer/profile-confirm.sh` (61/63 registration only), `installer/run-selected.sh` (remove additional repeat-start marker; preserve stage-61 comment), existing renamed `63my-cdd-status`, existing `default.extra` staging and ZRAM stage comment. No extra pre-pkgsel or stage-00 hook; no additional repeated-execution policy. Existing profile implementations, package/partition policy, OMV first boot, progress and confirmation paths unchanged. Sources: https://www.debian.org/releases/trixie/amd64/apbs05.en.html and https://sources.debian.org/src/finish-install/2.124/debian/postinst . Older entries retain historical hook names. No ISO/VM validation.
+
 ## Native progress reporting — 2026-11-20
 
 **Nearest user prompt:** “i would choose option A” (native Debian Installer progress feedback rather than embedded terminal or live output changes).

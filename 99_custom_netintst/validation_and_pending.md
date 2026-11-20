@@ -1,5 +1,18 @@
 # Validation — Test the scripts and generated Debian installer
 
+## Post-network native hook sequence
+
+**Current lifecycle — 2026-11-20:** Native stages 10, 50, 55 and 60 run before the selected-profile executor at `61my-cdd`; the unmodified Simple-CDD verifier, custom status guard, unmodified CD-ROM eject and unmodified final message follow at `62simple-cdd`, `63my-cdd-status`, `64cdrom-detect` and `65final-message`. The early selector registers 61/63; `partman/early_command` calls `finish-order.sh` before partitioning, checks all three original native scripts and then renames them. Native udebs and script contents are unchanged. The CD-ROM APT-source preseed remains; no forced network backend or suppressed completion dialog. Relocation failure returns nonzero to native preseed error handling, which does not guarantee installation termination. No stage-00 guard or additional repeated-execution restriction is introduced. ISO/GTK/text/first-boot testing is pending.
+
+**New required tests:**
+- [ ] Immediately before native partitioning, verify all three original hooks exist and are relocated; verify absence of old names, executable mode and exact script bytes. Check re-entry into partitioning.
+- [ ] In installer syslog verify 10 → 50 → 55 → 60 → 61 → 62 → 63 → 64 → 65 → remaining native hooks. Test a missing original in a disposable environment: no script is renamed and the command returns nonzero; observe native preseed error handling without assuming installation abort. Test a failed move separately.
+- [ ] Base only and all selected profiles; compare headless Debian network config before 61 and after first boot; OMV and Docker independently; no forced backend or OMV importer patch.
+- [ ] Missing completion marker: 63 returns 10 before 64/65. Observe native Back at 65 and failed stage 61 in a disposable VM: repeated finalization is not covered by a new guard, and replay may change network configuration or repeat profile operations. Validate normal final-message Continue, media ejection and reboot.
+- [ ] Check extra APT download cache, because native 60cleanup precedes custom transactions; no second cleanup added.
+
+Historical validation notes below describe previous revisions.
+
 ## Native progress reporting — 2026-11-20
 
 **Nearest user prompt:** “i would choose option A” (native Debian Installer progress feedback rather than embedded terminal or live output changes).
@@ -205,7 +218,7 @@ Before making an ISO, reproduce the **file contents from the chapters**, on a sc
 
 1. Follow [Build project](build_project.md), [Shared profile helpers](profile_construction.md), [Installer framework](installer_framework.md) and each selected feature page. Keep the entire current seven-profile set when reconstructing the shipped configuration.
 2. For each created file, run `git hash-object <path>` from `my-cdd`. It **reads the file only** and prints a Git blob identifier. Compare that output with the expected blob SHA printed above the file's full listing. A mismatch means the copy differs.
-3. Confirm `installer/profile-confirm.sh`, `installer/run-selected.sh`, `installer/15my-cdd-status` and all seven `profiles/*.postinst` verifiers have executable permissions. The imported feature modules should remain **sourced** files.
+3. Confirm `installer/profile-confirm.sh`, `installer/run-selected.sh`, `installer/finish-order.sh`, `installer/63my-cdd-status` and all seven `profiles/*.postinst` verifiers have executable permissions. The imported feature modules should remain **sourced** files.
 4. Confirm every path in each `profiles/*.extra` exists before running the build. A module is not executed merely because it was staged.
 5. Do not run sourced installer modules on a host machine. Their behavior must be exercised in the **Debian Installer VM**.
 

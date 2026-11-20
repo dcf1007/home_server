@@ -1,5 +1,7 @@
 # 03 — Recreate the Backports installer profile
 
+**Current lifecycle — 2026-11-20:** Native stages 10, 50, 55 and 60 run before the selected-profile executor at `61my-cdd`; the unmodified Simple-CDD verifier, custom status guard, unmodified CD-ROM eject and unmodified final message follow at `62simple-cdd`, `63my-cdd-status`, `64cdrom-detect` and `65final-message`. The early selector registers 61/63; `partman/early_command` calls `finish-order.sh` before partitioning, checks all three original native scripts and then renames them. Native udebs and script contents are unchanged. The CD-ROM APT-source preseed remains; no forced network backend or suppressed completion dialog. Relocation failure returns nonzero to native preseed error handling, which does not guarantee installation termination. No stage-00 guard or additional repeated-execution restriction is introduced. ISO/GTK/text/first-boot testing is pending.
+
 **Goal:** build this exact optional feature from its source files, not operate the completed installer. A **normal Debian system** uses [the simpler Backports guide](../03_backports/README.md).
 
 ## Before you start
@@ -55,7 +57,7 @@ Expand the **matching complete file listing below**, Save the document after rev
 
 This sets the permission expected by Simple-CDD. `installer/backports.sh` is **sourced** by the dispatcher and should not be run directly.
 
-Native Debian Installer stage `11my-cdd` runs each approved selected handler **once**, then writes that profile's success marker. Unmodified Simple-CDD stage `14simple-cdd` executes the selected profile's verification-only `.postinst` **in-target**. Stage `15my-cdd-status` independently checks all approved markers and overall `COMPLETE`, returning native exit 10 rather than falsely reporting success.
+Native Debian Installer stage `61my-cdd` runs each approved selected handler **once**, then writes that profile's success marker. Unmodified Simple-CDD stage `62simple-cdd` executes the selected profile's verification-only `.postinst` **in-target**. Stage `63my-cdd-status` independently checks all approved markers and overall `COMPLETE`, returning native exit 10 rather than falsely reporting success.
 
 ## Step 3 — Understand how the code works
 
@@ -180,14 +182,14 @@ Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 
 ## Native Simple-CDD completion verifier
 
-Create `profiles/backports.postinst` from the full source below, alongside its `.description` and `.extra` files. The stage-11 runner writes its record after successful handler execution; the original `14simple-cdd` hook runs this verifier in-target without installing the feature twice.
+Create `profiles/backports.postinst` from the full source below, alongside its `.description` and `.extra` files. The stage-61 runner writes its record after successful handler execution; the original `62simple-cdd` hook runs this verifier in-target without installing the feature twice.
 
 ~~~sh
 chmod +x profiles/backports.postinst
 sh -n profiles/backports.postinst
 ~~~
 
-The syntax check is read-only. The final `15my-cdd-status` guard also checks this selected profile's record, returning exit 10 if any required record is missing.
+The syntax check is read-only. The final `63my-cdd-status` guard also checks this selected profile's record, returning exit 10 if any required record is missing.
 
 <details>
 <summary><strong>profiles/backports.postinst</strong> — complete native verifier (11 lines; Git blob <code>bd9f5388acaff6a133665e46de7bfa041779300a</code>)</summary>

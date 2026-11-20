@@ -3,7 +3,7 @@
 
 profile_zram() {
     # ordered-selection requires the separately selected kernel profile,
-    # and the native stage-11 runner executes it before ZRAM. Any failure
+    # and the native stage-61 runner executes it before ZRAM. Any failure
     # prevents reaching this handler; no duplicate completion marker needed.
     [ -r "$MEDIA/zram-generator.conf.template" ] ||
         fatal 'Original ZRAM generator source missing'

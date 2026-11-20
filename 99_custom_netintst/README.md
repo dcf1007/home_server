@@ -1,5 +1,7 @@
 # 99 — Build the custom Debian 13 installer
 
+**Current lifecycle — 2026-11-20:** Native stages 10, 50, 55 and 60 run before the selected-profile executor at `61my-cdd`; the unmodified Simple-CDD verifier, custom status guard, unmodified CD-ROM eject and unmodified final message follow at `62simple-cdd`, `63my-cdd-status`, `64cdrom-detect` and `65final-message`. The early selector registers 61/63; `partman/early_command` calls `finish-order.sh` before partitioning, checks all three original native scripts and then renames them. Native udebs and script contents are unchanged. The CD-ROM APT-source preseed remains; no forced network backend or suppressed completion dialog. Relocation failure returns nonzero to native preseed error handling, which does not guarantee installation termination. No stage-00 guard or additional repeated-execution restriction is introduced. ISO/GTK/text/first-boot testing is pending.
+
 This section teaches you **how to construct the Simple-CDD scripts**, not how to operate the finished installer. Each feature chapter explains its source files, why they exist, what the code does, and how to verify the resulting files. Full copyable source listings are included.
 
 For manual configuration of a **normally installed Debian system**, use the corresponding [01–09 how-tos](../README.md). **09 is an optional post-install graphical-session guide, not a Simple-CDD profile or ISO feature.**
@@ -12,7 +14,7 @@ For manual configuration of a **normally installed Debian system**, use the corr
 
 1. [Build project](build_project.md) — create Simple-CDD configuration, editable defaults, ISO media lists and the build wrapper.
 2. [Shared profile helpers](profile_construction.md) — create selection validation and target-APT helper functions.
-3. [Installer framework](installer_framework.md) — create native Debian Installer hooks, checkbox/confirmation templates, stage-11 dispatcher, root recovery preflight and single completion guard.
+3. [Installer framework](installer_framework.md) — create native Debian Installer hooks, checkbox/confirmation templates, stage-61 dispatcher, root recovery preflight and single completion guard.
 4. Create the **seven optional profile implementations**, in the logical order below. They are all offered but **none is selected automatically**.
 5. [Validation and VM testing](validation_and_pending.md) — compare complete source hashes, build the ISO, exercise approvals and failure paths in a disposable VM.
 
@@ -48,6 +50,6 @@ The revised source removes the unrequested package-removal blacklist, APT operat
 
 Earlier design notes and test history remain under [history](history/). [Provenance](../GUIDE_PROVENANCE.md) records why the standalone and installer versions must be updated together.
 
-**Current selected-profile verification (approved 2026-11-17):** The runner records individual successful profile completion, unmodified Simple-CDD stage 14 invokes the matching executable `.postinst` verifier, and stage 15 checks every selected record and overall status with an exit-10 failure response. Installer handler filenames share their Simple-CDD profile names. These source changes require fresh ISO and disposable-VM validation.
+**Current selected-profile verification (approved 2026-11-17):** The runner records individual successful profile completion, unmodified Simple-CDD stage 62 invokes the matching executable `.postinst` verifier, and stage 63 checks every selected record and overall status with an exit-10 failure response. Installer handler filenames share their Simple-CDD profile names. These source changes require fresh ISO and disposable-VM validation.
 
 **OMV first-boot lifecycle correction (17 November 2026):** In the latest VM, OpenMediaVault package installation succeeded but the in-target `omv-confdbadm populate` failed because upstream OMV's timezone script required a running system bus. The OMV-only handler now schedules the same two official post-install commands for a one-time systemd service on first boot, with a retained initialization log as its sole durable record and boot console/journal progress/error messages; the temporary unit, symlink and runner remove themselves after execution. The Docker handler and native Simple-CDD completion checks are unchanged. VM verification remains pending.
