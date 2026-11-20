@@ -6,7 +6,7 @@
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
 <td valign="top" width="100%">
 
 > **Use a quiet disposable VM with console recovery available.** The diagnostic deliberately creates memory pressure and backing-device writes. It can expose memory exhaustion, slow I/O or kernel failure. It does not alter the production configuration, install packages, repartition disks, run global `swapoff`, or write directly to ZRAM's `idle` and `writeback` interfaces.
@@ -19,7 +19,7 @@
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
 <td valign="top" width="100%">
 
 Complete chapter 06 through Step 9 first. The script requires Linux with a configured `/dev/zram0`, Python 3 with `mmap.madvise` and the standard library, systemd, cgroup v2 with its memory controller, and the project's active `zram-pressure.service`. Run as root. Compressed writeback must be enabled, the writeback limit disabled, and zswap disabled. The backing partition must not also be ordinary swap; another active swap device must not have an equal or higher priority than ZRAM. The script checks the available memory and capacity before starting the workload. It does not silently fix failed preconditions.
@@ -159,7 +159,7 @@ The script retains a no-backing sample when available and separately reports the
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
 <td valign="top" width="100%">
 
 The test cannot isolate physical storage latency, kernel decompression, scheduler delay and lock contention from retrieval wall time. Successive windows may include different proportions of resident and backed pages. The heuristic therefore selects a useful operating point for the current workload, not a provably optimal thread count or a controlled storage benchmark.
@@ -179,7 +179,7 @@ The test cannot isolate physical storage latency, kernel decompression, schedule
 
 <table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="44" height="44" alt="Important note"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="100%" alt="Important note"></td>
 <td valign="top" width="100%">
 
 The script checks for changed ZRAM I/O error counters, a changed resident limit, unexpected pressure-service restart, worker failure, invalid progress and integrity errors. Retain both logs to investigate a failure or inconclusive result. If cleanup cannot confirm that transient units stopped, inspect the reported units and resolve that condition before rerunning. A PASS supports the exercised normal/emergency writeback and data-integrity paths; it does not validate every workload, kernel, recovery scenario or the custom installer. Final resident memory is reported, but zero resident bytes is not an independent PASS condition; other system users of ZRAM may remain.

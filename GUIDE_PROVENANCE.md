@@ -1,5 +1,14 @@
 # Guide provenance and scope
 
+## Responsive icon width within 72-pixel column — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “unless you can make sure about the exact pixels of the margin and padding and set them manually, i would prefer to try 100%”.
+
+**Implemented:** Supersede the proposed explicit 44 × 44 displayed dimensions with `width="100%"` and no height attribute on every note image. Restore both SVGs' intrinsic dimensions to 72 × 72; artwork and viewBoxes are unchanged. Retain the 72-pixel left column, full-width table/right cell, alignment and absence of a spacer. Do not rely on custom CSS or a hardcoded padding calculation. No prose, commands or executable configuration changed.
+
+**Validation:** Actual in-memory Playwright/Chromium test with a representative square SVG and Primer-like CSS (`box-sizing:border-box`, collapsed 1px border, 6px/13px cell padding, responsive image max-width/height:auto, block/max-content table layout) measured left cell 72 pixels, image 45 × 45 pixels, table width equal to the main container, and successful image decoding in all 12 cases (320, 375, 768 and 1024px viewports × short prose, long prose and unbreakable preformatted text). Exact source-markup replacement verified for all 137 note cells. No live GitHub visual verification; percentage width may be handled differently by its renderer or other browsers, and exact displayed size depends on available cell content width. No claim that the reported empty cells are definitively resolved.
+
+
 ## Compact 72-pixel note column — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompt:** “i rather get the cell width at 72 and reduce the image a bit (or set it at 100% width of the 72px column)”.
