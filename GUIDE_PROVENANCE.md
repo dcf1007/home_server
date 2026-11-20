@@ -1,5 +1,15 @@
 # Guide provenance and scope
 
+## ZRAM diagnostic v7: throughput and CPU-driven readback concurrency — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “you can launch more threads until either the read speed flats out or the cpu usage reaches 80%. with the 4 threads per core there is a lot of room left to speed up the readback”
+
+**Observed context:** User screenshot of the running v6 test shows four vCPUs at approximately 20.9–24.7% utilization and a mixture of sleeping, runnable and uninterruptible-sleep cold-worker threads. It is consistent with potential I/O concurrency headroom but does not establish the physical NVMe bottleneck or achievable speedup.
+
+**Implementation:** [v7 / c897270](https://github.com/dcf1007/home_server/commit/c8972705e4eb68776f9513ba010b5a2f1cfd14e2), source blob `4c70fb562ab8876ae52e126d5b732c15684e4bd0`. Begin at four threads per allowed logical CPU; trial increments of another four per CPU, applied between fully completed FIFO allocation blocks. Measure backing read rate and verified logical rate over windows of at least ten seconds; two windows failing to improve the best backing rate by 5% cause a return to the best measured count. No-read windows do not establish a plateau. Use CPU busy ticks for the worker affinity mask excluding idle, I/O wait and steal; upon reaching 80% average CPU busy, stop increasing and back off, with further reductions if later windows remain high. Actual concurrency is bounded by page count and existing worker resource limits, not a fixed arbitrary thread cap. Missing/inconsistent measurement windows hold current count. Keep v6 native page operations, immediate discard, accounting and timing telemetry, v5 adaptive capacity, and five-minute inactivity-only readback timeout.
+
+**Implementation choices and limitations:** Ten-second minimum windows, 5% gain threshold, two-window plateau confirmation, four-thread-per-CPU steps and backoff at 80% are test tuning parameters. CPU threshold is sampled, not a hard quota; resizing waits for block completion. Different proportions of resident and backed data across windows can bias throughput comparison. TUNE log and CSV make the decisions reviewable. Exact committed script was retrieved and compared to its authored source. No full-script execution, VM readback benchmark or measured speedup was performed for v7 in this commit operation. Production ZRAM service, configuration and installer remain unchanged.
+
 ## ZRAM diagnostic v6: parallel retrieval and stage instrumentation — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompt:** “i agree. execute 4 threads per core available” (following discussion of parallel page faults, native ctypes calls releasing the GIL, and timing/storage instrumentation).
