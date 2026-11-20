@@ -51,11 +51,29 @@ These options are filesystem-specific: Btrfs's `fatal_errors=panic` is not ident
 
 Save the file. Invalid root options can prevent normal boot; preserve the backup and your local recovery access.
 
+<table>
+<tr>
+<td valign="top"><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"></td>
+<td valign="top">
+
 **On an OMV system:** OMV regenerates the entries between its markers in `/etc/fstab`, not the entire file. The ordinary root entry should remain outside that managed block. Check the actual root mount and never edit OMV-managed NAS mount options directly. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
+
+</td>
+</tr>
+</table>
 
 ## Step 3 — Disable root SSH, but keep normal-user SSH
 
+<table>
+<tr>
+<td valign="top"><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"></td>
+<td valign="top">
+
 **When OMV is installed:** the direct edit below is for ordinary Debian. OMV generates the whole main SSH configuration from its database; the package installation can undo this edit and restrict the administrator's SSH access. On OMV, review the matching Root login option in Services | SSH and the administrator's `_ssh` membership instead of repeating the direct edit. Do not assume a drop-in overrides OMV: its current upstream template includes drop-ins after its generated settings. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
+
+</td>
+</tr>
+</table>
 
 
 Confirm that your ordinary sudo account can log in via SSH, and keep its existing session open while editing.
@@ -114,9 +132,27 @@ Recheck the effective configuration using `apt-config dump`. Confirm automatic i
 
 **Important:** choosing manual-only updates means **security updates will not install themselves**. Maintain a routine to run `sudo apt update` and review `sudo apt upgrade`. These operations remain available.
 
+<table>
+<tr>
+<td valign="top"><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"></td>
+<td valign="top">
+
 **When OMV is installed:** the normal Debian procedure above may no longer determine the effective setting. OMV depends on `unattended-upgrades` and manages its own higher-numbered APT configuration, including an optional security-update override. Inspect `apt-config dump` again after OMV installation or deployment; the corresponding OMV Update Management setting is the place to review the desired policy. Package-list refresh, download-only jobs, notification schedules and automatic installation are different operations. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
 
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td valign="top"><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"></td>
+<td valign="top">
+
 The custom netinst implementation performs this policy step **once, inside the selected Debian tweaks profile**. It edits Debian's existing `20auto-upgrades` setting when present, using a single local override only if necessary. No later project profile explicitly rechecks or changes this policy; OMV's own package scripts and Salt deployments may nevertheless change the effective settings. The OMV CDD profile does not impose an update or notification policy.
+
+</td>
+</tr>
+</table>
 
 ## Step 5 — Reboot and confirm the changes
 
