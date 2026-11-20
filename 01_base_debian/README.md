@@ -24,7 +24,16 @@ When Debian Installer asks you to configure the **root (administrator) password*
 
 Next, let Debian Installer create a **regular user**. Enter that person's name, a chosen username and a strong **user password**. This regular account is the one you will log in with after installation.
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 **Do not set the root password in the installer at this stage.** We will establish it separately, *after confirming sudo works*, in Step 6. The root password and the user's own password are distinct credentials.
+
+</td>
+</tr>
+</table>
 
 ## Step 3 — Partition the correct disk
 
@@ -38,9 +47,27 @@ An example layout for a 256 GB SSD uses UEFI/GPT, no LVM or encryption:
 | Root partition | ext4 mounted at `/` |
 | Optional separate swap partition | Around 16 GiB reserved if you plan to follow [06 — ZRAM writeback](../06_zram_writeback/README.md) |
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 These are **not** fixed device names or required sizes. If you do not plan to use ZRAM writeback, you can keep ordinary Debian swap. Do not modify another operating system's partitions without understanding the consequences.
 
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 **Before approving writes**, confirm the exact disk and each mount point in Debian Installer's own summary.
+
+</td>
+</tr>
+</table>
 
 ## Step 4 — Install a headless system
 
@@ -71,13 +98,31 @@ This reports the machine architecture. Expect `x86_64` for the amd64 build.
 id
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 This shows the account you're using and its group memberships. Confirm your regular account is listed and that its groups include **`sudo`**. If not, **stop** and investigate the account setup instead of attempting administrative changes blindly.
+
+</td>
+</tr>
+</table>
 
 ~~~sh
 sudo id -u
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 This asks `sudo` to run the identity check as the administrator. Type **your regular user's password** when prompted. The expected result is **`0`**, the numeric ID of root. If this command fails, resolve the sudo issue before moving on.
+
+</td>
+</tr>
+</table>
 
 ## Step 6 — Create a local root password for recovery
 
@@ -97,9 +142,27 @@ Verify the account state:
 sudo passwd -S root
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 This displays root's password **status**, not the password itself. In Debian's output, `root P ...` indicates a usable password; `L` indicates a locked account. If root is still locked, stop and resolve it before relying on rescue or emergency mode.
 
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 **Why not skip this step?** A server can work normally with sudo while its root account remains locked, but an emergency login requiring a root password could then be inaccessible. Setting the password after sudo validation provides both everyday least-privilege administration and emergency recovery.
+
+</td>
+</tr>
+</table>
 
 ## Step 7 — Check network, storage, time and SSH
 
@@ -135,7 +198,7 @@ This **downloads current package indexes** from the configured Debian repositori
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **If OMV is already installed or will be installed later:** the ordinary Debian SSH and network checks above describe the base system, not a guarantee that OMV will retain its settings. OMV manages SSH access (including the `_ssh` group), network/DNS and time services. Your separate local root recovery password remains useful; sudo membership alone does not grant OMV SSH access. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks) before relying on remote administration.

@@ -2,11 +2,20 @@
 
 **What this does:** installs a Linux **7.x kernel and matching headers** while keeping your working Debian kernel as a boot fallback. This project's [ZRAM writeback setup](../06_zram_writeback/README.md) depends on this step.
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 Do not assume that a particular 7.x version will remain available. Check the versions offered by your configured Debian repositories at the time of installation.
+
+</td>
+</tr>
+</table>
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **When OMV is installed:** OMV may independently enable the kernel Backports repository and apply targeted image/header preferences. This can affect moving metapackage candidates and future kernel upgrades irrespective of the earlier manual Backports choice. Verify the actual package origins and matching ABI; OMV's preferences do not enforce this project's Linux 7.x requirement. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks). No kernel-retention or repository-policy change is implied by this note.
@@ -45,9 +54,27 @@ This displays the headers metapackage’s dependencies. Compare its kernel versi
 apt show linux-headers-amd64
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 If you have Backports enabled, also inspect the package pages for **Trixie Backports** or the additional available versions listed by `apt policy`. The moving image and header packages must resolve to the **same 7.x kernel ABI**. Version numbers will change over time.
 
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 If your enabled sources do not offer a compatible 7.x pair, **stop**. You can choose to enable [Backports](../03_backports/README.md); do not silently use a different kernel branch.
+
+</td>
+</tr>
+</table>
 
 ## Step 2 — Install the matching image and headers
 
@@ -67,17 +94,44 @@ This explicitly selects Backports versions of the moving image and header packag
 sudo apt install linux-image-amd64/trixie-backports linux-headers-amd64/trixie-backports
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 Use **only one** option after checking the offered versions. APT will show the planned changes before installing. If it proposes removing your working Debian kernel or bootloader, say **No** and investigate.
+
+</td>
+</tr>
+</table>
 
 ## Step 3 — Update the boot files
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 This regenerates initramfs images for **all installed kernels**, so the boot environment includes the drivers and configuration needed at startup. Check the output for failures and stop if any kernel image fails to update.
+
+</td>
+</tr>
+</table>
 
 ~~~sh
 sudo update-initramfs -u -k all
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 This regenerates GRUB’s boot menu entries. Confirm its messages detect the new 7.x kernel **and the older fallback**; this does not choose a kernel automatically for this session.
+
+</td>
+</tr>
+</table>
 
 ~~~sh
 sudo update-grub
@@ -119,6 +173,15 @@ sudo dpkg --audit
 
 **Done when:** Linux 7.x is actually running, matching headers are installed, and the original Stable kernel remains a selectable fallback.
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 **Important:** A 7.x version alone does not prove that ZRAM compressed writeback is supported. Check the actual ZRAM features in [06](../06_zram_writeback/README.md).
+
+</td>
+</tr>
+</table>
 
 **References:** [Debian Backports](https://backports.debian.org/Instructions/) · [Available Trixie Backports kernel](https://packages.debian.org/trixie-backports/linux-image-amd64).

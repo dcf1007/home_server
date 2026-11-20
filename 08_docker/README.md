@@ -6,7 +6,7 @@ Docker is independent of OpenMediaVault. Both guides use the same basic method�
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **When OMV is installed:** Docker remains a separate installation decision. OMV also manages APT settings and has its own web, network and storage services. Review the actual Docker package transaction on the OMV host, and do not assume that an ordinary Debian repository or service configuration is unchanged. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks). The guide still does not install OMV-Extras, Compose integrations or containers.
@@ -25,7 +25,16 @@ This asks APT which of Docker’s **potentially conflicting packages** are alrea
 apt list --installed docker.io docker-compose docker-doc docker-buildx podman-docker containerd runc
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 This checks just the potentially conflicting packages, rather than listing every installed package. If you find a conflicting package, follow the [official Docker removal guidance](https://docs.docker.com/engine/install/debian/) **after reviewing any existing containers and data**. Do not remove production data blindly.
+
+</td>
+</tr>
+</table>
 
 ## Step 2 — Install the tools needed to add Docker's repository
 
@@ -51,7 +60,16 @@ sudo mkdir -p /etc/apt/keyrings
 
 Download Docker's signing key:
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 This downloads Docker’s **official repository signing key** into the keyring directory over HTTPS. If the download fails or reports a certificate error, do not continue to the repository configuration.
+
+</td>
+</tr>
+</table>
 
 ~~~sh
 sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
@@ -90,17 +108,44 @@ This example is specifically for **Debian 13 amd64**, the system used by this pr
 
 ## Step 4 — Refresh and install Docker
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 This refreshes package indexes again, **now including the Docker repository**. Stop if Docker’s repository is unreachable or its signature cannot be verified.
+
+</td>
+</tr>
+</table>
 
 ~~~sh
 sudo apt update
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 If APT reports a signing-key or repository error, stop and correct it.
+
+</td>
+</tr>
+</table>
 
 Check that Docker's official packages are available:
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 This displays the available Docker Engine versions and their package origins. Verify the candidate comes from **`download.docker.com`**, not from a different repository.
+
+</td>
+</tr>
+</table>
 
 ~~~sh
 apt policy docker-ce
@@ -116,7 +161,16 @@ This installs official Docker Engine, CLI, containerd runtime, Buildx and Compos
 sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 APT will show the packages and dependencies it intends to install or remove. Read the summary before accepting.
+
+</td>
+</tr>
+</table>
 
 ## Step 5 — Confirm Docker works
 
@@ -148,7 +202,16 @@ This checks the underlying `containerd` runtime service. It should also report a
 sudo systemctl status containerd
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 The official packages normally manage their own startup. **Do not mask or disable these services** for this project.
+
+</td>
+</tr>
+</table>
 
 You can also run `sudo docker version` to inspect both client and server versions, without creating a container.
 
@@ -161,7 +224,16 @@ This guide deliberately does **not**:
 - Change Docker's daemon, storage or network settings.
 - Install any OMV Docker or Compose integration.
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 If you later publish container ports, review Docker's [firewall considerations](https://docs.docker.com/engine/install/debian/). Published ports may behave differently from the host firewall rules you expect.
+
+</td>
+</tr>
+</table>
 
 **Done when:** the official Docker packages are installed, the service is running and `docker compose version` works.
 
