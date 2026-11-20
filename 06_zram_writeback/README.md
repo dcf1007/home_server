@@ -230,6 +230,14 @@ If another tool or service separately activates the same swap partition, disable
 </tr>
 </table>
 
+Before erasing the old swap signature, inspect the existing hibernation resume configuration (if the file exists):
+
+~~~sh
+sudo cat /etc/initramfs-tools/conf.d/resume
+~~~
+
+Compare any `RESUME=UUID=...`, label, PARTUUID or device path with the original identity you recorded in Step 2. This detects whether Debian still expects to resume from the partition you are converting. Inspect the remaining conventional swap entries in the saved `/etc/fstab`; do not change another device's configuration.
+
 ## Step 4 — Prepare the chosen partition
 
 <table width="100%">
@@ -318,11 +326,41 @@ Replace **both** `YOUR_NUMBER` entries with the selected partition number and `Y
 </td>
 <td valign="top">
 
-This changes only that partition's GPT type and name. It does **not** format a filesystem. Do not use `sgdisk --zap-all`, `mklabel`, `mkfs` or `mkswap` here. If the partition table cannot be refreshed because the disk is in use, reboot and recheck the partition before proceeding.
+This changes only that partition's GPT type and name. It does **not** format a filesystem. Do not use `sgdisk --zap-all`, `mklabel`, `mkfs` or `mkswap` here. If the partition table cannot be refreshed because the disk is in use, complete the resume correction below before rebooting, then recheck the partition before proceeding.
 
 </td>
 </tr>
 </table>
+
+### Clear the obsolete resume reference and rebuild the initramfs
+
+The raw ZRAM backing partition cannot store a conventional hibernation image. If the existing resume configuration pointed to the converted device, or no conventional swap entry remains in `/etc/fstab`, open or create `/etc/initramfs-tools/conf.d/resume` in a text editor with administrator privileges and save:
+
+~~~ini
+RESUME=none
+~~~
+
+This disables initramfs resume from disk, not software RAID or ZRAM. If a separate valid conventional swap device remains configured for hibernation, preserve its resume configuration; do not automatically choose a different device.
+
+<table width="100%">
+<tr>
+<td valign="top" width="100" align="center" nowrap=""><img src="../assets/warning.svg" width="100%" alt="Important note">
+</td>
+<td valign="top">
+
+If you explicitly configured another resume setting or a kernel `resume=` parameter, review that separately before rebooting. A stale resume UUID can make the initramfs repeatedly probe block devices (including mdadm scans) until the suspend/resume device wait expires. Do not remove mdadm to hide this symptom. See [Debian initramfs.conf(5)](https://manpages.debian.org/trixie/initramfs-tools-core/initramfs.conf.5.en.html).
+
+</td>
+</tr>
+</table>
+
+Regenerate all existing installed initramfs images after removing the old swap signature and fstab entry, including when preserving a valid separate resume device:
+
+~~~sh
+sudo update-initramfs -u -k all
+~~~
+
+This embeds the current resume configuration into the boot images for the installed kernels. Check for errors and do not reboot until the command succeeds. On the next boot verify that the obsolete suspend/resume device timeout is gone.
 
 ## Step 5 — Record the real PARTUUID
 

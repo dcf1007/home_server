@@ -24,7 +24,7 @@ Ten source/configuration files make up the profile, including a native Simple-CD
 | `profiles/zram-writeback.description` | Text of the opt-in ZRAM checkbox. |
 | `profiles/zram-writeback.extra` | All required sources and generator/monitor assets to stage on the installer ISO. |
 | `profiles/zram-writeback.postinst` | Native Simple-CDD completion verifier; checks a marker without rerunning feature installation. |
-| `installer/zram-writeback.sh` | The complete selected-only handler: inline utility preflight, confirmation, targeted swapoff, bounded erase, native Parted, fstab and target provisioning. |
+| `installer/zram-writeback.sh` | The complete selected-only handler: inline utility preflight, confirmation, targeted swapoff, bounded erase, native Parted, fstab, hibernation resume and target provisioning. |
 | `installer/zram-writeback-selection.sh` | The complete native GPT/sysfs/blkid candidate discovery, identity validation, mount/holder checks and fstab preparation; `blkid` is called directly. |
 | `scripts/zram-generator.conf.template` | ZSTD/ZRAM sizing and writeback config; dynamically replaced PARTUUID placeholders. |
 | `scripts/override.conf` | Single systemd drop-in for pre-init compressed writeback and setup-failure emergency policy. |
@@ -57,7 +57,7 @@ Open `profiles/zram-writeback.extra` in a text editor, paste the indicated conte
 
 This opens a source file without executing it. Expand the **complete listing for that same path below**, Save the document after reviewing the pasted contents. Do **not** run the installer-side commands outside the installer; in particular `dd`, `swapoff` and `parted` lines belong in the module only.
 
-**3. Create `installer/zram-writeback.sh`.** The complete selected-only handler: confirmation, targeted swapoff, bounded erase, native Parted, fstab and target provisioning.
+**3. Create `installer/zram-writeback.sh`.** The complete selected-only handler: confirmation, targeted swapoff, bounded erase, native Parted, fstab, hibernation resume and target provisioning.
 
 Open `installer/zram-writeback.sh` in a text editor, paste the indicated contents and save it at that path.
 
@@ -113,9 +113,9 @@ The main `installer/zram-writeback.sh` handler is **sourced**; it is never invok
 5. **Independent destructive approval:** after selecting a candidate, the handler shows the exact partition device, parent disk, size, PARTUUID and planned **first-1-MiB erase**. The default is **No**.
 6. **Active swap:** the installer reads `/proc/swaps` and asks a separate default-No confirmation for targeted `swapoff` only if the chosen partition is active. It does not impose a RAM-reserve or memory-pressure threshold. An actual failed `swapoff` or still-active backing stops the destructive conversion.
 7. **fstab preparation:** before writes, the helper prepares removal of only the confirmed partition's conventional swap entry. Unrelated root, EFI, NAS, **other swap references and partitions** remain untouched. There is no separate whole-system swap policy.
-8. **Bounded signature erase:** once all checks pass, the handler runs BusyBox `dd` with `bs=4096 count=256` against the **verified partition**, not its parent disk. That writes exactly **1 MiB**.
+8. **Resume identification and bounded signature erase:** Read the target's native resume configuration and match the selected partition before its swap UUID/label is erased. once all checks pass, the handler runs BusyBox `dd` with `bs=4096 count=256` against the **verified partition**, not its parent disk. That writes exactly **1 MiB**.
 9. **GPT conversion without recreation:** native Parted changes that partition's **type** to standard Linux data (gdisk 8300, GUID `0FC63DAF-8483-4772-8E79-3D69D8477DE4`) and its **name** to `zram-writeback`. It does **not** format a filesystem, delete the partition or hardcode the machine's PARTUUID. Post-write checks must confirm correct identity and no residual swap signature.
-10. **Target provisioning:** an atomically staged `fstab` is installed; the user approves installing `systemd-zram-generator`; both template `YOUR_PARTUUID` placeholders are replaced with the **actual detected PARTUUID**. The generator, single setup override, pressure monitor and swappiness file are installed under `/target`; GRUB is updated for `zswap.enabled=0`.
+10. **Target provisioning:** an atomically staged `fstab` is installed. If the original resume device matched the backing or no conventional fstab swap remains, write `RESUME=none` to the target's standard initramfs resume file; otherwise preserve the existing configuration. Rebuild all installed initramfs images with `update-initramfs -u -k all` before continuing. Custom resume overrides and kernel command-line parameters are outside this correction. The user approves installing `systemd-zram-generator`; both template `YOUR_PARTUUID` placeholders are replaced with the **actual detected PARTUUID**. The generator, single setup override, pressure monitor and swappiness file are installed under `/target`; GRUB is updated for `zswap.enabled=0`.
 
 ## Step 5 — Check copied source before any disk operation
 
@@ -170,7 +170,7 @@ scripts/90-zram.conf
 
 
 <details>
-<summary><strong>installer/zram-writeback.sh</strong> — complete file; 172 lines; current Git blob <code>e3bf48291a71d511e496684acb1c903f26e00da4</code></summary>
+<summary><strong>installer/zram-writeback.sh</strong> — complete file; 202 lines; current Git blob <code>8dbb1e7128c2b26ae7360ca8d442f705539ca865</code></summary>
 
 ````sh
 #!/bin/sh
@@ -272,6 +272,21 @@ profile_zram() {
     [ -z "$active_used" ] ||
         fatal 'Selected backing is active swap; cannot overwrite its signature'
 
+    # Identify the configured resume device while its old swap signature
+    # and UUID/label aliases still exist. Read the native Debian resume file
+    # in the target, not the installer's own initramfs configuration.
+    resume_ref="$(chroot /target /bin/sh -c '
+        unset RESUME
+        if [ -f /etc/initramfs-tools/conf.d/resume ]; then
+            . /etc/initramfs-tools/conf.d/resume || exit 1
+        fi
+        printf "%s" "${RESUME-}"
+    ')" || fatal 'Cannot read target hibernation resume configuration'
+    resume_on_backing=false
+    if zram_ref_matches "$resume_ref" "$uuid" "$device" "$former_uuid" "$former_label"; then
+        resume_on_backing=true
+    fi
+
     # Write only the approved partition's first 1 MiB, never its parent disk.
     # The GPT layout and PARTUUID are preserved; no filesystem is created.
     cmp -s /target/etc/fstab "$WORK/zram-original-fstab" ||
@@ -319,8 +334,22 @@ profile_zram() {
             fatal 'Confirmed backing is still referenced as conventional swap'
         fi
     done < "$WORK/zram-residual-swaps"
+    # The converted raw backing cannot serve as a hibernation resume device.
+    # Disable resume if it pointed to this partition or no conventional
+    # target fstab swap remains. Preserve other configured resume devices.
+    if [ "$resume_on_backing" = true ] || [ ! -s "$WORK/zram-residual-swaps" ]; then
+        progress_status 'Updating hibernation resume configuration'
+        mkdir -p /target/etc/initramfs-tools/conf.d ||
+            fatal 'Cannot locate target initramfs configuration directory'
+        printf 'RESUME=none\n' > /target/etc/initramfs-tools/conf.d/resume ||
+            fatal 'Cannot disable obsolete hibernation resume configuration'
+        log 'ZRAM conversion: RESUME=none (converted resume device or no remaining fstab swap)'
+    fi
+    # Rebuild every installed initramfs after removing the old swap signature
+    # and fstab entry, including when resume configuration is preserved.
+    run_target update-initramfs -u -k all
     # No other ZRAM provisioning occurs until the partition conversion
-    # (type, name, PARTUUID, signatures and active-swap state) has passed.
+    # (type, name, PARTUUID, signatures, swap and resume state) has passed.
 
     review_install 'ZRAM generator package and all dependencies' systemd-zram-generator
     mkdir -p /target/etc/systemd/system/systemd-zram-setup@zram0.service.d \
@@ -345,6 +374,7 @@ profile_zram() {
     run_target systemctl enable zram-pressure.service
     log "ZRAM raw backing: $device PARTUUID=$uuid size=$size; boot kernel/sysfs and generator require first-boot validation"
 }
+
 ````
 
 </details>

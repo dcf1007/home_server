@@ -1,5 +1,14 @@
 # Guide provenance and scope
 
+## Clear obsolete hibernation resume during ZRAM conversion — 2026-11-21 (Europe/Berlin)
+
+**Nearest user prompts:** “can you make it part of the zram writeback partition conversion?” and “commit the correction”. Based on main `296aade078384533b58bcaf63573ab43a2913aa8`. User screenshots at 00:07 and 00:08 local time show repeated mdadm/local-block scans, a suspend/resume timeout, a clean mounted root filesystem, Linux 7.3.4 and successful OMV 8.7.0-1 first-boot population and hosts deployment. The obsolete swap resume reference is a likely explanation, not verified from the VM's actual resume file.
+
+**Scope:** Before clearing the selected partition's signature, read Debian's standard target `/etc/initramfs-tools/conf.d/resume` configuration and use the existing exact device matcher while the old UUID/label can still resolve. After the verified fstab replacement, set `RESUME=none` if the resume device matched the backing or no conventional target fstab swap remains; otherwise preserve the existing configuration. Rebuild all installed initramfs images using the existing target command path. Update standalone conversion steps and the complete CDD source listing. No RAID removal, new services, profile changes outside ZRAM, GRUB resume-parameter edits or automatic selection of an alternative resume device. Native configuration reference: https://manpages.debian.org/trixie/initramfs-tools-core/initramfs.conf.5.en.html .
+
+**Limitations:** This targets Debian's normal installer-generated resume file and fstab-based swap setup; separate custom resume overrides or kernel command-line resume parameters are not rewritten. VM reproduction, boot-time comparison and multi-swap preservation testing remain pending.
+
+
 ## Adopt user-verified note cell layout — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompt:** “you should not fix the width of the second column. this actually works:” followed by a rendered table row with `width="100"` on the image cell, `width="100%"` on the image, and no width on the text cell.
