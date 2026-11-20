@@ -1,5 +1,7 @@
 # 07 — Recreate OpenMediaVault 8 installer support
 
+**Current lifecycle — 2026-11-20:** Native stages 10, 50, 55 and 60 run before the selected-profile executor at `61my-cdd`; the unmodified Simple-CDD verifier, custom status guard, unmodified CD-ROM eject and unmodified final message follow at `62simple-cdd`, `63my-cdd-status`, `64cdrom-detect` and `65final-message`. The early selector registers a pre-pkgsel `90my-cdd-order` relocation hook and a finish-install `00my-cdd-order` check; native udebs and hook contents are unchanged. The CD-ROM APT-source preseed remains; no forced ifupdown or suppressed completion dialog. A repeat finalization after stage 61 starts is blocked (exit 10) before native network finalization; inspect logs and recover manually or restart the installation rather than replaying operations. ISO/GTK/text/first-boot testing is pending.
+
 **Outcome:** build the full **optional OMV 8 profile source** for the custom Debian netinst image, not a script someone must run manually after installation. On a running Debian server, follow [07 — Manual OMV setup](../07_openmediavault/README.md); that guide uses the OMV GUI and requires **no external project Python helper**.
 
 ## Step 1 — Prepare the shared installer code
@@ -52,7 +54,7 @@ Use the matching complete listing below and save it at this path; editing does n
 
 Do **not** mark the imported OMV handler as a standalone installer or execute any of these files on the build machine.
 
-Native Debian Installer stage `11my-cdd` runs each approved selected handler **once**, then writes that profile's success marker. Unmodified Simple-CDD stage `14simple-cdd` executes the selected profile's verification-only `.postinst` **in-target**. Stage `15my-cdd-status` independently checks all approved markers and overall `COMPLETE`, returning native exit 10 rather than falsely reporting success.
+Native Debian Installer stage `61my-cdd` runs each approved selected handler **once**, then writes that profile's success marker. Unmodified Simple-CDD stage `62simple-cdd` executes the selected profile's verification-only `.postinst` **in-target**. Stage `63my-cdd-status` independently checks all approved markers and overall `COMPLETE`, returning native exit 10 rather than falsely reporting success.
 
 ## Step 3 — Understand the limited installer scope
 
@@ -349,14 +351,14 @@ WantedBy=multi-user.target
 
 ## Native Simple-CDD completion verifier
 
-Create `profiles/openmediavault.postinst` from the full source below, alongside its `.description` and `.extra` files. The stage-11 runner writes this record after successful OMV **package installation and first-boot service registration**. Original `14simple-cdd` checks that record; it does not claim that post-boot initialization is already `COMPLETE`.
+Create `profiles/openmediavault.postinst` from the full source below, alongside its `.description` and `.extra` files. The stage-61 runner writes this record after successful OMV **package installation and first-boot service registration**. Original `62simple-cdd` checks that record; it does not claim that post-boot initialization is already `COMPLETE`.
 
 ~~~sh
 chmod +x profiles/openmediavault.postinst
 sh -n profiles/openmediavault.postinst
 ~~~
 
-The syntax check is read-only. The final `15my-cdd-status` guard also checks this selected profile's record, returning exit 10 if any required record is missing.
+The syntax check is read-only. The final `63my-cdd-status` guard also checks this selected profile's record, returning exit 10 if any required record is missing.
 
 <details>
 <summary><strong>profiles/openmediavault.postinst</strong> — complete native verifier (11 lines; Git blob <code>56de86b591b15ce71f0a1ccd63f0a2522633d36d</code>)</summary>

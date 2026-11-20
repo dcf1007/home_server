@@ -1,5 +1,11 @@
 # my-cdd source manifest and provenance
 
+## Post-network native hook sequence
+
+**Current lifecycle — 2026-11-20:** Native stages 10, 50, 55 and 60 run before the selected-profile executor at `61my-cdd`; the unmodified Simple-CDD verifier, custom status guard, unmodified CD-ROM eject and unmodified final message follow at `62simple-cdd`, `63my-cdd-status`, `64cdrom-detect` and `65final-message`. The early selector registers a pre-pkgsel `90my-cdd-order` relocation hook and a finish-install `00my-cdd-order` check; native udebs and hook contents are unchanged. The CD-ROM APT-source preseed remains; no forced ifupdown or suppressed completion dialog. A repeat finalization after stage 61 starts is blocked (exit 10) before native network finalization; inspect logs and recover manually or restart the installation rather than replaying operations. ISO/GTK/text/first-boot testing is pending.
+
+**Nearest user prompt:** “create pr36 and merge it then” (following approval of the 61–65 sequence). Creation date: 2026-11-20. Based on main 4b83df33fcdee83b518e9f650973d20e035af2aa. Implementation: installer/finish-order.sh (new executable), profile-confirm.sh (register relocation/check and new stage paths), run-selected.sh (start marker prevents replay), 15my-cdd-status renamed to 63my-cdd-status, default.extra and default.preseed (staging/comment update; preseed contents unchanged), zram-writeback.sh (stage comment only). Original profile implementations, package/partition policy, OMV first boot, progress and confirmation paths unchanged. Source references: https://sources.debian.org/src/pkgsel/0.85/debian/postinst and https://sources.debian.org/src/finish-install/2.124/debian/postinst . Older entries below retain historical hook names.
+
 ## Native progress reporting — 2026-11-20
 
 **Nearest user prompt:** “i would choose option A” (native Debian Installer progress feedback rather than embedded terminal or live output changes).

@@ -1,5 +1,11 @@
 # Implementation requirements still outstanding
 
+## Post-network native hook sequence
+
+**Current lifecycle — 2026-11-20:** Native stages 10, 50, 55 and 60 run before the selected-profile executor at `61my-cdd`; the unmodified Simple-CDD verifier, custom status guard, unmodified CD-ROM eject and unmodified final message follow at `62simple-cdd`, `63my-cdd-status`, `64cdrom-detect` and `65final-message`. The early selector registers a pre-pkgsel `90my-cdd-order` relocation hook and a finish-install `00my-cdd-order` check; native udebs and hook contents are unchanged. The CD-ROM APT-source preseed remains; no forced ifupdown or suppressed completion dialog. A repeat finalization after stage 61 starts is blocked (exit 10) before native network finalization; inspect logs and recover manually or restart the installation rather than replaying operations. ISO/GTK/text/first-boot testing is pending.
+
+Historical entries below document the earlier lifecycle and should not be used as the current schedule.
+
 ## Initial root dialog and firmware license policy — 2026-11-20
 
 **Nearest user prompt:** “in the sequence, is it possible to exchange 5 and 6 in an easy way? if not leave them ass they are.these 2 changes should be an independent pr”
