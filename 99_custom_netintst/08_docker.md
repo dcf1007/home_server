@@ -97,7 +97,7 @@ installer/docker.sh
 
 
 <details>
-<summary><strong>installer/docker.sh</strong> — complete file; 31 lines; Git blob <code>110db356d9590cd3a12b0211ca0192a19757ceed</code></summary>
+<summary><strong>installer/docker.sh</strong> — complete file; 33 lines; Git blob <code>be05fdf0b5790ce9551ed8b14dc245b9330d7e60</code></summary>
 
 ````sh
 #!/bin/sh
@@ -106,6 +106,7 @@ installer/docker.sh
 profile_docker() {
     review_install 'Docker signing prerequisites' ca-certificates curl
     mkdir -p /target/etc/apt/keyrings
+    progress_status 'Downloading Docker repository signing key'
     capture in-target curl -fsSL --proto '=https' \
         -o /etc/apt/keyrings/docker.asc https://download.docker.com/linux/debian/gpg ||
         fatal 'Official Docker signing key download failed'
@@ -131,7 +132,6 @@ EOT
     run_target dpkg --audit
     log 'Docker packages installed; service activation is governed by native package defaults'
 }
-
 ````
 
 </details>

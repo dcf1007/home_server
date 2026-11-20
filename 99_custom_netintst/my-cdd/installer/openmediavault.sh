@@ -19,6 +19,7 @@ profile_omv() {
     fi
 
     review_install 'OMV signing and download tools' gnupg wget
+    progress_status 'Downloading and verifying OMV repository signing key'
     capture in-target wget -q -O /tmp/my-cdd-omv-key https://packages.openmediavault.io/archive.key ||
         fatal 'Official OMV signing key download failed'
     capture in-target gpg --show-keys --with-colons /tmp/my-cdd-omv-key ||

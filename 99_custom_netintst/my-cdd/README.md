@@ -1,5 +1,14 @@
 # my-cdd — Debian 13 custom Simple-CDD ISO source
 
+## Native progress reporting — 2026-11-20
+
+**Nearest user prompt:** “i would choose option A” (native Debian Installer progress feedback rather than embedded terminal or live output changes).
+
+- Use native cdebconf templates and status messages for selected profiles, administrator/recovery checks, APT index refresh/simulation/approved execution, kernel candidates, firmware candidates and license preparation, OMV/Docker signing-key downloads, writeback partition inspection/preparation, GRUB/initramfs refresh, package/service verification and completion. Firmware counts actual candidate tokens; local profile progress counts verified completion markers, not elapsed time.
+- Trixie `finish-install` 2.124 already starts its own bar (https://sources.debian.org/src/finish-install/2.124/debian/postinst). Trixie cdebconf 0.280 GTK destroys previous bars on START, and its command dispatcher ignores DC_NOTOK for progress INFO (https://sources.debian.org/src/cdebconf/0.280/src/modules/frontend/gtk/progress.c and https://sources.debian.org/src/cdebconf/0.280/src/commands.c). Do not start a competing nested bar. Initially use existing native progress INFO; after APT or anna handoff, open a custom native bar between native operations with actual completed profile count; stop it before another native transaction or exiting the hook. This cannot restore the already-replaced finish-install bar and frontend rendering is not yet tested. Native APT mechanism unchanged. No change to command capture/log streaming, package choices, acceptance/dialogs, credentials, partition policy, repositories, OMV first boot, or the independent Netplan experiment.
+- Validation: source inspection and static consistency checks only; rebuild/test GTK and text frontend, base-only recovery, firmware candidate progression, transitions to/from APT including failure/cancel, and final native completion. Do not infer continuous animation or per-command percentage for blocking operations.
+
+
 **Account setup and firmware consent (2026-11-20):** Initial root-password setup is skipped using the native `passwd/root-login=false` preseed; the existing late recovery-password dialog remains. Set `AUTO_ACCEPT_FIRMWARE_LICENSES=false` in `profile_defaults.conf` and rebuild to restore interactive vendor license dialogs. The default `true` preauthorizes only the two named agreements for selected Extended device support; review those terms before building/distributing. APT review remains mandatory.
 
 This is the **installer implementation**, not the first step for a normal Debian server. For the uncomplicated post-install path see the [repository's numbered howtos](../../README.md); for the installer strategy see [99 — custom netinst](../README.md).

@@ -49,6 +49,7 @@ choose_normal_kernel() {
 
 profile_kernel() {
     update_signed_apt
+    progress_status 'Checking eligible kernel versions and dependencies'
     if backports_is_selected; then
         try_kernel_suite trixie-backports ||
             choose_normal_kernel ||

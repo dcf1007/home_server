@@ -1,5 +1,14 @@
 # Installer-only implementation
 
+## Native progress reporting — 2026-11-20
+
+**Nearest user prompt:** “i would choose option A” (native Debian Installer progress feedback rather than embedded terminal or live output changes).
+
+- Use native cdebconf templates and status messages for selected profiles, administrator/recovery checks, APT index refresh/simulation/approved execution, kernel candidates, firmware candidates and license preparation, OMV/Docker signing-key downloads, writeback partition inspection/preparation, GRUB/initramfs refresh, package/service verification and completion. Firmware counts actual candidate tokens; local profile progress counts verified completion markers, not elapsed time.
+- Trixie `finish-install` 2.124 already starts its own bar (https://sources.debian.org/src/finish-install/2.124/debian/postinst). Trixie cdebconf 0.280 GTK destroys previous bars on START, and its command dispatcher ignores DC_NOTOK for progress INFO (https://sources.debian.org/src/cdebconf/0.280/src/modules/frontend/gtk/progress.c and https://sources.debian.org/src/cdebconf/0.280/src/commands.c). Do not start a competing nested bar. Initially use existing native progress INFO; after APT or anna handoff, open a custom native bar between native operations with actual completed profile count; stop it before another native transaction or exiting the hook. This cannot restore the already-replaced finish-install bar and frontend rendering is not yet tested. Native APT mechanism unchanged. No change to command capture/log streaming, package choices, acceptance/dialogs, credentials, partition policy, repositories, OMV first boot, or the independent Netplan experiment.
+- Validation: source inspection and static consistency checks only; rebuild/test GTK and text frontend, base-only recovery, firmware candidate progression, transitions to/from APT including failure/cancel, and final native completion. Do not infer continuous animation or per-command percentage for blocking operations.
+
+
 This directory contains **Debian Installer integration**, not generic post-install configuration instructions. The standalone server howtos are in the [repository root](../../../README.md). Netinst adaptation notes are in [99's guide](../../README.md).
 
 ## Entry points and mechanisms

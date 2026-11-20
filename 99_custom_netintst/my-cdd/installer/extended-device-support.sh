@@ -30,6 +30,7 @@ firmware_license_decision() {
         firmware-ipw2x00|firmware-ivtv) : ;;
         *) fatal "Unrecognized license-restricted firmware: $licensed_pkg" ;;
     esac
+    progress_status "Preparing vendor license: $licensed_pkg"
     licensed_suite=${licensed_selector#*/}
     licensed_version="$(suite_version "$licensed_pkg" "$licensed_suite")"
     [ -n "$licensed_version" ] ||
@@ -121,10 +122,16 @@ profile_firmware() {
     : > "$WORK/firmware-selectors"
     : > "$WORK/firmware-fallbacks"
     : > "$WORK/firmware-omissions"
-    for pkg in $(grep -Ev '^[[:space:]]*(#|$)' "$MEDIA/firmware-candidates.txt"); do
+    firmware_candidates="$(grep -Ev '^[[:space:]]*(#|$)' "$MEDIA/firmware-candidates.txt" || :)"
+    firmware_total=0
+    for pkg in $firmware_candidates; do firmware_total=$((firmware_total + 1)); done
+    firmware_index=0
+    for pkg in $firmware_candidates; do
+        firmware_index=$((firmware_index + 1))
         case "$pkg" in
             ''|*[!a-zA-Z0-9.+-]*) fatal "Unsafe inventory package: $pkg";;
         esac
+        progress_status "Checking firmware $firmware_index of $firmware_total: $pkg"
         stable="$(normal_suite "$pkg")" || stable=''
         bpo=''
         if backports_is_selected; then bpo="$(suite_version "$pkg" trixie-backports)"; fi

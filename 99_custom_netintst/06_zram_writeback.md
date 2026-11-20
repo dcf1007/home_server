@@ -170,7 +170,7 @@ scripts/90-zram.conf
 
 
 <details>
-<summary><strong>installer/zram-writeback.sh</strong> — complete file; 167 lines; current Git blob <code>63267fec1afb2beca12b97ff98e79de36695a28f</code></summary>
+<summary><strong>installer/zram-writeback.sh</strong> — complete file; 173 lines; current Git blob <code>231df6770e2bbba2a023ffe51d5457d12fe5d088</code></summary>
 
 ````sh
 #!/bin/sh
@@ -193,6 +193,8 @@ profile_zram() {
     if ! command -v parted >/dev/null 2>&1; then
         command -v anna-install >/dev/null 2>&1 ||
             fatal 'Native Debian Installer anna-install is unavailable for parted-udeb'
+        progress_status 'Loading installer partition tools'
+        progress_handoff
         capture anna-install parted-udeb ||
             fatal 'Could not load official parted-udeb into Debian Installer'
     fi
@@ -200,6 +202,8 @@ profile_zram() {
         fatal 'Official parted-udeb did not provide a usable parted command'
     # Load installer-native blkid from util-linux-udeb when absent.
     if ! command -v blkid >/dev/null 2>&1; then
+        progress_status 'Loading installer block-device tools'
+        progress_handoff
         capture anna-install util-linux-udeb ||
             fatal 'Could not load official util-linux-udeb into Debian Installer'
     fi
@@ -216,6 +220,7 @@ profile_zram() {
     [ -d /sys/class/block ] && [ -r /proc/swaps ] &&
         [ -r /proc/self/mountinfo ] && [ -d /dev/disk/by-partuuid ] ||
         fatal 'ZRAM cannot inspect installer block devices, swaps, mounts or PARTUUID links'
+    progress_status 'Inspecting writeback partition candidates'
     zram_collect_candidates
     zram_choose_candidate
     uuid=$zram_uuid
@@ -272,6 +277,7 @@ profile_zram() {
     cmp -s /target/etc/fstab "$WORK/zram-original-fstab" ||
         fatal 'Installed target fstab changed after verification; conversion stopped'
     log "USER APPROVED CONVERSION: $device, PARTUUID=$uuid, size=$size"
+    progress_status 'Preparing the explicitly approved writeback partition'
     capture busybox dd if=/dev/zero of="$device" bs=4096 count=256 conv=notrunc,fsync ||
         fatal 'Could not erase swap signature from the confirmed backing partition'
     capture parted -s "$disk" type "$partn" "$ZRAM_DATA_GUID" ||
@@ -339,7 +345,6 @@ profile_zram() {
     run_target systemctl enable zram-pressure.service
     log "ZRAM raw backing: $device PARTUUID=$uuid size=$size; boot kernel/sysfs and generator require first-boot validation"
 }
-
 ````
 
 </details>
