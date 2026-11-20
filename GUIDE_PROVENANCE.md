@@ -1,5 +1,14 @@
 # Guide provenance and scope
 
+## Consistent OMV warning icon dimensions — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “lock the size of the image so it's consistent everywhere”.
+
+**Implemented:** Retain the approved 72 × 72 pixel displayed triangle and match the SVG intrinsic dimensions to it (unchanged 80 × 80 viewBox and artwork). Across all 28 manual warning blocks, reserve the left column with a width attribute, nowrap and a centered nonbreaking-space spacer below the image; the spacer prevents the responsive table layout from collapsing the image's available width when long content occupies the right cell. GitHub Markdown strips arbitrary CSS; no inline CSS dependency is introduced. The spacer is marked aria-hidden. All warning text and instructions are unchanged.
+
+**Validation:** Exact old/new markup substitution checked across all nine chapters. In-memory Chromium test of representative GitHub-like responsive table CSS showed the previous image could shrink horizontally; the revised markup measured 72 × 72 CSS pixels at viewport widths 320, 375, 768 and 1024, with and without long preformatted content. Actual GitHub rendering, other browsers and user zoom/font settings are not independently validated; Markdown cannot impose an absolute physical-pixel size across all viewers.
+
+
 ## OMV warning-note layout — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompt:** “can you put on the left of all the text that corresponds to the omv configuration a big yellow triangle with exlamation mark (in svg) and the text on its right?”

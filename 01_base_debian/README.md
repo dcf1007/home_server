@@ -135,7 +135,7 @@ This **downloads current package indexes** from the configured Debian repositori
 
 <table>
 <tr>
-<td valign="top"><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **If OMV is already installed or will be installed later:** the ordinary Debian SSH and network checks above describe the base system, not a guarantee that OMV will retain its settings. OMV manages SSH access (including the `_ssh` group), network/DNS and time services. Your separate local root recovery password remains useful; sudo membership alone does not grant OMV SSH access. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks) before relying on remote administration.
