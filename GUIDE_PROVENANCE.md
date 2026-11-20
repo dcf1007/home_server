@@ -1,5 +1,15 @@
 # Guide provenance and scope
 
+## ZRAM diagnostic v6: parallel retrieval and stage instrumentation — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “i agree. execute 4 threads per core available” (following discussion of parallel page faults, native ctypes calls releasing the GIL, and timing/storage instrumentation).
+
+**Implementation:** [v6 / c226e0d](https://github.com/dcf1007/home_server/commit/c226e0d38a52c17ec1eb57f9784e5adc34a122ed), script Git blob `bebfe2a248d83579985bd246c98999926b4099a4`. Four readback threads per allowed logical CPU, detected in the cold worker's affinity mask; fixed concurrency supersedes the proposed adaptive benchmark. Pool created only for readback, with 256 KiB native thread stacks. Within each FIFO allocation block, disjoint page lanes use libc memcpy and madvise via ctypes.CDLL, releasing the GIL during native operations. Fewer lanes are needed for blocks with fewer pages than configured threads. Per-page SHA-256, bit flip/check/restore, and immediate MADV_DONTNEED retained. Actual per-class cumulative completion counts replace sequential-offset inference, with block-length and monotonic progress validation. The five-minute inactivity watchdog, no overall readback deadline, v5 capacity accounting, and automatic logs remain.
+
+**Instrumentation:** Per completed page, sum wall and thread CPU times for native retrieval, hashing, modification/restoration and discard; record per-thread major/minor faults. Optional interval backing block read latency and average queue depth from sysfs, system CPU steal from /proc/stat, and live processing-lane count. Stage sums overlap and are not elapsed time; retrieval is not isolated NVMe or decompression timing. No measured parallel speedup or within-run sequential comparison claimed.
+
+**Verification boundary:** Exact committed source fetched and checked against the proposed source. Local native primitive and matching lane-partition/accounting harness passed with 261 pages/16 lanes, 258 pages/12 lanes, and 3 pages/3 lanes: checksums, bit modification/restoration, equal per-class counts, zero-filled discarded anonymous pages, and nonnegative timing/fault accounting. This is not a full-script execution or actual ZRAM/systemd VM validation. Fixed affinity-derived concurrency may be constrained by thread/task and memory limits on high-CPU systems; no fallback that silently reduces concurrency. No production service, configuration or installer changes.
+
 ## ZRAM diagnostic v5: adaptive capacity accounting — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompts:** “regarding the allocation budget, for the same element pages it is true there will be no writeback almost, but for the highly compressible, they will still occupy the full space as long as they are not calaloged as same-element. so the increase in hte zram swap and in the writeback backup will actually occupy different sizes. how can you account for that?”; approval: “commit version 5”.
