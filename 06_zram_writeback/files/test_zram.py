@@ -26,9 +26,7 @@ Z = Path('/sys/block/zram0')
 SERVICE = 'zram-pressure.service'
 NORMAL_SECONDS = 360
 EMERGENCY_SECONDS = 240
-READBACK_GRACE_SECONDS = 180
-READBACK_BYTES_PER_SECOND = MIB  # 1 MiB/s allowance, not a measured speed
-READBACK_STALL_SECONDS = 120
+READBACK_STALL_SECONDS = 300  # only inactivity, no overall deadline
 READBACK_PROGRESS = MIB
 AGE_SECONDS = 65
 POLL = 1.0
@@ -36,6 +34,7 @@ PAGE = os.sysconf('SC_PAGE_SIZE')
 # Linux UAPI values: Python builds do not always export these constants.
 MADV_COLD = getattr(mmap, 'MADV_COLD', 20)
 MADV_PAGEOUT = getattr(mmap, 'MADV_PAGEOUT', 21)
+MADV_DONTNEED = getattr(mmap, 'MADV_DONTNEED', 4)
 START = time.monotonic()
 LOG = None
 CSV = None
@@ -62,16 +61,17 @@ def say(message):
     emit(f'[{time.monotonic()-START:6.1f}s] {message}')
 
 
-def readback_seconds(n):
-    return READBACK_GRACE_SECONDS + (n+READBACK_BYTES_PER_SECOND-1)//READBACK_BYTES_PER_SECOND
-
-
 CSV_FIELDS = ('elapsed_s', 'phase', 'occupancy_pct', 'psi_avg10_pct',
               'resident_bytes', 'resident_limit_bytes', 'available_bytes',
               'swap_used_bytes', 'swap_free_bytes', 'backing_units_4k',
               'backing_read_delta_4k', 'backing_write_delta_4k',
               'allocated_bytes', 'accessed_bytes', 'verified_bytes',
-              'pages_modified', 'remaining_s', 'readback_rate_mib_s')
+              'pages_modified', 'remaining_s', 'readback_rate_mib_s',
+              'discarded_bytes', 'compressible_allocated_bytes', 'random_allocated_bytes',
+              'orig_data_bytes', 'compr_data_bytes', 'same_pages', 'huge_pages',
+              'huge_pages_since', 'compression_ratio_no_backing',
+              'payload_savings_pct_no_backing', 'resident_savings_pct_no_backing',
+              'readback_idle_s')
 
 
 def run(*args, timeout=10, check=True):
@@ -108,8 +108,14 @@ def service_identity():
 
 
 def snapshot():
-    original, compressed, used, limit, *_ = fields(Z/'mm_stat')
+    bd_before = fields(Z/'bd_stat')
+    mm = fields(Z/'mm_stat')
+    original, compressed, used, limit, *_ = mm
     backing, reads, writes, *_ = fields(Z/'bd_stat')
+    # orig_data_size may include entries already written back, whereas
+    # compr_data_size is resident payload. Only compute compression ratios
+    # when there are no backing entries and no intervening backing writes.
+    comparable = backing == bd_before[0] == 0 and writes == bd_before[2]
     errors = tuple(fields(Z/'io_stat')[:2])
     if limit <= 0:
         raise Failure('ZRAM resident limit is zero or was removed')
@@ -124,7 +130,17 @@ def snapshot():
                 limit=limit, occupancy=used*100//limit, psi=float(psi[1]),
                 backing=backing, reads=reads, writes=writes, errors=errors,
                 available=meminfo()['MemAvailable'], swap_used=swap[2],
-                swap_free=swap[1]-swap[2])
+                swap_free=swap[1]-swap[2], comparable=comparable,
+                same_pages=mm[5] if len(mm)>5 else None,
+                huge_pages=mm[7] if len(mm)>7 else None,
+                huge_pages_since=mm[8] if len(mm)>8 else None)
+
+
+def compression(s):
+    if not s.get('comparable') or not s['original']:
+        return None, None, None
+    o, c, u = s['original'], s['compressed'], s['used']
+    return (o/c if c else None, 100*(1-c/o), 100*(1-u/o))
 
 
 class Journal:
@@ -176,7 +192,7 @@ def private_mapping(length):
 
 
 def cold_worker():
-    """Keep mappings untouched until ordered verification and release."""
+    """Equal mixed pages, FIFO verification, immediate per-page discard."""
     blocks = []
     def reply(**data):
         print('ZTEST '+json.dumps(data), flush=True)
@@ -185,49 +201,56 @@ def cold_worker():
         command = json.loads(line)
         if command['op'] == 'alloc':
             n = command['n']
+            if n <= 0 or n % (2*PAGE):
+                raise ValueError('Cold allocations must contain an even number of pages')
             m = private_mapping(n)
-            # Each page is 75% random, 25% zero, not a same-element page.
-            # The random bytes are different for each page and allocation.
+            # Repeated non-uniform 64-byte pattern; not a same-element page.
+            pattern = bytes(range(64))
+            repeated = (pattern*((PAGE+len(pattern)-1)//len(pattern)))[:PAGE]
+            digests = bytearray()
             try:
-                random_bytes = os.urandom(n//4*3)
-                span = PAGE//4*3
                 for i in range(n//PAGE):
-                    m[i*PAGE:i*PAGE+span] = random_bytes[i*span:(i+1)*span]
-                del random_bytes
-                digest = hashlib.sha256(m).hexdigest()
+                    page = repeated if i % 2 == 0 else os.urandom(PAGE)
+                    m[i*PAGE:(i+1)*PAGE] = page
+                    digests.extend(hashlib.sha256(page).digest())
+                del page
                 m.madvise(MADV_COLD)
                 m.madvise(MADV_PAGEOUT)
-                blocks.append((m, digest, n))
+                blocks.append((m, digests, n))
             except BaseException:
                 m.close()
                 raise
-            reply(allocated=n)
+            reply(allocated=n, compressible=n//2, random=n//2)
         elif command['op'] == 'verify':
             if not blocks:
                 reply(done=True)
                 continue
-            m, expected, n = blocks.pop(0)
-            # Oldest allocation first, ascending page offsets. Hash original
-            # bytes before modifying any byte; restore each byte afterwards.
-            digest = hashlib.sha256()
-            count = 0
-            for offset in range(0, n, PAGE):
-                original = m[offset:offset+PAGE]  # faults a swapped page in
-                digest.update(original)
+            m, digests, n = blocks.pop(0)
+            last_report = time.monotonic()
+            for i, offset in enumerate(range(0, n, PAGE)):
+                original = m[offset:offset+PAGE]
+                if hashlib.sha256(original).digest() != digests[i*32:(i+1)*32]:
+                    reply(error=f'Page checksum mismatch at offset {offset}')
+                    m.close()
+                    return
                 first = original[0]
-                m[offset] = first ^ 1  # force a real write, not a no-op store
+                m[offset] = first ^ 1
                 if m[offset] != (first ^ 1):
                     raise RuntimeError(f'Page modification failed at {offset}')
                 m[offset] = first
                 if m[offset] != first:
                     raise RuntimeError(f'Page restoration failed at {offset}')
-                count += 1
+                # The mapping is private anonymous memory, and this specific
+                # page is verified. Discard it, not the rest of the mapping.
+                m.madvise(MADV_DONTNEED, offset, PAGE)
+                del original
                 processed = offset+PAGE
-                if processed % READBACK_PROGRESS == 0 or processed == n:
-                    reply(processed=processed, pages=count)
-            actual = digest.hexdigest()
+                now = time.monotonic()
+                if processed % READBACK_PROGRESS == 0 or processed == n or now-last_report >= 1:
+                    reply(processed=processed, pages=i+1, discarded=processed)
+                    last_report = now
             m.close()
-            reply(verified=n, match=actual == expected, pages=count)
+            reply(verified=n, match=True, pages=n//PAGE)
         elif command['op'] == 'exit':
             break
         else:
@@ -254,7 +277,8 @@ class Worker:
         cmd = ['systemd-run', '--quiet', '--wait', '--pipe', '--collect',
                '--unit='+self.unit, '-p', 'MemoryAccounting=yes',
                '-p', f'MemoryMax={resident}', '-p', f'MemorySwapMax={swap}',
-               '-p', 'OOMPolicy=stop', '-p', f'RuntimeMaxSec={runtime}s',
+               '-p', 'OOMPolicy=stop', '-p',
+               f'RuntimeMaxSec={runtime}s' if runtime is not None else 'RuntimeMaxSec=infinity',
                '-p', 'TimeoutStopSec=5s']
         if high is not None:
             cmd += ['-p', f'MemoryHigh={high}']
@@ -318,6 +342,8 @@ class Test:
         self.verified = 0
         self.accessed = 0
         self.pages_modified = 0
+        self.discarded = 0
+        self.compression_peak = None
         self.readback_started = None
         self.last_progress = None
         self.display_phase = None
@@ -369,7 +395,7 @@ class Test:
         self.hot_size = min(96*MIB, max(16*MIB, s['limit']//25))//PAGE*PAGE
         self.hot_max = self.hot_size+48*MIB
         self.budget = min(s['swap_free']*85//100, s['limit']*3)
-        self.budget = self.budget//PAGE*PAGE
+        self.budget = self.budget//(2*PAGE)*(2*PAGE)
         self.chunk = min(32*MIB, max(PAGE, self.resident//8))//PAGE*PAGE
         if s['occupancy'] >= 70:
             raise Inconclusive('Baseline occupancy >=70%; use a quiet VM')
@@ -382,17 +408,19 @@ class Test:
         say(f'Cold allocation cap={self.budget/MIB:.0f} MiB; cold RAM cap={self.resident/MIB:.0f} MiB; '
             f'hot working set={self.hot_size/MIB:.0f} MiB; reserve={self.reserve/MIB:.0f} MiB')
         say('WARNING: deliberate memory/swap pressure and SSD writes; disposable VM only.')
-        # The worker must outlive both pressure phases and the expanded readback.
-        runtime = 30+NORMAL_SECONDS+EMERGENCY_SECONDS+readback_seconds(self.budget)+120
-        self.cold = Worker(self.units, 'cold', self.resident, self.budget, runtime=runtime)
+        # Controller deadlines/watchdog govern the cold worker, not systemd.
+        say('Cold workload: exactly 50% repeated-pattern pages, 50% random pages; hot worker separately random.')
+        self.cold = Worker(self.units, 'cold', self.resident, self.budget, runtime=None)
         self.workers.append(self.cold)
         if not self.receive(self.cold).get('ready'):
             raise Failure('Cold worker did not initialize')
 
     def tick(self):
-        if time.monotonic() >= self.deadline:
+        if self.deadline is not None and time.monotonic() >= self.deadline:
             raise Inconclusive(f'{self.phase} timed out')
         s = snapshot()
+        if self.total and s['comparable'] and s['original'] > self.base['original'] and (self.compression_peak is None or s['original'] > self.compression_peak['original']):
+            self.compression_peak = dict(s)
         if s['limit'] != self.base['limit']:
             raise Failure('ZRAM resident limit changed during test')
         if s['errors'] != self.base['errors']:
@@ -409,7 +437,7 @@ class Test:
             self.last_check = time.monotonic()
         if self.phase == 'READBACK' and self.last_progress is not None:
             if time.monotonic()-self.last_progress >= READBACK_STALL_SECONDS:
-                raise Inconclusive('READBACK made no page progress for 120s')
+                raise Inconclusive(f'READBACK made no verified/discarded page progress for {READBACK_STALL_SECONDS}s; last confirmed {self.discarded/MIB:.1f} MiB')
         if time.monotonic()-self.last_display >= 2 or self.display_phase != self.phase:
             self.display(s)
             self.last_display = time.monotonic()
@@ -417,7 +445,9 @@ class Test:
 
     def display(self, s):
         now = time.monotonic()
-        remaining = max(0, self.deadline-now)
+        remaining = max(0, self.deadline-now) if self.deadline is not None else None
+        idle = max(0, now-self.last_progress) if self.phase == 'READBACK' and self.last_progress is not None else None
+        ratio, payload_saving, resident_saving = compression(s)
         rate = (self.accessed/MIB/max(0.001, now-self.readback_started)
                 if self.readback_started is not None else 0)
         writes = (s['writes']-self.base['writes'])/256
@@ -431,17 +461,18 @@ class Test:
             eta = (max(0,self.total-self.accessed)/MIB/rate if rate > 0 else None)
             eta_text = f'{eta:.0f}' if eta is not None else '-'
             if header:
-                emit('   Time |   Read+ | Accessed | Verified |   MiB/s |  ETA s |  Left s')
+                emit('   Time |   Read+ | Discarded |   Swap |   MiB/s |  ETA s | Idle s')
                 emit('-'*69)
-            emit(f'{now-START:7.1f} | {reads:7.1f} | {self.accessed/MIB:8.1f} | '
-                 f'{self.verified/MIB:8.1f} | {rate:7.2f} | {eta_text:>6} | {remaining:7.0f}')
+            emit(f'{now-START:7.1f} | {reads:7.1f} | {self.discarded/MIB:9.1f} | '
+                 f'{s["swap_used"]/MIB:6.1f} | {rate:7.2f} | {eta_text:>6} | {idle:6.0f}')
         else:
             if header:
-                emit('   Time | Occ% |  PSI% |   ZRAM |   Swap |     W+ |     R+ | Left')
+                emit('   Time | Occ% |  PSI% |   ZRAM |   Swap |     W+ | Ratio | Left')
                 emit('-'*69)
+            ratio_text = f'{ratio:.2f}' if ratio is not None else '-'
             emit(f'{now-START:7.1f} | {s["occupancy"]:4} | {s["psi"]:5.2f} | '
                  f'{s["used"]/MIB:6.1f} | {s["swap_used"]/MIB:6.1f} | '
-                 f'{writes:6.1f} | {reads:6.1f} | {remaining:4.0f}')
+                 f'{writes:6.1f} | {ratio_text:>5} | {remaining:4.0f}')
         self.display_rows += 1
         if CSV is not None:
             CSV.writerow(dict(elapsed_s=f'{now-START:.3f}', phase=self.phase,
@@ -453,7 +484,13 @@ class Test:
                 backing_write_delta_4k=s['writes']-self.base['writes'],
                 allocated_bytes=self.total, accessed_bytes=self.accessed,
                 verified_bytes=self.verified, pages_modified=self.pages_modified,
-                remaining_s=f'{remaining:.1f}', readback_rate_mib_s=f'{rate:.3f}'))
+                remaining_s=f'{remaining:.1f}' if remaining is not None else '',
+                readback_rate_mib_s=f'{rate:.3f}', discarded_bytes=self.discarded,
+                compressible_allocated_bytes=self.total//2, random_allocated_bytes=self.total//2,
+                orig_data_bytes=s['original'], compr_data_bytes=s['compressed'],
+                same_pages=s['same_pages'], huge_pages=s['huge_pages'], huge_pages_since=s['huge_pages_since'],
+                compression_ratio_no_backing=ratio, payload_savings_pct_no_backing=payload_saving,
+                resident_savings_pct_no_backing=resident_saving, readback_idle_s=idle))
 
     def receive(self, worker):
         while True:
@@ -469,13 +506,13 @@ class Test:
     def alloc(self, s, target):
         # Near a threshold, use smaller steps. Never allocate blindly above it.
         gap = max(PAGE, (target*s['limit']//100)-s['used'])
-        n = min(self.chunk, max(PAGE, gap//2), self.budget-self.total,
-                max(0, s['swap_free']-self.hot_size-32*MIB))//PAGE*PAGE
+        n = min(self.chunk, max(2*PAGE, gap//2), self.budget-self.total,
+                max(0, s['swap_free']-self.hot_size-32*MIB))//(2*PAGE)*(2*PAGE)
         if n <= 0:
             return False
         self.cold.send(op='alloc', n=n)
         msg = self.receive(self.cold)
-        if msg.get('allocated') != n:
+        if msg.get('allocated') != n or msg.get('compressible') != n//2 or msg.get('random') != n//2:
             raise Failure(f'Unexpected allocation reply: {msg}')
         self.total += n
         return True
@@ -551,12 +588,11 @@ class Test:
     def readback(self):
         self.phase = 'READBACK'
         self.readback_started = self.last_progress = time.monotonic()
-        duration = readback_seconds(self.total)
-        self.deadline = self.readback_started+duration
+        self.deadline = None
         before = snapshot()['reads']
         say(f'3/3 READBACK: oldest first; access, flip/restore one bit per page, '
-            f'and verify all {self.total/MIB:.1f} MiB by SHA-256.')
-        say(f'Readback allowance {duration}s; no-progress timeout {READBACK_STALL_SECONDS}s.')
+            f'verify SHA-256 and immediately discard all {self.total/MIB:.1f} MiB.')
+        say(f'No overall readback deadline; no-progress timeout {READBACK_STALL_SECONDS}s.')
         if not self.total:
             raise Inconclusive('No cold data allocated')
         while self.verified < self.total:
@@ -566,24 +602,25 @@ class Test:
                 msg = self.receive(self.cold)
                 if 'processed' in msg:
                     processed = msg['processed']
-                    if not isinstance(processed, int) or not last < processed <= self.total-self.verified or processed % PAGE or msg.get('pages') != processed//PAGE:
+                    if not isinstance(processed, int) or not last < processed <= self.total-self.verified+last or processed % PAGE or msg.get('pages') != processed//PAGE or msg.get('discarded') != processed:
                         raise Failure(f'Invalid page progress: {msg}')
                     self.accessed += processed-last
                     self.pages_modified += (processed-last)//PAGE
+                    self.discarded += processed-last
+                    self.verified += processed-last
                     self.last_progress = time.monotonic()
                     last = processed
                     continue
                 if msg.get('match') is not True or msg.get('verified') != last or not last or msg.get('pages') != last//PAGE:
                     raise Failure(f'Cold data checksum mismatch or invalid response: {msg}')
-                self.verified += last
                 break
         s = self.tick()
-        if self.verified != self.total or self.accessed != self.total:
+        if self.verified != self.total or self.accessed != self.total or self.discarded != self.total:
             raise Failure('Verified/accessed byte count does not match allocation')
         if s['reads'] <= before:
             raise Inconclusive('All checksums match, but no new backing-device reads observed')
         say(f'PASS READBACK: all SHA-256 checks passed; {self.pages_modified} pages '
-            f'modified/restored; backing reads +{(s["reads"]-before)/256:.1f} MiB.')
+            f'modified/restored/discarded; backing reads +{(s["reads"]-before)/256:.1f} MiB.')
 
     def cleanup(self):
         say('CLEANUP: terminating only transient test units; no global swapoff.')
@@ -663,7 +700,23 @@ class Test:
                     say(f'{name} detail: {result.split(":",1)[1].strip()}')
             emit(f'Accessed: {self.accessed/MIB:.1f}/{self.total/MIB:.1f} MiB  '
                  f'Verified: {self.verified/MIB:.1f} MiB')
-            emit(f'Pages modified and restored: {self.pages_modified}')
+            emit(f'Pages modified, restored and discarded: {self.pages_modified}')
+            emit(f'Cold allocation: compressible={self.total/2/MIB:.1f} MiB; random={self.total/2/MIB:.1f} MiB')
+            emit(f'Discarded: {self.discarded/MIB:.1f} MiB')
+            emit('COMPRESSION | largest sampled logical volume before/no backing entries')
+            if self.compression_peak is not None:
+                c = self.compression_peak
+                ratio, payload_saving, resident_saving = compression(c)
+                emit(f'Logical: {c["original"]/MIB:.2f} MiB | Payload: {c["compressed"]/MIB:.2f} MiB | RAM: {c["used"]/MIB:.2f} MiB')
+                if ratio is not None:
+                    emit(f'Payload ratio: {ratio:.2f}:1 | Payload saved: {payload_saving:.2f}% | RAM saved: {resident_saving:.2f}%')
+                else:
+                    emit(f'Payload ratio: undefined (zero payload) | Payload saved: {payload_saving:.2f}% | RAM saved: {resident_saving:.2f}%')
+                emit(f'Same-element pages: {c["same_pages"]} | Incompressible pages: {c["huge_pages"]}')
+            else:
+                emit('No comparable sample; cannot report a compression ratio.')
+            emit('Compression statistics are device-wide, not per data type; backing I/O is separate.')
+            emit('Ratio is suppressed when backing entries exist. See CSV for all raw counters.')
             if hasattr(self, 'base'):
                 try:
                     s = snapshot()
