@@ -170,7 +170,7 @@ scripts/90-zram.conf
 
 
 <details>
-<summary><strong>installer/zram-writeback.sh</strong> — complete file; 167 lines; current Git blob <code>63267fec1afb2beca12b97ff98e79de36695a28f</code></summary>
+<summary><strong>installer/zram-writeback.sh</strong> — complete file; 168 lines; current Git blob <code>b070741aef54bf8d4632d0294a532e2bd091257e</code></summary>
 
 ````sh
 #!/bin/sh
@@ -272,6 +272,7 @@ profile_zram() {
     cmp -s /target/etc/fstab "$WORK/zram-original-fstab" ||
         fatal 'Installed target fstab changed after verification; conversion stopped'
     log "USER APPROVED CONVERSION: $device, PARTUUID=$uuid, size=$size"
+    progress_status 'Preparing the explicitly approved writeback partition'
     capture busybox dd if=/dev/zero of="$device" bs=4096 count=256 conv=notrunc,fsync ||
         fatal 'Could not erase swap signature from the confirmed backing partition'
     capture parted -s "$disk" type "$partn" "$ZRAM_DATA_GUID" ||
@@ -339,7 +340,6 @@ profile_zram() {
     run_target systemctl enable zram-pressure.service
     log "ZRAM raw backing: $device PARTUUID=$uuid size=$size; boot kernel/sysfs and generator require first-boot validation"
 }
-
 ````
 
 </details>

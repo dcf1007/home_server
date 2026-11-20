@@ -1,5 +1,7 @@
 # Installer framework — Build hooks, confirmations and the dispatcher
 
+**Native operation status (2026-11-20):** Stage 11 uses a loaded `my-cdd/progress` template and `db_progress INFO` on Debian's existing finish-install progress display. If the progress bar is no longer available (e.g. after the native APT progress transaction), fall back to the native non-blocking `db_info` mechanism. No custom nested bar, numeric progress adjustment, terminal widget, raw command arguments, credentials or new confirmation prompts. Selected-profile counts and firmware-candidate counts reflect actual lists, not estimated time. APT's own progress and all previous question/error-handling paths remain unchanged. Actual GTK/text behavior requires VM testing.
+
 **Outcome:** implement the part of the custom ISO that loads the real Simple-CDD checkboxes, asks for explicit approval, runs **only selected** profile functions and blocks misleading “Installation complete” messages when a feature fails.
 
 **Before this chapter:** create the Simple-CDD project from [Build project](build_project.md) and shared helpers from [Shared profile helpers](profile_construction.md). This framework still needs the actual feature modules and their `.extra` manifests before it can build a complete image.
@@ -275,7 +277,7 @@ done
 
 
 <details>
-<summary><strong>Complete file: installer/profile-confirm.templates</strong> (101 lines, current Git blob <code>6fefa7c97820932eec3faceb96b41bea8ad08c1a</code>)</summary>
+<summary><strong>Complete file: installer/profile-confirm.templates</strong> (105 lines, current Git blob <code>c3d51733546d1ddd21596279e97b1b573167a5e4</code>)</summary>
 
 ````text
 # Native Debconf templates for the user-approved early preseed confirmation.
@@ -379,13 +381,17 @@ Description: Remove the package ${MYCDD_REMOVAL}?
  This is one individually identified package from the displayed APT
  autoremove/purge simulation. Choose No to stop the cleanup rather than
  execute an unapproved removal.
+
+Template: my-cdd/progress
+Type: text
+Description: ${MYCDD_STATUS}
 ````
 
 </details>
 
 
 <details>
-<summary><strong>Complete file: installer/run-selected.sh</strong> (318 lines, current Git blob <code>24d78b116d9432080a1006ffa31b413775bb7c49</code>)</summary>
+<summary><strong>Complete file: installer/run-selected.sh</strong> (358 lines, current Git blob <code>a1c894565aef44f4cd0760a2e75a70286556e273</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -449,6 +455,23 @@ export_log() {
 }
 # Must load current Debian Installer's GTK or text cdebconf frontend.
 . /usr/share/debconf/confmodule
+# Observational UI only. Native finish-install owns the outer progress bar;
+# native debconf-apt-progress and installer package tools own their own UI.
+# Do not START/STOP a nested bar or change the parent's numeric progress.
+# Only caller-supplied, non-secret, single-line status text reaches Debconf.
+progress_context='Account recovery'
+progress_status() {
+    if db_subst my-cdd/progress MYCDD_STATUS "$progress_context: $1"; then
+        if db_progress INFO my-cdd/progress; then
+            :
+        else
+            # A nested native APT transaction may have stopped the outer bar.
+            # INFO is a non-blocking native status display, not an approval.
+            db_info my-cdd/progress || :
+        fi
+    fi
+    return 0
+}
 review_serial=0
 show_note() {
     name=$1
@@ -543,13 +566,25 @@ run_target() {
     # Retain the native Debian Installer APT progress UI. Profile calls and
     # the complete reviewed plan determine which operation executes.
     if [ "$1" = apt-get ]; then
+        case "$*" in
+            update) progress_status 'Updating package indexes' ;;
+            *) progress_status 'Executing the approved APT transaction' ;;
+        esac
         capture in-target debconf-apt-progress --logstderr -- "$@" ||
             fatal "Target APT transaction failed: $*"
     else
+        case "$1" in
+            update-grub) progress_status 'Regenerating GRUB configuration' ;;
+            update-initramfs) progress_status 'Regenerating initramfs images' ;;
+            dpkg) progress_status 'Checking or updating package state' ;;
+            systemctl) progress_status 'Applying service configuration' ;;
+            *) progress_status 'Applying target configuration' ;;
+        esac
         capture in-target "$@" || fatal "Target command failed: $*"
     fi
 }
 simulate_target() {
+    progress_status 'Simulating the APT transaction'
     capture in-target apt-get -s "$@" ||
         fatal "APT simulation failed: apt-get -s $*"
     cp "$WORK/output" "$WORK/plan"
@@ -681,9 +716,17 @@ db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 [ "$RET" = true ] || fatal 'The early profile summary was not approved'
 log "CONFIRMED SELECTION: $ordered"
 
+progress_status 'Verifying administrator and recovery access'
 ensure_root_recovery
 
+# Count only the approved profiles, maintaining their existing fixed order.
+profile_total=0
+for profile in $ordered; do profile_total=$((profile_total + 1)); done
+profile_index=0
 for profile in $ordered; do
+    profile_index=$((profile_index + 1))
+    progress_context="Profile $profile_index of $profile_total ($profile)"
+    progress_status 'Preparing selected profile'
     log "PROFILE BEGIN: $profile"
     case "$profile" in
         debian-tweaks) module=debian-tweaks; handler=profile_tweaks ;;
@@ -701,7 +744,10 @@ for profile in $ordered; do
     printf 'Completed: %s\n' "$profile" > "$LOG_DIR/my-cdd-completed/$profile"
     chmod 600 "$LOG_DIR/my-cdd-completed/$profile"
     log "PROFILE COMPLETE: $profile"
+    progress_status 'Completed'
 done
+progress_context='Custom installation'
+progress_status 'Finalizing completion records'
 log 'All selected optional profiles completed.'
 printf 'COMPLETE\n' > "$STATUS"
 export_log

@@ -112,7 +112,7 @@ installer/openmediavault-firstboot.service
 
 
 <details>
-<summary><strong>installer/openmediavault.sh</strong> — complete file (98 lines; Git blob <code>6a8171c179bdde926f2f66612c71ba713ba1dfa8</code>)</summary>
+<summary><strong>installer/openmediavault.sh</strong> — complete file (99 lines; Git blob <code>bc0ee4df4aaff054b2c1e26f4af8d663c5a3f64f</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -136,6 +136,7 @@ profile_omv() {
     fi
 
     review_install 'OMV signing and download tools' gnupg wget
+    progress_status 'Downloading and verifying OMV repository signing key'
     capture in-target wget -q -O /tmp/my-cdd-omv-key https://packages.openmediavault.io/archive.key ||
         fatal 'Official OMV signing key download failed'
     capture in-target gpg --show-keys --with-colons /tmp/my-cdd-omv-key ||

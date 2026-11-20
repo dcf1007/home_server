@@ -108,7 +108,7 @@ installer/ensure-7x-kernel.sh
 
 
 <details>
-<summary><strong>installer/ensure-7x-kernel.sh</strong> — complete file (84 lines; blob <code>5b1d797f60e6e959fbd0816f37365f76e233903c</code>)</summary>
+<summary><strong>installer/ensure-7x-kernel.sh</strong> — complete file (86 lines; blob <code>8fda85b85a018923f599ac7e3dc13b61bce7a426</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -162,6 +162,7 @@ choose_normal_kernel() {
 
 profile_kernel() {
     update_signed_apt
+    progress_status 'Checking eligible kernel versions and dependencies'
     if backports_is_selected; then
         try_kernel_suite trixie-backports ||
             choose_normal_kernel ||
@@ -195,7 +196,6 @@ profile_kernel() {
         fatal 'No Linux 7.x boot image with exactly matching installed headers'
     run_target dpkg --audit
 }
-
 ````
 
 </details>

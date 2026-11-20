@@ -1,5 +1,7 @@
 # 05 — Recreate extended firmware and microcode support
 
+During candidate inspection, the native status reports the current firmware package and its position in the actual inventory. Preparation of each named license is also shown; the build-time automatic/interactive consent policy and APT approvals are unchanged.
+
 **Outcome:** assemble the complete **selected-only firmware source** that handles a broad inventory, both CPU vendors' microcode packages, reviewed Backports fallbacks, individual omissions and **preauthorized named vendor licenses or the original interactive questions**. The normal Debian version is simpler: [04 — Firmware](../05_extended_device_support/README.md).
 
 ## Step 1 — Prepare the shared installer framework
@@ -109,7 +111,7 @@ tmp/generated/firmware-license-policy
 
 
 <details>
-<summary><strong>Complete installer/extended-device-support.sh</strong> (226 lines; current blob <code>607e0837f32cf8bd84c845f790a6c438b351a901</code>)</summary>
+<summary><strong>Complete installer/extended-device-support.sh</strong> (233 lines; current blob <code>0b4fd921002fc38e2dd620ce88db06463fe60c25</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -144,6 +146,7 @@ firmware_license_decision() {
         firmware-ipw2x00|firmware-ivtv) : ;;
         *) fatal "Unrecognized license-restricted firmware: $licensed_pkg" ;;
     esac
+    progress_status "Preparing vendor license: $licensed_pkg"
     licensed_suite=${licensed_selector#*/}
     licensed_version="$(suite_version "$licensed_pkg" "$licensed_suite")"
     [ -n "$licensed_version" ] ||
@@ -235,10 +238,16 @@ profile_firmware() {
     : > "$WORK/firmware-selectors"
     : > "$WORK/firmware-fallbacks"
     : > "$WORK/firmware-omissions"
-    for pkg in $(grep -Ev '^[[:space:]]*(#|$)' "$MEDIA/firmware-candidates.txt"); do
+    firmware_candidates="$(grep -Ev '^[[:space:]]*(#|$)' "$MEDIA/firmware-candidates.txt" || :)"
+    firmware_total=0
+    for pkg in $firmware_candidates; do firmware_total=$((firmware_total + 1)); done
+    firmware_index=0
+    for pkg in $firmware_candidates; do
+        firmware_index=$((firmware_index + 1))
         case "$pkg" in
             ''|*[!a-zA-Z0-9.+-]*) fatal "Unsafe inventory package: $pkg";;
         esac
+        progress_status "Checking firmware $firmware_index of $firmware_total: $pkg"
         stable="$(normal_suite "$pkg")" || stable=''
         bpo=''
         if backports_is_selected; then bpo="$(suite_version "$pkg" trixie-backports)"; fi
