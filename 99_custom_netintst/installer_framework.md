@@ -1,6 +1,6 @@
 # Installer framework — Build hooks, confirmations and the dispatcher
 
-**Approved stage 61–65 sequence (2026-11-20):** Early selection registers 61/63 and two copies of `finish-order.sh`. Native `pkgsel` 0.85 runs `/usr/lib/pre-pkgsel.d/90my-cdd-order` before tasksel; it validates and moves `14simple-cdd` → `62simple-cdd`, `15cdrom-detect` → `64cdrom-detect`, `20final-message` → `65final-message` in the installer ramdisk (not the ISO or upstream udebs). Native `finish-install` 2.124 snapshots the hook glob before execution, so `00my-cdd-order` checks the new names and rejects old names/missing hooks with exit 10. Stage 10 preseed retained, 50/55 and 60 unchanged; 61 installs, 62 verifies, 63 checks markers, 64 ejects, 65 displays the original final message. Native 70–99 unchanged. No forced network backend or suppressed dialog. A second finalization attempt after 61 starts is blocked at 00 to avoid repeating network finalization after optional dependencies or destructive profile operations; Back/failure requires manual recovery or a fresh install, not an automatic retry. This safety policy needs VM validation. Sources: [pkgsel 0.85](https://sources.debian.org/src/pkgsel/0.85/debian/postinst), [finish-install 2.124](https://sources.debian.org/src/finish-install/2.124/debian/postinst), [Simple-CDD 0.6.9](https://sources.debian.org/src/simple-cdd/0.6.9/debian/14simple-cdd), [native final message](https://sources.debian.org/src/finish-install/2.124/finish-install.d/20final-message/). No ISO or VM validation yet.
+**Approved stage 61–65 sequence (2026-11-20):** Early selection registers 61/63. Native `partman/early_command` calls `finish-order.sh` immediately before partitioning; the script checks all three originals before moving `14simple-cdd` → `62simple-cdd`, `15cdrom-detect` → `64cdrom-detect`, `20final-message` → `65final-message` in the installer ramdisk (not the ISO or upstream udebs). Missing originals or a failed move return nonzero to native preseed error handling, which does not guarantee installation termination. No extra stage-00 hook or custom repeated-execution restriction. Native `finish-install` 2.124 snapshots its hook glob before execution. Stage 10 preseed retained, 50/55 and 60 unchanged; 61 installs, 62 verifies, 63 checks markers, 64 ejects, 65 displays the original final message. Native 70–99 unchanged. No forced network backend or suppressed dialog. Sources: [Debian Trixie advanced preseed options](https://www.debian.org/releases/trixie/amd64/apbs05.en.html), [finish-install 2.124](https://sources.debian.org/src/finish-install/2.124/debian/postinst), [Simple-CDD 0.6.9](https://sources.debian.org/src/simple-cdd/0.6.9/debian/14simple-cdd). Runtime hook availability, partitioner re-entry, Back/failure behavior and normal finish/reboot require VM validation.
 
 **Native operation status (2026-11-20):** Stage 61 initially updates Debian's native finish-install progress display using `db_progress INFO`. cdebconf 0.280 GTK replaces an existing bar on a new START, and the protocol can return success for INFO even when the bar was destroyed. After a handoff to the existing native APT/anna-install UI, start a separate native custom progress bar between native transactions, with a range equal to the selected profile count and SET equal to the number whose success markers have been written. Stop only the custom bar before another native transaction, failure or hook exit. This does not restore Debian's already-replaced outer bar. Status labels show actual operation/profile and firmware candidate count, not estimated completion time. No terminal widget, concurrent protocol writers, raw command arguments, credentials or new confirmation prompts. Native APT progress and prior review/error paths remain unchanged. GTK/text rendering requires VM testing.
 
@@ -41,10 +41,10 @@ Paste the complete matching listings below. The early hook must run **before** `
 | File | Purpose |
 | --- | --- |
 | `installer/run-selected.sh` | Supplies native Debconf review, command diagnostics and execution of the approved selected handlers at stage `61my-cdd`; writes an individual success marker after each selected handler returns successfully and an overall final status. |
-| `installer/finish-order.sh` | Pre-pkgsel relocation of the three unchanged native hooks; stage 00 checks the order before any finish-install work. |
+| `installer/finish-order.sh` | Relocates the three unchanged native hooks via `partman/early_command` before partitioning. |
 | `installer/63my-cdd-status` | Finish-install hook that backs up if selection confirmation, final `COMPLETE` status or any selected profile's success marker is missing. |
 
-Paste both entire listings below. **Do not trim `run-selected.sh` down to the short dispatcher excerpt.** It preserves native transaction approval and direct command failures, without a project-defined package-removal blacklist, APT operation whitelist, or unrelated environment preflights. Target stderr is redirected to stdout **inside the `in-target` chroot**, because Debian Installer otherwise sends it only to syslog. On failure, the native GTK/text note shows the failed command, return status, recognized APT/dpkg error lines and the last 100 lines of actual command output. The complete log is still retained in `/target/var/log/installer/my-cdd.log`. The guard uses Debian Installer's finish-install **exit status 10**, not a generic shell exit 1.
+Paste all three entire listings below. **Do not trim `run-selected.sh` down to the short dispatcher excerpt.** It preserves native transaction approval and direct command failures, without a project-defined package-removal blacklist, APT operation whitelist, or unrelated environment preflights. Target stderr is redirected to stdout **inside the `in-target` chroot**, because Debian Installer otherwise sends it only to syslog. On failure, the native GTK/text note shows the failed command, return status, recognized APT/dpkg error lines and the last 100 lines of actual command output. The complete log is still retained in `/target/var/log/installer/my-cdd.log`. The guard uses Debian Installer's finish-install **exit status 10**, not a generic shell exit 1.
 
 Each optional profile also has a native executable `profiles/<name>.postinst` verification script, whose complete source appears in its feature construction guide. The original Simple-CDD hook, relocated from `14simple-cdd` to `62simple-cdd`, executes selected verifiers within the target, not the installation handlers again. Enable executable permissions on those seven `.postinst` files, but not on the sourced feature handlers.
 
@@ -86,7 +86,7 @@ The complete files depend on [Shared profile helpers](profile_construction.md) a
 
 1. `profiles/default.preseed` loads generated editable defaults, then **early** selection and consent.
 2. The accepted profile list is stored only in private installer work data. The generated preseed sets `passwd/root-login=false`, so native Debian account setup skips the initial root password fields and gives the first user sudo. Before optional profile operations, the late dispatcher verifies that the new account really belongs to the sudo group and that sudo exists; it then asks for a separate local root recovery password through Debian's own password questions.
-3. Debian continues with **native** partitioning, mirror, accounts and tasksel screens.
+3. Before **native** partitioning, `partman/early_command` checks and relocates the three native scripts. Debian continues with its native partitioning, mirror, accounts and tasksel screens.
 4. Debian Installer runs native **`10apt-cdrom-setup`** with the unconditional `apt-setup/disable-cdrom-entries=true` setting, then native 50/55 network configuration, then 60cleanup, then the registered **`61my-cdd`** runner and relocated upstream **`62simple-cdd`**. The runner confirms the approved selection, establishes local root recovery and executes handlers in order: Debian tweaks → Backports → kernel → firmware → ZRAM → OMV → Docker. It never calls the CD-ROM hook again.
 5. After each selected handler returns successfully, the runner writes its individual completion record. Only after **all** approved handlers succeed does it write overall `COMPLETE`. Relocated native `62simple-cdd` executes each selected executable `profiles/<name>.postinst` in-target to verify the record without rerunning the installer handler.
 6. The final `63my-cdd-status` verifies the confirmed selection, overall `COMPLETE` and the presence of a completion marker **for every selected profile**. It returns native finish-install **exit 10** on failure, preventing an erroneous success screen.
@@ -118,7 +118,7 @@ installer/finish-order.sh
 
 
 <details>
-<summary><strong>Complete file: profiles/default.preseed</strong> (20 lines, current Git blob <code>6620eda9044bf87bb8235f28772568c54e632cc9</code>)</summary>
+<summary><strong>Complete file: profiles/default.preseed</strong> (22 lines, current Git blob <code>a952c99bccedd032e05ca97c75456c7ddad4d832</code>)</summary>
 
 ````text
 # my-cdd minimal default profile for Debian 13.
@@ -136,6 +136,8 @@ d-i preseed/include string defaults.preseed
 # Its failure MUST prevent anna-install from running.
 # The upstream simple-cdd-profiles component remains unmodified.
 d-i preseed/early_command string /bin/sh /cdrom/simple-cdd/profile-confirm.sh && anna-install simple-cdd-profiles
+# Relocate only the three native hooks before the partitioner starts.
+d-i partman/early_command string /bin/sh /cdrom/simple-cdd/finish-order.sh
 # Let Debian Installer's existing finish-install hook order handle this:
 # 10apt-cdrom-setup disables CD-ROM APT sources once. Native networking
 # and stage 60 cleanup finish before 61my-cdd; native verifiers, eject
@@ -147,7 +149,7 @@ d-i apt-setup/disable-cdrom-entries boolean true
 
 
 <details>
-<summary><strong>Complete file: installer/profile-confirm.sh</strong> (142 lines, current Git blob <code>85fed113924b2fb11d40ef89d5aa9eb4a02b58e4</code>)</summary>
+<summary><strong>Complete file: installer/profile-confirm.sh</strong> (132 lines, current Git blob <code>a13b784ba8b7ea57508fa9f438ee96f6216c40b2</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -163,13 +165,12 @@ TEMPLATE_SIMPLE="$CDDIR/simple-cdd.templates"
 TEMPLATE_CONFIRM="$CDDIR/profile-confirm.templates"
 FINISH_RUNNER="$CDDIR/run-selected.sh"
 FINISH_GUARD="$CDDIR/63my-cdd-status"
-ORDER_HOOK="$CDDIR/finish-order.sh"
 
 stop() {
     printf >&2 'my-cdd early profile gate: STOP: %s\n' "$*"
     exit 1
 }
-for required in "$ORDER_HELPER" "$TEMPLATE_SIMPLE" "$TEMPLATE_CONFIRM" "$FINISH_RUNNER" "$FINISH_GUARD" "$ORDER_HOOK"; do
+for required in "$ORDER_HELPER" "$TEMPLATE_SIMPLE" "$TEMPLATE_CONFIRM" "$FINISH_RUNNER" "$FINISH_GUARD"; do
     [ -r "$required" ] || stop "missing installer-media source: $required"
 done
 command -v debconf-loadtemplate >/dev/null 2>&1 ||
@@ -177,8 +178,8 @@ command -v debconf-loadtemplate >/dev/null 2>&1 ||
 
 # Use Debian Installer's existing finish-install hook order:
 # 10apt-cdrom-setup -> 50/55 networking -> 60cleanup -> 61my-cdd.
-# Native verification/eject/final-message are relocated before finish-install
-# by the pre-pkgsel hook; the stage-00 copy fails closed if order is wrong.
+# Native verification/eject/final-message are relocated separately by
+# partman/early_command before partitioning.
 # Register the selected-profile runner and final completion gate here,
 # before finish-install enumerates its hooks. Do not patch upstream scripts.
 mkdir -p /usr/lib/finish-install.d ||
@@ -191,15 +192,6 @@ cp "$FINISH_GUARD" /usr/lib/finish-install.d/63my-cdd-status ||
     stop 'Cannot register custom finish-install completion gate'
 chmod 755 /usr/lib/finish-install.d/63my-cdd-status ||
     stop 'Cannot make finish-install completion gate executable'
-
-mkdir -p /usr/lib/pre-pkgsel.d ||
-    stop 'Cannot locate Debian Installer pre-pkgsel hook directory'
-cp "$ORDER_HOOK" /usr/lib/pre-pkgsel.d/90my-cdd-order &&
-    chmod 755 /usr/lib/pre-pkgsel.d/90my-cdd-order ||
-    stop 'Cannot register native hook relocation'
-cp "$ORDER_HOOK" /usr/lib/finish-install.d/00my-cdd-order &&
-    chmod 755 /usr/lib/finish-install.d/00my-cdd-order ||
-    stop 'Cannot register finish-install order guard'
 
 # Generated simple-cdd.templates has the actual Choices and empty Defaults.
 # Load both template families explicitly; the original profile udeb has NOT
@@ -416,7 +408,7 @@ Description: Configuring selected installation profiles
 
 
 <details>
-<summary><strong>Complete file: installer/run-selected.sh</strong> (390 lines, current Git blob <code>0d8f704dcbfca48b2542e30282df29fa7839c072</code>)</summary>
+<summary><strong>Complete file: installer/run-selected.sh</strong> (384 lines, current Git blob <code>7dc677c320463bcc36149e821283b9ea27343396</code>)</summary>
 
 ````sh
 #!/bin/sh
@@ -765,12 +757,6 @@ db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 [ "$RET" = true ] || fatal 'The early profile summary was not approved'
 log "CONFIRMED SELECTION: $ordered"
 
-# Refuse to repeat this phase after a Back or failure; even a partial run
-# can have changed networking dependencies or destroyed swap signatures.
-[ ! -e /tmp/my-cdd-custom-started ] ||
-    fatal 'Custom finalization has already started; recover manually'
-: > /tmp/my-cdd-custom-started ||
-    fatal 'Cannot record start of custom finalization'
 progress_status 'Verifying administrator and recovery access'
 ensure_root_recovery
 
@@ -847,68 +833,23 @@ exit 10
 </details>
 
 <details>
-<summary><strong>Complete file: installer/finish-order.sh</strong> (60 lines, current Git blob <code>f26d0c6a47bee18954a78e30dac75dfdb8aed1d0</code>)</summary>
+<summary><strong>Complete file: installer/finish-order.sh</strong> (15 lines, current Git blob <code>f5d3c3d46c65407e9cbf199b04c112c68a4883c4</code>)</summary>
 
 ````sh
 #!/bin/sh
-# Installed by the early profile gate into pre-pkgsel.d and finish-install.d.
-# pkgsel 0.85 executes its hooks before tasksel; all paths are in the d-i
-# ramdisk, not /target or /cdrom. finish-install 2.124 snapshots its glob
-# before the first hook, so the finish-install copy only checks, never moves.
+# Run via partman/early_command before native partitioning.
+# Rename only the three existing native hooks in the installer ramdisk.
 set -eu
-HOOK_DIR=/usr/lib/finish-install.d
-case "${0##*/}" in
-    00my-cdd-order) mode=check; failure=10 ;;
-    90my-cdd-order) mode=move; failure=1 ;;
-    *) echo 'my-cdd: invalid hook entry point' >&2; exit 1 ;;
-esac
-stop() {
-    logger -t my-cdd "Hook order: $*" || :
-    printf >&2 'my-cdd: %s\n' "$*"
-    exit "$failure"
-}
-exists() { [ -e "$1" ] || [ -L "$1" ]; }
-pair() {
-    old="$HOOK_DIR/$1"
-    new="$HOOK_DIR/$2"
-    if exists "$old"; then
-        [ "$mode" = move ] || stop "Old native hook still exists: $old; rerun software selection before finish-install."
-        [ -f "$old" ] && [ -x "$old" ] && [ ! -L "$old" ] ||
-            stop "Invalid native hook: $old"
-        if exists "$new"; then
-            stop "Conflicting native hook destinations: $old and $new"
-        fi
-    else
-        [ -f "$new" ] && [ -x "$new" ] && [ ! -L "$new" ] ||
-            stop "Missing relocated native hook: $new"
+cd /usr/lib/finish-install.d
+# Check all original scripts before changing any filename.
+for hook in 14simple-cdd 15cdrom-detect 20final-message; do
+    if [ ! -f "$hook" ]; then
+        printf >&2 'my-cdd: missing native finish-install hook: %s\n' "$hook"
+        exit 1
     fi
-}
-# Validate all pairs before moving any of them. A later unpack/reinstall
-# restoring an old filename is a hard error, not a duplicate execution.
-pair 14simple-cdd 62simple-cdd
-pair 15cdrom-detect 64cdrom-detect
-pair 20final-message 65final-message
-for required in 10apt-cdrom-setup 50config-target-network 55netcfg-copy-config 60cleanup 61my-cdd 63my-cdd-status; do
-    [ -x "$HOOK_DIR/$required" ] || stop "Missing required hook: $required"
 done
-if [ "$mode" = move ]; then
-    for mapping in 14simple-cdd:62simple-cdd 15cdrom-detect:64cdrom-detect 20final-message:65final-message; do
-        old="$HOOK_DIR/${mapping%:*}"
-        new="$HOOK_DIR/${mapping#*:}"
-        if exists "$old"; then
-            mv "$old" "$new" || stop "Cannot relocate $old"
-            logger -t my-cdd "Relocated ${old##*/} to ${new##*/}" || :
-        fi
-    done
-else
-    # A second finish pass would rerun netcfg after optional dependencies
-    # were installed, and may replay a destructive ZRAM operation. Stop
-    # before ANY native finalization on a repeat, including Back at stage 65.
-    [ ! -e /tmp/my-cdd-custom-started ] ||
-        stop 'Custom finalization has already started. Do not rerun finish-install; inspect the installer log and recover manually or restart installation.'
-    [ -r /cdrom/simple-cdd/run-selected.sh ] ||
-        stop 'Installation media is unavailable.'
-    logger -t my-cdd 'Verified native hook sequence 10, 50, 55, 60, 61, 62, 63, 64, 65' || :
-fi
+mv 14simple-cdd 62simple-cdd
+mv 15cdrom-detect 64cdrom-detect
+mv 20final-message 65final-message
 ````
 </details>

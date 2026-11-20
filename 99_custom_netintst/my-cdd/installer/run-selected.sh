@@ -344,12 +344,6 @@ db_get my-cdd/profile-confirm || fatal 'Missing early summary approval'
 [ "$RET" = true ] || fatal 'The early profile summary was not approved'
 log "CONFIRMED SELECTION: $ordered"
 
-# Refuse to repeat this phase after a Back or failure; even a partial run
-# can have changed networking dependencies or destroyed swap signatures.
-[ ! -e /tmp/my-cdd-custom-started ] ||
-    fatal 'Custom finalization has already started; recover manually'
-: > /tmp/my-cdd-custom-started ||
-    fatal 'Cannot record start of custom finalization'
 progress_status 'Verifying administrator and recovery access'
 ensure_root_recovery
 

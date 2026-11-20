@@ -11,13 +11,12 @@ TEMPLATE_SIMPLE="$CDDIR/simple-cdd.templates"
 TEMPLATE_CONFIRM="$CDDIR/profile-confirm.templates"
 FINISH_RUNNER="$CDDIR/run-selected.sh"
 FINISH_GUARD="$CDDIR/63my-cdd-status"
-ORDER_HOOK="$CDDIR/finish-order.sh"
 
 stop() {
     printf >&2 'my-cdd early profile gate: STOP: %s\n' "$*"
     exit 1
 }
-for required in "$ORDER_HELPER" "$TEMPLATE_SIMPLE" "$TEMPLATE_CONFIRM" "$FINISH_RUNNER" "$FINISH_GUARD" "$ORDER_HOOK"; do
+for required in "$ORDER_HELPER" "$TEMPLATE_SIMPLE" "$TEMPLATE_CONFIRM" "$FINISH_RUNNER" "$FINISH_GUARD"; do
     [ -r "$required" ] || stop "missing installer-media source: $required"
 done
 command -v debconf-loadtemplate >/dev/null 2>&1 ||
@@ -25,8 +24,8 @@ command -v debconf-loadtemplate >/dev/null 2>&1 ||
 
 # Use Debian Installer's existing finish-install hook order:
 # 10apt-cdrom-setup -> 50/55 networking -> 60cleanup -> 61my-cdd.
-# Native verification/eject/final-message are relocated before finish-install
-# by the pre-pkgsel hook; the stage-00 copy fails closed if order is wrong.
+# Native verification/eject/final-message are relocated separately by
+# partman/early_command before partitioning.
 # Register the selected-profile runner and final completion gate here,
 # before finish-install enumerates its hooks. Do not patch upstream scripts.
 mkdir -p /usr/lib/finish-install.d ||
@@ -39,15 +38,6 @@ cp "$FINISH_GUARD" /usr/lib/finish-install.d/63my-cdd-status ||
     stop 'Cannot register custom finish-install completion gate'
 chmod 755 /usr/lib/finish-install.d/63my-cdd-status ||
     stop 'Cannot make finish-install completion gate executable'
-
-mkdir -p /usr/lib/pre-pkgsel.d ||
-    stop 'Cannot locate Debian Installer pre-pkgsel hook directory'
-cp "$ORDER_HOOK" /usr/lib/pre-pkgsel.d/90my-cdd-order &&
-    chmod 755 /usr/lib/pre-pkgsel.d/90my-cdd-order ||
-    stop 'Cannot register native hook relocation'
-cp "$ORDER_HOOK" /usr/lib/finish-install.d/00my-cdd-order &&
-    chmod 755 /usr/lib/finish-install.d/00my-cdd-order ||
-    stop 'Cannot register finish-install order guard'
 
 # Generated simple-cdd.templates has the actual Choices and empty Defaults.
 # Load both template families explicitly; the original profile udeb has NOT

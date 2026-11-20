@@ -1,6 +1,6 @@
 # Installer-only implementation
 
-**Current lifecycle — 2026-11-20:** Native stages 10, 50, 55 and 60 run before the selected-profile executor at `61my-cdd`; the unmodified Simple-CDD verifier, custom status guard, unmodified CD-ROM eject and unmodified final message follow at `62simple-cdd`, `63my-cdd-status`, `64cdrom-detect` and `65final-message`. The early selector registers a pre-pkgsel `90my-cdd-order` relocation hook and a finish-install `00my-cdd-order` check; native udebs and hook contents are unchanged. The CD-ROM APT-source preseed remains; no forced ifupdown or suppressed completion dialog. A repeat finalization after stage 61 starts is blocked (exit 10) before native network finalization; inspect logs and recover manually or restart the installation rather than replaying operations. ISO/GTK/text/first-boot testing is pending.
+**Current lifecycle — 2026-11-20:** Native stages 10, 50, 55 and 60 run before the selected-profile executor at `61my-cdd`; the unmodified Simple-CDD verifier, custom status guard, unmodified CD-ROM eject and unmodified final message follow at `62simple-cdd`, `63my-cdd-status`, `64cdrom-detect` and `65final-message`. The early selector registers 61/63; `partman/early_command` calls `finish-order.sh` before partitioning, checks all three original native scripts and then renames them. Native udebs and script contents are unchanged. The CD-ROM APT-source preseed remains; no forced network backend or suppressed completion dialog. Relocation failure returns nonzero to native preseed error handling, which does not guarantee installation termination. No stage-00 guard or additional repeated-execution restriction is introduced. ISO/GTK/text/first-boot testing is pending.
 
 ## Native progress reporting — 2026-11-20
 
@@ -17,7 +17,7 @@ This directory contains **Debian Installer integration**, not generic post-insta
 
 - `profile-confirm.sh`, `profile-confirm.templates`: native early preseed Debconf selection summary, with explicit default-No approval before selected-profile operations.
 - `ordered-selection.sh`: read-only seven-profile order/dependency parser.
-- `finish-order.sh`: registered as pre-pkgsel `90my-cdd-order` for relocations, and finish-install `00my-cdd-order` for fail-closed order and replay checks.
+- `finish-order.sh`: called by `partman/early_command` to check and rename the three native hooks before partitioning; returns nonzero on failure.
 - `run-selected.sh`: registered native finish-install stage `61my-cdd` executor, target logging, approval/recovery preflight and ordered dispatch. Its native GTK/text failure note displays the failed command, exit status and real captured stdout/stderr; `in-target` stderr is redirected to stdout within the target to avoid syslog-only diagnostics.
 - `profile-common.sh`: shared suite/version lookup, profile selection context, and signed APT refresh, without extra package-removal or priority restrictions.
 - `backports.sh`, `ensure-7x-kernel.sh`, `extended-device-support.sh`, `zram-writeback.sh`, `debian-tweaks.sh`, `openmediavault.sh`, `docker.sh`: selected-only installer adaptations of the corresponding feature guides; filenames now match the native Simple-CDD profile IDs.
