@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Sequential test of home_server's zram-pressure.service. Disposable VM only.
 Run: sudo python3 test_zram.py
+Creates timestamped text and CSV logs in the current working directory.
 No package installation, service changes, swapoff, or writes to ZRAM sysfs.
 Internal worker modes are launched only by the controller in transient units.
 """
+import csv
 import hashlib
 import json
 import mmap
@@ -17,13 +19,17 @@ import sys
 import threading
 import time
 import uuid
+from datetime import datetime, timezone
 
 MIB = 1024**2
 Z = Path('/sys/block/zram0')
 SERVICE = 'zram-pressure.service'
 NORMAL_SECONDS = 360
 EMERGENCY_SECONDS = 240
-READBACK_SECONDS = 180
+READBACK_GRACE_SECONDS = 180
+READBACK_BYTES_PER_SECOND = MIB  # 1 MiB/s allowance, not a measured speed
+READBACK_STALL_SECONDS = 120
+READBACK_PROGRESS = MIB
 AGE_SECONDS = 65
 POLL = 1.0
 PAGE = os.sysconf('SC_PAGE_SIZE')
@@ -31,6 +37,9 @@ PAGE = os.sysconf('SC_PAGE_SIZE')
 MADV_COLD = getattr(mmap, 'MADV_COLD', 20)
 MADV_PAGEOUT = getattr(mmap, 'MADV_PAGEOUT', 21)
 START = time.monotonic()
+LOG = None
+CSV = None
+OUTPUT_LOCK = threading.Lock()
 
 
 class Inconclusive(Exception):
@@ -41,8 +50,28 @@ class Failure(Exception):
     pass
 
 
+def emit(line):
+    with OUTPUT_LOCK:
+        print(line, flush=True)
+        if LOG is not None:
+            LOG.write(line+'\n')
+            LOG.flush()
+
+
 def say(message):
-    print(f'[{time.monotonic()-START:6.1f}s] {message}', flush=True)
+    emit(f'[{time.monotonic()-START:6.1f}s] {message}')
+
+
+def readback_seconds(n):
+    return READBACK_GRACE_SECONDS + (n+READBACK_BYTES_PER_SECOND-1)//READBACK_BYTES_PER_SECOND
+
+
+CSV_FIELDS = ('elapsed_s', 'phase', 'occupancy_pct', 'psi_avg10_pct',
+              'resident_bytes', 'resident_limit_bytes', 'available_bytes',
+              'swap_used_bytes', 'swap_free_bytes', 'backing_units_4k',
+              'backing_read_delta_4k', 'backing_write_delta_4k',
+              'allocated_bytes', 'accessed_bytes', 'verified_bytes',
+              'pages_modified', 'remaining_s', 'readback_rate_mib_s')
 
 
 def run(*args, timeout=10, check=True):
@@ -178,9 +207,27 @@ def cold_worker():
                 reply(done=True)
                 continue
             m, expected, n = blocks.pop(0)
-            actual = hashlib.sha256(m).hexdigest()
+            # Oldest allocation first, ascending page offsets. Hash original
+            # bytes before modifying any byte; restore each byte afterwards.
+            digest = hashlib.sha256()
+            count = 0
+            for offset in range(0, n, PAGE):
+                original = m[offset:offset+PAGE]  # faults a swapped page in
+                digest.update(original)
+                first = original[0]
+                m[offset] = first ^ 1  # force a real write, not a no-op store
+                if m[offset] != (first ^ 1):
+                    raise RuntimeError(f'Page modification failed at {offset}')
+                m[offset] = first
+                if m[offset] != first:
+                    raise RuntimeError(f'Page restoration failed at {offset}')
+                count += 1
+                processed = offset+PAGE
+                if processed % READBACK_PROGRESS == 0 or processed == n:
+                    reply(processed=processed, pages=count)
+            actual = digest.hexdigest()
             m.close()
-            reply(verified=n, match=actual == expected)
+            reply(verified=n, match=actual == expected, pages=count)
         elif command['op'] == 'exit':
             break
         else:
@@ -201,13 +248,13 @@ def hot_worker(n):
 
 
 class Worker:
-    def __init__(self, units, mode, resident, swap, n=None, high=None):
+    def __init__(self, units, mode, resident, swap, n=None, high=None, runtime=900):
         self.unit = f'zram-test-{mode}-{uuid.uuid4().hex[:12]}.service'
         units.append(self.unit)  # Register before launch, including failed starts.
         cmd = ['systemd-run', '--quiet', '--wait', '--pipe', '--collect',
                '--unit='+self.unit, '-p', 'MemoryAccounting=yes',
                '-p', f'MemoryMax={resident}', '-p', f'MemorySwapMax={swap}',
-               '-p', 'OOMPolicy=stop', '-p', 'RuntimeMaxSec=900s',
+               '-p', 'OOMPolicy=stop', '-p', f'RuntimeMaxSec={runtime}s',
                '-p', 'TimeoutStopSec=5s']
         if high is not None:
             cmd += ['-p', f'MemoryHigh={high}']
@@ -215,7 +262,7 @@ class Worker:
         if n is not None:
             cmd.append(str(n))
         self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                     text=True, bufsize=1)
+                                     stderr=subprocess.STDOUT, text=True, bufsize=1)
         self.messages = queue.Queue()
         def reader():
             for line in self.proc.stdout:
@@ -269,6 +316,13 @@ class Test:
         self.journal = Journal()
         self.total = 0
         self.verified = 0
+        self.accessed = 0
+        self.pages_modified = 0
+        self.readback_started = None
+        self.last_progress = None
+        self.display_phase = None
+        self.display_rows = 0
+        self.phase_evidence = {}
         self.phase = 'PREFLIGHT'
         self.last_display = 0
         self.last_check = 0
@@ -328,7 +382,9 @@ class Test:
         say(f'Cold allocation cap={self.budget/MIB:.0f} MiB; cold RAM cap={self.resident/MIB:.0f} MiB; '
             f'hot working set={self.hot_size/MIB:.0f} MiB; reserve={self.reserve/MIB:.0f} MiB')
         say('WARNING: deliberate memory/swap pressure and SSD writes; disposable VM only.')
-        self.cold = Worker(self.units, 'cold', self.resident, self.budget)
+        # The worker must outlive both pressure phases and the expanded readback.
+        runtime = 30+NORMAL_SECONDS+EMERGENCY_SECONDS+readback_seconds(self.budget)+120
+        self.cold = Worker(self.units, 'cold', self.resident, self.budget, runtime=runtime)
         self.workers.append(self.cold)
         if not self.receive(self.cold).get('ready'):
             raise Failure('Cold worker did not initialize')
@@ -351,18 +407,53 @@ class Test:
                 raise Failure('Pressure monitor restarted during test')
             self.journal.poll()
             self.last_check = time.monotonic()
-        if time.monotonic()-self.last_display >= 2:
-            say(f'{self.phase:12} occ={s["occupancy"]:3}% '
-                f'PSI={s["psi"]:5.2f}% resident={s["used"]/MIB:7.1f}/{s["limit"]/MIB:.1f} MiB '
-                f'swap={s["swap_used"]/MIB:.1f} MiB avail={s["available"]/MIB:.0f} MiB '
-                f'backing={s["backing"]/256:.1f} MiB '
-                f'W+={(s["writes"]-self.base["writes"])/256:.1f} '
-                f'R+={(s["reads"]-self.base["reads"])/256:.1f} MiB '
-                f'held={(self.total-self.verified)/MIB:.1f} MiB '
-                f'verified={self.verified/MIB:.1f} MiB '
-                f'left={max(0,self.deadline-time.monotonic()):.0f}s')
+        if self.phase == 'READBACK' and self.last_progress is not None:
+            if time.monotonic()-self.last_progress >= READBACK_STALL_SECONDS:
+                raise Inconclusive('READBACK made no page progress for 120s')
+        if time.monotonic()-self.last_display >= 2 or self.display_phase != self.phase:
+            self.display(s)
             self.last_display = time.monotonic()
         return s
+
+    def display(self, s):
+        now = time.monotonic()
+        remaining = max(0, self.deadline-now)
+        rate = (self.accessed/MIB/max(0.001, now-self.readback_started)
+                if self.readback_started is not None else 0)
+        writes = (s['writes']-self.base['writes'])/256
+        reads = (s['reads']-self.base['reads'])/256
+        header = self.display_phase != self.phase or self.display_rows % 18 == 0
+        if self.display_phase != self.phase:
+            self.display_rows = 0
+            self.display_phase = self.phase
+            emit(f'--- {self.phase} | memory and I/O in MiB; W+/R+ since start ---')
+        if self.phase == 'READBACK':
+            eta = (max(0,self.total-self.accessed)/MIB/rate if rate > 0 else None)
+            eta_text = f'{eta:.0f}' if eta is not None else '-'
+            if header:
+                emit('   Time |   Read+ | Accessed | Verified |   MiB/s |  ETA s |  Left s')
+                emit('-'*69)
+            emit(f'{now-START:7.1f} | {reads:7.1f} | {self.accessed/MIB:8.1f} | '
+                 f'{self.verified/MIB:8.1f} | {rate:7.2f} | {eta_text:>6} | {remaining:7.0f}')
+        else:
+            if header:
+                emit('   Time | Occ% |  PSI% |   ZRAM |   Swap |     W+ |     R+ | Left')
+                emit('-'*69)
+            emit(f'{now-START:7.1f} | {s["occupancy"]:4} | {s["psi"]:5.2f} | '
+                 f'{s["used"]/MIB:6.1f} | {s["swap_used"]/MIB:6.1f} | '
+                 f'{writes:6.1f} | {reads:6.1f} | {remaining:4.0f}')
+        self.display_rows += 1
+        if CSV is not None:
+            CSV.writerow(dict(elapsed_s=f'{now-START:.3f}', phase=self.phase,
+                occupancy_pct=s['occupancy'], psi_avg10_pct=s['psi'],
+                resident_bytes=s['used'], resident_limit_bytes=s['limit'],
+                available_bytes=s['available'], swap_used_bytes=s['swap_used'],
+                swap_free_bytes=s['swap_free'], backing_units_4k=s['backing'],
+                backing_read_delta_4k=s['reads']-self.base['reads'],
+                backing_write_delta_4k=s['writes']-self.base['writes'],
+                allocated_bytes=self.total, accessed_bytes=self.accessed,
+                verified_bytes=self.verified, pages_modified=self.pages_modified,
+                remaining_s=f'{remaining:.1f}', readback_rate_mib_s=f'{rate:.3f}'))
 
     def receive(self, worker):
         while True:
@@ -459,23 +550,40 @@ class Test:
 
     def readback(self):
         self.phase = 'READBACK'
-        self.deadline = time.monotonic()+READBACK_SECONDS
+        self.readback_started = self.last_progress = time.monotonic()
+        duration = readback_seconds(self.total)
+        self.deadline = self.readback_started+duration
         before = snapshot()['reads']
-        say(f'3/3 READBACK: SHA-256 verify all {self.total/MIB:.1f} MiB of retained cold data.')
+        say(f'3/3 READBACK: oldest first; access, flip/restore one bit per page, '
+            f'and verify all {self.total/MIB:.1f} MiB by SHA-256.')
+        say(f'Readback allowance {duration}s; no-progress timeout {READBACK_STALL_SECONDS}s.')
         if not self.total:
             raise Inconclusive('No cold data allocated')
         while self.verified < self.total:
             self.cold.send(op='verify')
-            msg = self.receive(self.cold)
-            if msg.get('match') is not True or not msg.get('verified'):
-                raise Failure(f'Cold data checksum mismatch or invalid response: {msg}')
-            self.verified += msg['verified']
+            last = 0
+            while True:
+                msg = self.receive(self.cold)
+                if 'processed' in msg:
+                    processed = msg['processed']
+                    if not isinstance(processed, int) or not last < processed <= self.total-self.verified or processed % PAGE or msg.get('pages') != processed//PAGE:
+                        raise Failure(f'Invalid page progress: {msg}')
+                    self.accessed += processed-last
+                    self.pages_modified += (processed-last)//PAGE
+                    self.last_progress = time.monotonic()
+                    last = processed
+                    continue
+                if msg.get('match') is not True or msg.get('verified') != last or not last or msg.get('pages') != last//PAGE:
+                    raise Failure(f'Cold data checksum mismatch or invalid response: {msg}')
+                self.verified += last
+                break
         s = self.tick()
-        if self.verified != self.total:
-            raise Failure('Verified byte count does not match allocation')
+        if self.verified != self.total or self.accessed != self.total:
+            raise Failure('Verified/accessed byte count does not match allocation')
         if s['reads'] <= before:
             raise Inconclusive('All checksums match, but no new backing-device reads observed')
-        say(f'PASS READBACK: all SHA-256 checks passed; backing reads +{(s["reads"]-before)/256:.1f} MiB.')
+        say(f'PASS READBACK: all SHA-256 checks passed; {self.pages_modified} pages '
+            f'modified/restored; backing reads +{(s["reads"]-before)/256:.1f} MiB.')
 
     def cleanup(self):
         say('CLEANUP: terminating only transient test units; no global swapoff.')
@@ -506,6 +614,8 @@ class Test:
             self.preflight()
             for name, function in [('NORMAL', self.normal), ('EMERGENCY', self.emergency),
                                    ('READBACK', self.readback)]:
+                phase_started = time.monotonic()
+                phase_baseline = snapshot()
                 try:
                     function()
                     self.results[name] = 'PASS'
@@ -519,6 +629,14 @@ class Test:
                 except Exception as e:
                     self.results[name] = 'FAIL: '+str(e)
                     raise
+                finally:
+                    try:
+                        end = snapshot()
+                        self.phase_evidence[name] = (time.monotonic()-phase_started,
+                            (end['writes']-phase_baseline['writes'])/256,
+                            (end['reads']-phase_baseline['reads'])/256)
+                    except Exception as e:
+                        say('Phase statistics unavailable: '+str(e))
             code = 0 if all(self.results.get(x) == 'PASS' for x in ('NORMAL','EMERGENCY','READBACK')) else 2
         except Inconclusive as e:
             say('INCONCLUSIVE: '+str(e))
@@ -532,8 +650,20 @@ class Test:
         finally:
             if not self.cleanup():
                 code = 1
+            emit('\nFINAL RESULTS | W+/R+ in MiB, phase deltas')
+            emit('Phase      | Result       |     Time s |         W+ |         R+')
+            emit('-'*65)
             for name in ('NORMAL','EMERGENCY','READBACK'):
-                say(f'{name}: {self.results.get(name, "NOT RUN")}')
+                result = self.results.get(name, 'NOT RUN')
+                metrics = self.phase_evidence.get(name)
+                cols = (' | '.join(f'{x:10.1f}' for x in metrics) if metrics else
+                        '         - |          - |          -')
+                emit(f'{name:10} | {result.split(":",1)[0]:12} | {cols}')
+                if ':' in result:
+                    say(f'{name} detail: {result.split(":",1)[1].strip()}')
+            emit(f'Accessed: {self.accessed/MIB:.1f}/{self.total/MIB:.1f} MiB  '
+                 f'Verified: {self.verified/MIB:.1f} MiB')
+            emit(f'Pages modified and restored: {self.pages_modified}')
             if hasattr(self, 'base'):
                 try:
                     s = snapshot()
@@ -545,6 +675,30 @@ class Test:
                     say('Final statistics unavailable: '+str(e))
             say(f'Exit status {code} (0=all pass, 1=failure, 2=inconclusive, 130=interrupted)')
         return code
+
+
+def controller():
+    global LOG, CSV
+    # Exclusive creation avoids overwriting logs, even after rapid reruns.
+    stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    stem = Path.cwd()/f'test_zram_{stamp}_{os.getpid()}'
+    log_path = stem.with_suffix('.log')
+    csv_path = stem.with_suffix('.csv')
+    try:
+        with log_path.open('x', buffering=1, encoding='utf-8') as log_file:
+            LOG = log_file
+            try:
+                with csv_path.open('x', buffering=1, encoding='utf-8', newline='') as csv_file:
+                    CSV = csv.DictWriter(csv_file, fieldnames=CSV_FIELDS)
+                    CSV.writeheader()
+                    say(f'Text log: {log_path}')
+                    say(f'Metrics CSV: {csv_path}')
+                    return Test().execute()
+            finally:
+                LOG = CSV = None
+    except OSError as e:
+        print(f'Logging or I/O error: {e}', file=sys.stderr, flush=True)
+        return 1
 
 
 def interrupt(signum, frame):
@@ -559,6 +713,6 @@ if __name__ == '__main__':
     elif len(sys.argv) == 1:
         signal.signal(signal.SIGTERM, interrupt)
         signal.signal(signal.SIGHUP, interrupt)
-        sys.exit(Test().execute())
+        sys.exit(controller())
     else:
         sys.exit('Usage: sudo python3 test_zram.py')
