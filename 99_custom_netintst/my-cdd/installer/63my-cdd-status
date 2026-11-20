@@ -1,5 +1,5 @@
 #!/bin/sh
-# Debian Installer finish-install stage 15, after native Simple-CDD stage 14.
+# Debian Installer finish-install stage 63, after native Simple-CDD stage 62.
 # Keep native per-profile postinst checks and independently check each approved
 # profile's completion marker. Exit 10 stops a misleading success screen.
 set -eu
