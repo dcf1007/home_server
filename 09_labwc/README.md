@@ -6,6 +6,8 @@
 
 **Requirements:** a local text-console login under a normal (non-root) user, an available DRM/KMS graphics device and connected display, and working seat access through an existing logind session or another compatible seat backend. You can **download and edit the files over SSH**, but a normal local labwc desktop does not launch inside SSH merely because the files are present. A truly headless server with no usable local display may need a different remote-display approach.
 
+**When OMV will be installed:** OMV's [Debian installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html) rejects detected desktop environments. If both features are desired, complete OMV installation and verify its operation before considering this optional local session; labwc is not a prerequisite for OMV. The existing manual-only GUI scope is unchanged. For OMV-managed services and configuration, see [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
+
 ## Step 1 — Review the package transaction before installation
 
 Check which commands are already available. These checks change nothing:

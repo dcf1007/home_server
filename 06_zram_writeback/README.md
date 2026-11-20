@@ -141,7 +141,12 @@ Check that the chosen partition now:
 
 Copy its **PARTUUID** somewhere safe temporarily. That is the real identifier to use below. **Do not copy the example PARTUUID of another machine.**
 
+**When OMV is installed:** the selected raw GPT ZRAM backing device remains a dedicated block device, not a NAS filesystem or conventional swap. OMV's fstab deployment rewrites its own marked block; do not add the backing partition to OMV storage or edit entries within that block. Verify the original PARTUUID, absence of ordinary swap on the backing partition, and the running generator/monitor after OMV installation. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
+
 ## Step 6 — Copy the ZRAM configuration files
+
+**Important OMV interaction:** the inspected OMV 8 Salt state for a nonrotating root device can generate `/etc/sysctl.d/99-openmediavault-nonrot.conf` with `vm.swappiness = 1` (its default), then reload sysctl settings. This file sorts after this project's `90-zram.conf`, which requests 100. OMV can therefore change the effective value without modifying the ZRAM file. Check `sysctl vm.swappiness` after OMV installation, reboot or sysctl deployment, and review other assignments if it is not 100. OMV exposes the `OMV_SYSCTL_VM_SWAPPINESS` environment variable for the generated value; see [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks) for the supported customization mechanism. No automatic override, asset rename, or change to the pressure monitor is prescribed here.
+
 
 If you cloned this repository into your home directory, open the ZRAM chapter folder:
 

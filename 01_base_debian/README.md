@@ -133,6 +133,8 @@ sudo apt update
 
 This **downloads current package indexes** from the configured Debian repositories; it does not install or upgrade packages. Check for signature or network errors. If APT fails, investigate the repository setup before the next optional chapter.
 
+**If OMV is already installed or will be installed later:** the ordinary Debian SSH and network checks above describe the base system, not a guarantee that OMV will retain its settings. OMV manages SSH access (including the `_ssh` group), network/DNS and time services. Your separate local root recovery password remains useful; sudo membership alone does not grant OMV SSH access. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks) before relying on remote administration.
+
 **Done when:** your regular user can use sudo, root has a usable **local recovery password**, Debian boots from the correct disk, and the intended network and SSH access work.
 
 **Next:** [02 — Debian tweaks](../02_debian_tweaks/README.md). That guide makes root SSH inaccessible while preserving the local root password.

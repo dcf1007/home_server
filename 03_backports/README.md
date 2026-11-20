@@ -4,6 +4,8 @@
 
 **Before starting:** Debian 13 is installed, you have Internet access, and you can use `sudo`. Skip this chapter if you do not need Backports.
 
+**When OMV is installed:** OMV's APT deployment enables kernel Backports by default in the inspected OMV 8 source, writes its own source and preferences, and pins `linux-base`, `linux-image-*`, `linux-headers-*` and `firmware-*` to priority 500 by default. This is not a global priority-900 pin; the ordinary Debian priority of 100 does not describe all packages on such a system. OMV also warns against arbitrary Backports software. Compare `apt policy` and the actual entries under `/etc/apt/sources.list.d/` and `/etc/apt/preferences.d/` before adding a duplicate source or approving a transaction. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
+
 ## Step 1 — Add the Backports source
 
 This file tells Debian where Backports packages come from and which Debian signing key to trust. Editing it alone installs nothing.
@@ -82,6 +84,6 @@ This checks whether Debian has partially installed or otherwise unconfigured pac
 sudo dpkg --audit
 ~~~
 
-**Done when:** Backports appears in APT at priority 100, normal APT updates work and there are no unresolved package problems.
+**Done when (ordinary Debian):** Backports appears in APT at priority 100, normal APT updates work and there are no unresolved package problems. On OMV, inspect its package-specific priorities separately as explained above.
 
 **Reference:** [Official Debian Backports instructions](https://backports.debian.org/Instructions/).

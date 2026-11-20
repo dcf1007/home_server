@@ -1,5 +1,16 @@
 # Guide provenance and scope
 
+## OMV-aware manual guide notes — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “make notes in the manual steps regarding when omv is installed in the system. i am putting 2 examples below, but double check everyting against omv documentation and online findings.” The supplied examples concern SSH configuration generation/precedence and unattended upgrades.
+
+**Scope:** Documentation-only notes in ordinary Debian chapters 01–09, with the detailed source-linked explanation in [Chapter 07](07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks). Document actual stock OMV SSH settings, additional central key paths, Include-at-end precedence, conditional update/deploy behavior and security-only unattended origins; OMV's APT/kernel/firmware preferences, SSD swappiness conflict, managed fstab block, network/DNS/time and service ownership. Clarify that the project's selected-only operations are distinct from vendor package behavior. No new project policy, package action, service override, diagnostic revision or CDD source/listing change. Existing installation commands are preserved, with conditional notes for OMV hosts.
+
+**Evidence:** OMV 8 official [installation](https://docs.openmediavault.org/en/8.x/installation/on_debian.html), [SSH](https://docs.openmediavault.org/en/8.x/administration/services/ssh.html), [custom configuration](https://docs.openmediavault.org/en/8.x/various/advset.html), [APT](https://docs.openmediavault.org/en/8.x/various/apt.html) and [managed files](https://docs.openmediavault.org/en/8.x/various/files.html) documentation; inspected OMV upstream source snapshot `d2f39bc069c0273d1890a1913bef63c87915f415` (SSH template/state, authorized keys, datamodel defaults, APT state/preferences and packaged APT settings, maintainer script, fstab, sysctl and network states); Debian OpenSSH and sysctl manuals; user-linked issues #779/#946 and Reddit report, plus OMV forum examples. Older reports and documentation references to cron-apt are not treated as current source authority. The supplied old forum thread redirected to an unrelated issue and was not used as evidence.
+
+**Validation boundary:** documentation and upstream source review, not a live OMV installation, package update, SSH authorization test, ISO build, network deployment or stress test. Installed OMV versions and local settings can differ from the inspected snapshot. Read-only checks are provided so the user can establish actual effective behavior. All policy-resolution decisions remain with the user.
+
+
 ## ZRAM diagnostic v10: sign-based initial concurrency exploration — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompts:** “whenever the gain is negative, it should enter in confirm slowdown. so i would simplify to <0% and >=0% gains for retain and confirm and explore higher.” Approval: “implement v10. if that works fine, it will be the last iteration”.
