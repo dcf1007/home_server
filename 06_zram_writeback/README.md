@@ -329,4 +329,40 @@ sudo journalctl -b -u zram-pressure.service
 
 **Do not declare this production-ready solely because the units started.** Confirm actual writeback under controlled pressure and test the emergency/restart behavior on a disposable system.
 
+## Step 10 — Run the standalone writeback diagnostic (disposable VM only)
+
+After Step 9 succeeds, run [`files/test_zram.py`](files/test_zram.py) on a quiet disposable VM with console recovery available. This is a manual diagnostic of the running system, not an installer profile, persistent service or production workload. It deliberately generates memory pressure and backing-device writes; the first run of a new version is not appropriate on a production server. It requires Python 3 (standard library only), systemd, cgroup v2 with the memory controller, and the configured ZRAM device and active pressure service. No dependencies are installed automatically.
+
+Download the current version into a working directory where the test logs can be saved:
+
+~~~sh
+wget -O test_zram.py https://raw.githubusercontent.com/dcf1007/home_server/main/06_zram_writeback/files/test_zram.py
+sudo python3 test_zram.py
+~~~
+
+No command-line arguments are needed. The test runs the following phases in order, using temporary bounded worker units. It does not change the production service, sysctl configuration, swap priorities or backing partition, directly write to ZRAM's idle/writeback sysfs interfaces, or execute global swapoff.
+
+| Phase | Test procedure and evidence |
+| --- | --- |
+| Normal | Prefill toward 76% resident-limit occupancy, age the cold pages for 65 seconds, then apply hot memory pressure. Require a journal-confirmed normal trigger (80–94% occupancy, PSI some avg10 at least 5%), an age-based cycle with positive backing-write delta, and increased backing writes. Phase timeout: 360 seconds. |
+| Emergency | Stop the hot workload, allow 35 seconds for cooldown, and refill toward 97%. Require a trigger at 95% or above, the explicit emergency-branch journal message and positive cycle writes. Phase timeout: 240 seconds. |
+| Readback | Work through retained allocations oldest first. Read and verify each page against its individual SHA-256 digest, flip and check its first bit, restore and check that bit, and immediately discard the verified anonymous page using MADV_DONTNEED. Require all allocated bytes to be verified and discarded and a positive backing-read delta. There is no overall readback deadline or cold-worker runtime limit; 300 seconds without reported page progress is inconclusive. |
+
+The cold workload is split into **exact thirds by page count and logical bytes**: repeated non-uniform 64-byte patterns (highly compressible), independently generated random data (typically incompressible), and nonzero repeated-byte pages (to exercise ZRAM's same-element optimization rather than anonymous zero-page sharing). Each allocation is rounded to a multiple of three pages; the separate hot pressure worker is not included in these proportions.
+
+The terminal shows phase-specific live tables, progress and service journal messages, followed by phase results and per-population allocated/discarded totals. Both timestamped `test_zram_*.log` and `test_zram_*.csv` files are created automatically in the working directory (UTC timestamp and process ID; existing logs are not overwritten). Preserve both for subsequent analysis. The CSV includes original data, compressed payload, actual resident memory, same-element and incompressible-page counters, backing activity and progress. Ratios and percentage savings use comparable samples without backing entries; the final compression report selects the largest sampled logical volume meeting that condition. It also reports the same-element logical volume/share and the payload ratio excluding same-element logical pages, when available. These are **device-wide** measurements, not per-class compression benchmarks. Same-element entries need no separate compressed payload but still require metadata; backing-device reads/writes and logical allocation sizes are not interchangeable.
+
+Exit status: 0 = all three pass; 1 = failure; 2 = inconclusive; 130 = interrupted. Ctrl+C requests cleanup of the transient test units. An inconclusive result means the required evidence or test conditions were not obtained; it is not sufficient to identify a service defect. The existing cold-allocation budget remains the lesser of 85% of initial free logical ZRAM swap and three times the resident limit, rounded to page triplets. The more compressible workload can exhaust that budget before reaching the required occupancy thresholds. Readback duration is workload- and device-dependent; use the measured progress/ETA rather than a fixed completion-time promise.
+
+### Diagnostic revision history — 2026-11-20
+
+| Revision | Changes |
+| --- | --- |
+| [v1](https://github.com/dcf1007/home_server/commit/b01976e5b0923c5e939e261eb07ebca0d0e88853) | Sequential normal/emergency/readback test, 75% random/25% zero bytes per cold page, fixed 180-second readback timeout. |
+| [v2](https://github.com/dcf1007/home_server/commit/c9356e6d39e4e7f62d46537eff54841419bd77bb) | Compact tables, timestamped text and CSV logs, explicit oldest-first bit modification/restoration; allocation-dependent readback deadline and 120-second inactivity watchdog (superseded). |
+| [v3](https://github.com/dcf1007/home_server/commit/aa7639974c8c1f6eac1962f9a0047d38203435ec) | Equal repeated-pattern/random page populations, per-page checksums and immediate discard, no overall readback deadline, 300-second inactivity watchdog, compression statistics. |
+| [v4](https://github.com/dcf1007/home_server/commit/2a6862f9325f00f0e846b28f55311bfc205144df) | Exact thirds including nonzero same-element pages, per-population accounting, same-element raw counters and comparable compression metrics. Current version. |
+
+**Validation boundary:** The user's v1 VM screenshot reported PASS for normal and emergency writeback, INCONCLUSIVE for readback after the 180-second timeout, 2,290.4 MiB backing writes, 396.8 MiB backing reads, 395.7 MiB verified, and successful cleanup. This is evidence of that run, not proof of completed readback integrity. Versions 2–4 were locally checked for Python syntax and their respective anonymous-memory worker, accounting and reporting behavior; actual ZRAM and transient systemd behavior for the revised script still require a VM run. No production-source or installer changes are included in these diagnostic revisions.
+
 **References:** [Kernel ZRAM documentation](https://www.kernel.org/doc/html/latest/admin-guide/blockdev/zram.html) · [zram-generator settings](https://github.com/systemd/zram-generator/blob/main/man/zram-generator.conf.md).
