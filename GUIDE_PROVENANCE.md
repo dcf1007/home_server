@@ -1,5 +1,15 @@
 # Guide provenance and scope
 
+## ZRAM diagnostic v8: continued optimization and clearer page-event reporting — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “maybe change the name of minor/major faults to something more meaninful and less misleading. I agree trying higher thread number. the idea is to increase the threads as much as possible to speed up the readback until increasing thenumber of threads becomes counterproductive (longer time to finish, cpu maxed out, etc) you can suggest a change in criteria or new ones”; approval: “i agree, go for the changes”.
+
+**Observed v7 evidence:** User screenshots show normal, emergency and readback PASS; total 931.9 s, 5,213.6 MiB verified/discarded (1,334,685 pages), backing reads and writes both 3,475.7 MiB, final resident 0 MiB, exit 0 and successful cleanup. Initial 16-thread backing rate 4.38 MiB/s, two 32-thread windows 4.48 and 4.17 MiB/s; permanent plateau lock returned to 16 threads despite substantial CPU headroom. These observations apply to the v7 VM run, not v8 or a complete ISO test.
+
+**Implementation:** [v8 / cd45c50](https://github.com/dcf1007/home_server/commit/cd45c50e92e9579c6f5c5cd94ef7361396b765e9), source blob `c8773e6771b99a4ec3b215b81e849596d2634df4`. Retain initial and incremental four threads per allowed logical CPU. Primary objective verified/discarded MiB/s, separate backing throughput. At least 30 seconds per measurement window, 5% meaningful gain, three further levels after first plateau, confirmation of >10% slowdown over two duration-weighted windows. Return to lowest measured count within 5% of recent best; back off at 80% sampled busy CPU (exclude idle, wait and steal). Reopen the search after 60-second hold with fresh statistics; no permanent lock. Retain resizing at block boundaries and existing memory/resource limits, capacity accounting, page mix, integrity checks and no-progress timeout. Clearer minor/major page-event labels in final output, raw CSV names preserved. Text tuning table and explicit CSV tuning records alongside sample rows preserve decisions, measurements, gain, old/next count and recent bests. No independent CPU quota or arbitrary fixed thread limit. Thread creation failures, high CPU between measurement windows and nonuniform resident/backing mixture remain possible.
+
+**Verification:** Committed source fetched and compared to authored source. Isolated Python simulations of the copied decision methods passed five scenarios: flat search through 16/32/48/64/80 with 60-second retry, higher-level improvement, confirmed slowdown plus retry, CPU backoff/recovery, and page-count ceiling. Full script integration and actual v8 VM performance not tested in this operation; no speedup claimed. Production ZRAM service, configuration and installer source remain unchanged.
+
 ## ZRAM diagnostic v7: throughput and CPU-driven readback concurrency — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompt:** “you can launch more threads until either the read speed flats out or the cpu usage reaches 80%. with the 4 threads per core there is a lot of room left to speed up the readback”
