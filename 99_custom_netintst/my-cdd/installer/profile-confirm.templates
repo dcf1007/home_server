@@ -103,3 +103,7 @@ Description: Remove the package ${MYCDD_REMOVAL}?
 Template: my-cdd/progress
 Type: text
 Description: ${MYCDD_STATUS}
+
+Template: my-cdd/progress-title
+Type: text
+Description: Configuring selected installation profiles

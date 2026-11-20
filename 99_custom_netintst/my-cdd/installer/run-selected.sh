@@ -59,23 +59,45 @@ export_log() {
 }
 # Must load current Debian Installer's GTK or text cdebconf frontend.
 . /usr/share/debconf/confmodule
-# Observational UI only. Native finish-install owns the outer progress bar;
-# native debconf-apt-progress and installer package tools own their own UI.
-# Do not START/STOP a nested bar or change the parent's numeric progress.
-# Only caller-supplied, non-secret, single-line status text reaches Debconf.
+# Observational UI only. Native finish-install initially owns the bar.
+# cdebconf GTK replaces (rather than nests) bars and may return success
+# for INFO even when no bar remains. After handing off to native APT or
+# anna, open our own bar between native transactions, never over them.
+# Only caller-supplied single-line, non-secret status text reaches Debconf.
 progress_context='Account recovery'
+progress_detached=false
+progress_owned=false
+profile_total=0
+profile_completed=0
+progress_stop_local() {
+    if [ "$progress_owned" = true ]; then
+        db_progress STOP || :
+        progress_owned=false
+    fi
+    return 0
+}
+progress_handoff() {
+    progress_stop_local
+    progress_detached=true
+}
 progress_status() {
-    if db_subst my-cdd/progress MYCDD_STATUS "$progress_context: $1"; then
-        if db_progress INFO my-cdd/progress; then
-            :
-        else
-            # A nested native APT transaction may have stopped the outer bar.
-            # INFO is a non-blocking native status display, not an approval.
-            db_info my-cdd/progress || :
+    if [ "$progress_detached" = true ] && [ "$progress_owned" = false ] &&
+       [ "$profile_total" -gt 0 ]; then
+        if db_progress START 0 "$profile_total" my-cdd/progress-title; then
+            progress_owned=true
+        fi
+    fi
+    if db_subst my-cdd/progress MYCDD_STATUS "$1 [$progress_context]"; then
+        db_progress INFO my-cdd/progress || :
+        if [ "$progress_owned" = true ]; then
+            # Count only successfully completed profiles, never fake time/percent.
+            db_progress SET "$profile_completed" || :
         fi
     fi
     return 0
 }
+# Only close progress displays created by this script on unexpected exits.
+trap 'progress_stop_local' 0
 review_serial=0
 show_note() {
     name=$1
@@ -95,6 +117,7 @@ show_note() {
     db_go || return 1
 }
 fatal() {
+    progress_stop_local
     printf "FAILED\n" > "$STATUS"
     log "FATAL: $*"
     {
@@ -174,6 +197,7 @@ run_target() {
             update) progress_status 'Updating package indexes' ;;
             *) progress_status 'Executing the approved APT transaction' ;;
         esac
+        progress_handoff
         capture in-target debconf-apt-progress --logstderr -- "$@" ||
             fatal "Target APT transaction failed: $*"
     else
@@ -329,7 +353,7 @@ for profile in $ordered; do profile_total=$((profile_total + 1)); done
 profile_index=0
 for profile in $ordered; do
     profile_index=$((profile_index + 1))
-    progress_context="Profile $profile_index of $profile_total ($profile)"
+    progress_context="$profile (profile $profile_index/$profile_total)"
     progress_status 'Preparing selected profile'
     log "PROFILE BEGIN: $profile"
     case "$profile" in
@@ -348,6 +372,7 @@ for profile in $ordered; do
     printf 'Completed: %s\n' "$profile" > "$LOG_DIR/my-cdd-completed/$profile"
     chmod 600 "$LOG_DIR/my-cdd-completed/$profile"
     log "PROFILE COMPLETE: $profile"
+    profile_completed=$profile_index
     progress_status 'Completed'
 done
 progress_context='Custom installation'
@@ -355,4 +380,5 @@ progress_status 'Finalizing completion records'
 log 'All selected optional profiles completed.'
 printf 'COMPLETE\n' > "$STATUS"
 export_log
+progress_stop_local
 exit 0
