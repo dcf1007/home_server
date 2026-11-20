@@ -36,7 +36,6 @@ TUNE_SECONDS = 30
 TUNE_CPU_TARGET = 80.0
 TUNE_MIN_GAIN = 0.05
 TUNE_BAD_DROP = 0.10
-TUNE_EXTRA_LEVELS = 3
 TUNE_BAD_WINDOWS = 2
 STAGES = ('retrieve', 'sha256', 'modify', 'discard')
 AGE_SECONDS = 65
@@ -540,8 +539,6 @@ class Test:
         self.tune_sample = None
         self.tune_best_rate = None
         self.tune_best_threads = None
-        self.tune_flat = 0
-        self.tune_reference = None
         self.tune_candidates = {}
         self.tune_trial = []
         self.tune_history = {}
@@ -949,8 +946,11 @@ class Test:
     def remember_tune_rate(self, threads, rate):
         self.tune_candidates[threads] = rate
         self.tune_best_rate = max(self.tune_candidates.values())
+        # Initial exploration uses the exact best rate, with fewer threads on ties.
+        # Keep v9's near-best tolerance only for the post-settlement comparison.
+        tolerance = 0 if self.tune_mode == 'search' else TUNE_MIN_GAIN
         self.tune_best_threads = min(k for k, v in self.tune_candidates.items()
-                                     if v >= self.tune_best_rate*(1-TUNE_MIN_GAIN))
+                                     if v >= self.tune_best_rate*(1-tolerance))
 
     def settle_tune(self, reason):
         self.readback_threads = self.tune_best_threads
@@ -1035,28 +1035,19 @@ class Test:
             self.settle_tune('retune complete; hold near-best count')
             return
         best = self.tune_best_rate
-        bad = best is not None and trial_rate < best*(1-TUNE_BAD_DROP)
-        if bad and len(self.tune_trial) < TUNE_BAD_WINDOWS:
-            self.tune_state = 'confirm slowdown'
-            return
-        if bad:
-            self.settle_tune('confirmed slowdown; hold near-best count')
+        if best is not None and trial_rate < best:
+            if len(self.tune_trial) < TUNE_BAD_WINDOWS:
+                self.tune_state = 'confirm slowdown'
+                return
+            self.settle_tune('confirmed negative gain; hold best count')
             return
         self.remember_tune_rate(old, trial_rate)
-        if self.tune_reference is None or trial_rate >= self.tune_reference*(1+TUNE_MIN_GAIN):
-            self.tune_reference = trial_rate
-            self.tune_flat = 0
-        else:
-            self.tune_flat += 1
         self.tune_trial.clear()
-        if self.tune_flat > TUNE_EXTRA_LEVELS:
-            self.settle_tune('plateau; hold near-best count')
-            return
         self.readback_threads = min(self.tune_limit, old+self.tune_step)
         if self.readback_threads == old:
-            self.settle_tune('page-count limit; hold near-best count')
+            self.settle_tune('page-count limit; hold best count')
         else:
-            self.tune_state = 'explore higher' if self.tune_flat else 'increase'
+            self.tune_state = 'explore higher'
 
     def tune_readback(self, block):
         """Tune at block boundaries; objective is verified and discarded bytes/s."""
@@ -1122,8 +1113,10 @@ class Test:
         say(f'No overall readback deadline; no-progress timeout {READBACK_STALL_SECONDS}s.')
         say(f'Parallel readback: starts at {self.readback_threads} threads; increase by {self.tune_step} per trial.')
         say(f'Tuning: >= {TUNE_SECONDS}s windows; {TUNE_CPU_TARGET:.0f}% busy CPU target; verified/discarded MiB/s objective.')
-        say(f'Explore {TUNE_EXTRA_LEVELS} further levels after first plateau; confirm >{TUNE_BAD_DROP*100:.0f}% slowdown twice; retune only after sustained deterioration.')
-        say('Keep all tuning measurements; prefer the lowest near-best count.')
+        say('Initial search: nonnegative gain explores higher; any negative gain holds for confirmation.')
+        say('Negative duration-weighted confirmation settles at the exact best measured count.')
+        say(f'After settling, retune only after two windows more than {TUNE_BAD_DROP*100:.0f}% below the reference.')
+        say('Keep all tuning measurements; fewest threads on exact initial ties; near-best tolerance only for retuning.')
         self.tune_state = 'ramping'
         if not self.total:
             raise Inconclusive('No cold data allocated')
