@@ -122,7 +122,7 @@ profile_firmware() {
     : > "$WORK/firmware-selectors"
     : > "$WORK/firmware-fallbacks"
     : > "$WORK/firmware-omissions"
-    firmware_candidates="$(grep -Ev '^[[:space:]]*(#|$)' "$MEDIA/firmware-candidates.txt")"
+    firmware_candidates="$(grep -Ev '^[[:space:]]*(#|$)' "$MEDIA/firmware-candidates.txt" || :)"
     firmware_total=0
     for pkg in $firmware_candidates; do firmware_total=$((firmware_total + 1)); done
     firmware_index=0
