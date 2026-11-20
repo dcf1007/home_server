@@ -1,5 +1,12 @@
 # my-cdd source manifest and provenance
 
+## Netplan diagnostic profile — 2026-11-20
+
+**Nearest user prompt:** “add a profile that installs netplan in my-cdd just to check. then in the first boot i will run the install.sh and see if it fails.”
+
+The optional, unchecked `netplan-test` profile installs `--no-install-recommends netplan.io` through the existing APT review and approval at stage 11, before native `55netcfg-copy-config`. Netplan's mandatory `netplan-generator` dependency is the variable under test. This profile adds no network-backend override, DNS or routing edits, OMV/Docker package selection, vendor patch, or first-boot hook. Native stage 14 verifies its completion marker; the existing stage 15 guard checks all selected markers. No ISO or runtime test is claimed.
+
+
 ## OMV one-time job cleans up after itself — 2026-11-17
 
 **Nearest user prompt:** “i agree with the suggestion”, after requesting that the one-shot script, service and all state markers disappear after execution, leaving only logs.

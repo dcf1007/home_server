@@ -13,10 +13,10 @@ For manual configuration of a **normally installed Debian system**, use the corr
 1. [Build project](build_project.md) — create Simple-CDD configuration, editable defaults, ISO media lists and the build wrapper.
 2. [Shared profile helpers](profile_construction.md) — create selection validation and target-APT helper functions.
 3. [Installer framework](installer_framework.md) — create native Debian Installer hooks, checkbox/confirmation templates, stage-11 dispatcher, root recovery preflight and single completion guard.
-4. Create the **seven optional profile implementations**, in the logical order below. They are all offered but **none is selected automatically**.
+4. Create the **eight optional profile implementations**, in the logical order below. They are all offered but **none is selected automatically**.
 5. [Validation and VM testing](validation_and_pending.md) — compare complete source hashes, build the ISO, exercise approvals and failure paths in a disposable VM.
 
-A single feature's source module is **not** a complete ISO: it depends on the shared framework. The currently shipped Simple-CDD configuration includes all seven optional choices.
+A single feature's source module is **not** a complete ISO: it depends on the shared framework. The currently shipped Simple-CDD configuration includes all eight optional choices.
 
 ## Feature construction order
 
@@ -27,6 +27,7 @@ A single feature's source module is **not** a complete ISO: it depends on the sh
 | [04 — Linux 7.x kernel](04_ensure_7x_kernel.md) | Eligible suite selection, image and matching headers, GRUB |
 | [05 — Extended device support](05_extended_device_support.md) | Firmware manifest, microcode and original vendor-license dialogs |
 | [06 — ZRAM writeback](06_zram_writeback.md) | Native udeb disk selector, safe confirmation, GPT conversion and ZRAM generator |
+| [09 — Netplan diagnostic](09_netplan_test.md) | Temporary test: install Netplan before native network transfer |
 | [07 — OpenMediaVault 8](07_openmediavault.md) | One official signed APT source, reviewed package installation and native one-time first-boot OMV initialization |
 | [08 — Docker](08_docker.md) | One official signed APT source, reviewed package set; independent of OMV |
 

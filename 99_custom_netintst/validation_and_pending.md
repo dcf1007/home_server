@@ -1,5 +1,12 @@
 # Validation — Test the scripts and generated Debian installer
 
+## Netplan diagnostic profile — 2026-11-20
+
+**Nearest user prompt:** “add a profile that installs netplan in my-cdd just to check. then in the first boot i will run the install.sh and see if it fails.”
+
+The optional, unchecked `netplan-test` profile installs `--no-install-recommends netplan.io` through the existing APT review and approval at stage 11, before native `55netcfg-copy-config`. Netplan's mandatory `netplan-generator` dependency is the variable under test. This profile adds no network-backend override, DNS or routing edits, OMV/Docker package selection, vendor patch, or first-boot hook. Native stage 14 verifies its completion marker; the existing stage 15 guard checks all selected markers. No ISO or runtime test is claimed.
+
+
 ## Standalone ZRAM diagnostic evidence — 2026-11-20
 
 The user supplied a completed v7 [standalone writeback diagnostic](https://github.com/dcf1007/home_server/blob/fc535233e04a1f9d85d28a81fd8d92d8bf966955/06_zram_writeback/README.md#observed-disposable-vm-result--v7-2026-11-20) terminal report: normal/emergency/readback all PASS, 5,213.6 MiB verified and discarded (1,334,685 pages), backing writes and reads each 3,475.7 MiB, final resident memory 0 MiB, transient-unit cleanup successful and exit status 0. Normal/emergency/readback elapsed times were 104.1/81.0/746.7 seconds. This validates the pressure and integrity paths exercised by that particular running VM. The full kernel version, installer build identity, partition-conversion procedure, deliberate failure/restart behavior and complete original logs are not established by the screenshots.

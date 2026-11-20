@@ -22,14 +22,14 @@ The complete [build-project construction guide](../build_project.md) explains th
 
 ## Source layout
 
-- [simple-cdd.conf](simple-cdd.conf): seven optional profiles, all initially unchecked, no automatic selection.
+- [simple-cdd.conf](simple-cdd.conf): eight optional profiles, all initially unchecked, no automatic selection.
 - [profiles/](profiles): profile descriptions, `.extra` staging inputs, native per-profile `.postinst` success verifiers, and the **build-only** media profile.
 - [installer/](installer): native GTK/text Debconf confirmation, selected-only stage-11 finish-install dispatcher, and single stage-15 completion guard.
 - [scripts/](scripts): inputs staged on the ISO (Backports source, firmware inventory, ZRAM generator and monitor).
 - [profile_defaults.conf](profile_defaults.conf): editable suggestions for native installer questions, **not** passwords, disk selection or preapproved optional profiles.
 - [SOURCE_MANIFEST.md](SOURCE_MANIFEST.md): detailed chronological source provenance and past defects.
 
-**Selected-profile execution order:** Debian tweaks → Backports → Ensure 7.x kernel → Extended device support → ZRAM writeback → OMV 8 → Docker. ZRAM requires separately selected Ensure 7.x. Only selected features are applied.
+**Selected-profile execution order:** Debian tweaks → Backports → Ensure 7.x kernel → Extended device support → ZRAM writeback → Netplan diagnostic → OMV 8 → Docker. ZRAM requires separately selected Ensure 7.x. Only selected features are applied.
 
 ### Why the installer differs from the standalone guides
 
