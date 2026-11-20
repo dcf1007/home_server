@@ -4,6 +4,8 @@
 
 Do not assume that a particular 7.x version will remain available. Check the versions offered by your configured Debian repositories at the time of installation.
 
+**When OMV is installed:** OMV may independently enable the kernel Backports repository and apply targeted image/header preferences. This can affect moving metapackage candidates and future kernel upgrades irrespective of the earlier manual Backports choice. Verify the actual package origins and matching ABI; OMV's preferences do not enforce this project's Linux 7.x requirement. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks). No kernel-retention or repository-policy change is implied by this note.
+
 ## Step 1 — See which kernels Debian offers
 
 This refreshes package metadata before making any kernel decision. It does not upgrade or install packages; stop if repository updates fail.

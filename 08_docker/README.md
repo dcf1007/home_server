@@ -4,6 +4,8 @@
 
 Docker is independent of OpenMediaVault. Both guides use the same basic method—official signing key, signed APT repository, reviewed package installation, then verification. Docker requires its own package set; OMV additionally initializes its database and hosts. This guide does not install OMV-Extras, `openmediavault-compose`, containers or additional server services.
 
+**When OMV is installed:** Docker remains a separate installation decision. OMV also manages APT settings and has its own web, network and storage services. Review the actual Docker package transaction on the OMV host, and do not assume that an ordinary Debian repository or service configuration is unchanged. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks). The guide still does not install OMV-Extras, Compose integrations or containers.
+
 ## Step 1 — Check for conflicting software
 
 Before installing, check whether Debian's `docker.io`, `docker-compose`, `podman-docker`, `containerd` or `runc` packages are already installed:

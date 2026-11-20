@@ -4,6 +4,8 @@
 
 Debian already detects and installs some required firmware during normal installation. **This chapter is optional.** It applies to Debian 13 amd64 and requires the `non-free-firmware` component in your Debian APT sources.
 
+**When OMV is installed:** OMV's own kernel Backports preferences also match `firmware-*` by default, so even ordinary APT commands may select Backports firmware. Its default preference does not match the names `intel-microcode` or `amd64-microcode`. Review the actual candidate and origin for each requested package; the existing inventory and individual omission decisions remain unchanged. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
+
 ## Step 1 — Refresh APT and read the package inventory
 
 This updates APT’s available package information before evaluating firmware. It does **not** install firmware or change drivers; stop if the configured Debian sources cannot be refreshed.
