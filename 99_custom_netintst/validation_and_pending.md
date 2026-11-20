@@ -1,5 +1,11 @@
 # Validation — Test the scripts and generated Debian installer
 
+## Standalone ZRAM diagnostic evidence — 2026-11-20
+
+The user supplied a completed v7 [standalone writeback diagnostic](../06_zram_writeback/README.md#observed-disposable-vm-result--v7-2026-11-20) terminal report: normal/emergency/readback all PASS, 5,213.6 MiB verified and discarded (1,334,685 pages), backing writes and reads each 3,475.7 MiB, final resident memory 0 MiB, transient-unit cleanup successful and exit status 0. Normal/emergency/readback elapsed times were 104.1/81.0/746.7 seconds. This validates the pressure and integrity paths exercised by that particular running VM. The full kernel version, installer build identity, partition-conversion procedure, deliberate failure/restart behavior and complete original logs are not established by the screenshots.
+
+Version 8 changes the standalone test's readback concurrency optimization, not the production service or ISO. Its runtime and speedup remain pending. The installer build and end-to-end installation checklist below are not marked complete by this standalone test.
+
 ## Approved OMV self-cleaning one-time first boot — 2026-11-17
 
 **Nearest user prompts:** “go ahead” approved the first-boot service; “i would prefer a one shot script that after execution is gone and doesn't leave anything behind. the only thing that can stay behind are the logs”, followed by “i agree with the suggestion”, approved the subsequent self-cleanup revision.
