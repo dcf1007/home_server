@@ -5,13 +5,14 @@
 Template: my-cdd/profile-summary
 Type: note
 Description: Review the selected custom installation profiles
- All seven optional profiles are shown in their required execution order.
+ All eight optional profiles are shown in their required execution order.
  .
   Debian tweaks: ${MYCDD_TWEAKS}
   Backports: ${MYCDD_BACKPORTS}
   Ensure Linux 7.x kernel: ${MYCDD_KERNEL}
   Extended device support: ${MYCDD_FIRMWARE}
   ZSTD ZRAM writeback: ${MYCDD_ZRAM}
+  Netplan (diagnostic test): ${MYCDD_NETPLAN_TEST}
   OpenMediaVault 8: ${MYCDD_OMV}
   Docker: ${MYCDD_DOCKER}
  .

@@ -301,6 +301,7 @@ for profile in $ordered; do
         ensure-7x-kernel) module=ensure-7x-kernel; handler=profile_kernel ;;
         extended-device-support) module=extended-device-support; handler=profile_firmware ;;
         zram-writeback) module=zram-writeback; handler=profile_zram ;;
+        netplan-test) module=netplan-test; handler=profile_netplan_test ;;
         openmediavault) module=openmediavault; handler=profile_omv ;;
         docker) module=docker; handler=profile_docker ;;
         *) fatal "Unknown selected profile: $profile" ;;

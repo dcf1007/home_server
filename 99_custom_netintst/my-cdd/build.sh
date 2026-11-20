@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build the Debian 13 Trixie amd64 Simple-CDD project.
-# The seven optional profiles must be implemented before this can build an ISO.
+# All offered optional profiles must be implemented before this can build an ISO.
 # Keep build-simple-cdd's exit status when streaming output through tee.
 set -euo pipefail
 cd "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"

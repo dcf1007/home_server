@@ -47,7 +47,7 @@ debconf-loadtemplate my-cdd "$TEMPLATE_CONFIRM" ||
 . /usr/share/debconf/confmodule
 
 ask_profiles() {
-    # Ensure a normal, explicit seven-choice multiselect is actually shown.
+    # Ensure a normal, explicit eight-choice multiselect is actually shown.
     # Do not silently leave a previously seen/auto-selected value.
     db_fset simple-cdd/profiles seen false || return 1
     db_input high simple-cdd/profiles || return 1
@@ -72,6 +72,8 @@ display_summary() {
     db_subst my-cdd/profile-summary MYCDD_FIRMWARE "$profile_status" || return 1
     status_of zram-writeback
     db_subst my-cdd/profile-summary MYCDD_ZRAM "$profile_status" || return 1
+    status_of netplan-test
+    db_subst my-cdd/profile-summary MYCDD_NETPLAN_TEST "$profile_status" || return 1
     status_of openmediavault
     db_subst my-cdd/profile-summary MYCDD_OMV "$profile_status" || return 1
     status_of docker

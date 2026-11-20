@@ -4,7 +4,7 @@
 set -eu
 [ "$#" -eq 1 ] || { printf >&2 'Expected one comma-separated selection string\n'; exit 2; }
 selected="$(printf %s "$1" | tr ',' ' ')"
-order='debian-tweaks backports ensure-7x-kernel extended-device-support zram-writeback openmediavault docker'
+order='debian-tweaks backports ensure-7x-kernel extended-device-support zram-writeback netplan-test openmediavault docker'
 for token in $selected; do
   case " $order " in *" $token "*) ;; *)
     printf >&2 'Unknown/unapproved profile: %s\n' "$token"; exit 1;;
