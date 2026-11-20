@@ -6,7 +6,7 @@
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **When OMV is installed:** OMV's APT deployment enables kernel Backports by default in the inspected OMV 8 source, writes its own source and preferences, and pins `linux-base`, `linux-image-*`, `linux-headers-*` and `firmware-*` to priority 500 by default. This is not a global priority-900 pin; the ordinary Debian priority of 100 does not describe all packages on such a system. OMV also warns against arbitrary Backports software. Compare `apt policy` and the actual entries under `/etc/apt/sources.list.d/` and `/etc/apt/preferences.d/` before adding a duplicate source or approving a transaction. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
@@ -49,29 +49,74 @@ This displays APT’s repository and priority table. Find the `trixie-backports`
 apt policy
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 Look for `trixie-backports`. Its usual package priority is **100**; normal Stable packages normally have priority **500**. Do not add a custom priority-900 preference.
+
+</td>
+</tr>
+</table>
 
 ## Step 3 — Review normal package upgrades
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 This starts a regular full-upgrade using the currently configured APT priorities. It can install new dependencies **and remove packages**; inspect the summary and answer **No** if it would remove a needed kernel, SSH or other essential service.
+
+</td>
+</tr>
+</table>
 
 ~~~sh
 sudo apt full-upgrade
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 APT will show what it plans to install, upgrade or remove. **Read that summary before answering Yes.** If it proposes losing a working kernel, SSH or other essential software, answer **No** and investigate.
+
+</td>
+</tr>
+</table>
 
 This command is a normal upgrade under Debian's existing priority rules. It does **not** install every package from Backports.
 
 ## Step 4 — Review optional cleanup
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 This asks APT which automatically installed packages are no longer required and proposes removing them, including leftover configuration (`--purge`). Review the **complete list** before accepting; cancelling is safe and cleanup is optional.
+
+</td>
+</tr>
+</table>
 
 ~~~sh
 sudo apt autoremove --purge
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 Read the entire removal list before approving anything. In particular, keep the old bootable Stable kernel until the new one has been tested. If uncertain, answer **No**; cleanup is optional.
+
+</td>
+</tr>
+</table>
 
 ## Step 5 — Install a particular Backports package only when needed
 
@@ -83,7 +128,16 @@ This shows the available kernel metapackage versions and their repository origin
 apt policy linux-image-amd64
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 If you deliberately want a particular package from Backports, select that package for the transaction rather than changing the priority of *all* packages. For the complete Linux 7.x image-and-headers procedure, follow [04](../04_kernel_7x/README.md).
+
+</td>
+</tr>
+</table>
 
 Check package health when finished:
 
@@ -97,7 +151,7 @@ sudo dpkg --audit
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 On OMV, inspect its package-specific priorities separately as explained above.

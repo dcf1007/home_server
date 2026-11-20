@@ -1,5 +1,14 @@
 # Guide provenance and scope
 
+## Distinct OMV and general-note icons — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “use this svg for openmediavault specific notes, use the exclamation point for every other note not related to omv but relevant” (user supplied the blue OMV SVG and permitted its size adjustment).
+
+**Implemented:** Use [assets/openmediavault.svg](assets/openmediavault.svg) for OMV-specific notes (the supplied path, fill and viewBox unchanged; 72 × 72 intrinsic dimensions). Use [assets/warning.svg](assets/warning.svg) for general important cautions, prerequisites, safety notes and validation limitations. Both use the established 72 × 72 top-aligned, reserved-width icon-cell layout. Replace all 28 prior OMV warning icons, add 4 further OMV-specific and 105 general note blocks in the nine manual chapters, the linked standalone diagnostic reference and root guide instructions. Mixed paragraphs with a specific OMV caveat retain the OMV icon; ordinary procedural steps and routine output explanations are not individually decorated. Keep the original warning asset path for historical links. No text, command, link or implementation changes.
+
+**Validation boundary:** Exact round-trip removal of the new wrappers and restoration of the previous icon references reproduced each input Markdown file from main `03ce3ea7dc18ba24c853655e548c269499379a92`. Both SVG assets specify 72 × 72 intrinsic dimensions and their image tags specify the same size. Actual GitHub browser rendering was not independently verified for this revision.
+
+
 ## ZRAM diagnostic documentation and final v10 acceptance — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompts:** “don't put anything specific to my test runs final values. the graphs should only focus on the python script itself. write a markdown for the test script and show me the md with the graphs in it, as well as how you'd integrate that in the repo with the 06 chapter”; “thr graphs were much clearer in the previous version, the new style is very cahotic”; “i think validation notes don't need so many subfolders when nothing else is going in there (a single test_zram_diagrams folder would do). also we don't need to create the test_zram:validation historical revision.” Final approval: “go ahead and commit all the changes. regarding the diagrams, make sure you use the right font because some parts were showing up looking like times new roman and we don't want that.”

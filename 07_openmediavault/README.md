@@ -4,7 +4,7 @@
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **Before starting:** use Debian 13 (Trixie) without a desktop environment, on amd64 or arm64. Follow the numbered [base Debian guide](../01_base_debian/README.md) first. OMV's [manual installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html) explicitly requires working DNS and a configured `systemd-resolved` **before** installing OMV; otherwise the package installation can interrupt name resolution. Verify this prerequisite and keep local console access. OMV's packages may change network services.
@@ -15,7 +15,7 @@
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **Existing Debian settings:** OMV is a configuration manager, not just an additional application. Its [installation documentation](https://docs.openmediavault.org/en/8.x/installation/on_debian.html) states that most existing managed service settings are not imported (network/time are exceptions, with import limitations). OMV package installation can deploy its own SSH, APT, sysctl and other configurations. Before proceeding, retain console access and note any settings from Chapters 01–06 that you intend to keep. The [post-install notes below](#omv-8-configuration-ownership-and-post-install-checks) explain what to review; they do not add mandatory package or configuration operations.
@@ -35,19 +35,46 @@ sudo apt install gnupg wget
 
 ## Step 2 — Install the official signing key
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 Download the key to a local file rather than executing a remote script. The download URL is the one used by the official installer:
+
+</td>
+</tr>
+</table>
 
 ~~~sh
 wget -O openmediavault-archive.key https://packages.openmediavault.io/archive.key
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 Inspect the key before installing it. This prints its identity/fingerprint; it is **not** independent verification against a trusted published fingerprint:
+
+</td>
+</tr>
+</table>
 
 ~~~sh
 gpg --show-keys --with-fingerprint openmediavault-archive.key
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 Install it as a dedicated APT keyring (review an existing destination before replacing it):
+
+</td>
+</tr>
+</table>
 
 ~~~sh
 sudo gpg --dearmor -o /usr/share/keyrings/openmediavault-archive-keyring.gpg openmediavault-archive.key
@@ -79,7 +106,16 @@ The keyring authenticates the repository's signed APT metadata. No fallback-mirr
 
 ## Step 4 — Review and install OMV
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 Refresh the signed package lists; stop if repository signatures or downloads fail:
+
+</td>
+</tr>
+</table>
 
 ~~~sh
 sudo apt update
@@ -91,13 +127,31 @@ Simulate the complete OMV transaction **without installing anything**:
 sudo apt-get -s install --no-install-recommends openmediavault
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 Review the package changes, especially removals, downgrades or held packages. If they are unexpected, stop rather than accepting them blindly. Then install the actual package with APT's normal confirmation:
+
+</td>
+</tr>
+</table>
 
 ~~~sh
 sudo apt install --no-install-recommends openmediavault
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 The official quick installer passes additional flags permitting removals and downgrades without review; this manual guide deliberately does not. It installs the same OMV package from the same official repository, but retains explicit transaction control.
+
+</td>
+</tr>
+</table>
 
 ## Step 5 — Complete the two upstream initialization steps
 
@@ -113,7 +167,16 @@ Deploy OMV's managed `/etc/hosts` configuration so its own hostname resolves:
 sudo omv-salt deploy run hosts
 ~~~
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 These are the two explicit post-package commands in the official installer. Do not run `omv-salt stage run all` or change other services as part of this installation.
+
+</td>
+</tr>
+</table>
 
 ## Step 6 — Verify and use OMV
 
@@ -136,7 +199,7 @@ Open the OMV web interface using that address. Follow [OMV's login instructions]
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 These notes apply to a normally installed Debian 13 system after installing OMV 8 (also relevant after later OMV deployments and upgrades). Sources checked on 2026-11-20: the OMV 8 documentation and upstream OMV source snapshot [d2f39bc](https://github.com/openmediavault/openmediavault/commit/d2f39bc069c0273d1890a1913bef63c87915f415). The actual installed package and configuration remain authoritative; source inspection is not a live test. The following are observations and read-only checks, not an additional mandatory hardening or setup policy.
@@ -149,7 +212,7 @@ These notes apply to a normally installed Debian 13 system after installing OMV 
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 The [SSH Salt state](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/srv/salt/omv/deploy/ssh/20sshd_config.sls) manages and diverts `/etc/ssh/sshd_config`. Settings are rendered from OMV's configuration database (`/etc/openmediavault/config.xml`, object `conf.service.ssh`), replacing direct edits when the SSH state is deployed. Its [data model](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/usr/share/openmediavault/datamodels/conf.service.ssh.json) defaults root login, password authentication and public-key authentication to enabled, and its [template](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/srv/salt/omv/deploy/ssh/files/sshd_config.j2) normally restricts access with `AllowGroups root _ssh`. OMV's official installation guide explicitly warns that the original Debian administrator may lose SSH access unless permitted by that group. Sudo and SSH authorization are separate. The documented initial root SSH access is separate from the local recovery password; disabling SSH root login does not lock the local account.
@@ -178,7 +241,7 @@ Review ordinary settings in **Services | SSH**; use OMV's user management for `_
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 OMV 8 depends on `unattended-upgrades` and `apticron` ([package dependencies](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/debian/control)); the older `cron-apt` wording still present in the [update documentation](https://docs.openmediavault.org/en/8.x/various/apt.html) does not describe the inspected source. OMV's [95 periodic defaults](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/etc/apt/apt.conf.d/95openmediavault-periodic) enable package-list refresh/download but set automatic installation to 0. The [update data model](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/usr/share/openmediavault/datamodels/conf.system.apt.updates.json) defaults automatic security installation to enabled, and the [APT Salt state](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/srv/salt/omv/deploy/apt/30periodic_custom.sls) creates `98openmediavault-periodic-custom` with value 1 when enabled, removes it otherwise. Its [unattended-upgrade configuration](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/etc/apt/apt.conf.d/95openmediavault-unattended-upgrade) clears the origin list and selects Debian Security origins by default, not OMV's package repository. Local overrides may change this. The OMV [APT default state](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/srv/salt/omv/deploy/apt/10default.sls) removes/diverts the ordinary `50unattended-upgrades` file.
@@ -202,7 +265,7 @@ Automatic installation of the OMV package itself is **not the stock security-onl
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 The [APT deployment state](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/srv/salt/omv/deploy/apt/10default.sls) can rewrite `openmediavault.list` to use its signed mirror list, manage OS security sources, remove `APT::Default-Release` assignments and supply its own kernel Backports repository and preference file. This describes OMV's package behavior; it is not a change to the approved single-repository initial installation procedure above. By default, `OMV_APT_USE_KERNEL_BACKPORTS` is true and the [preferences template](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/srv/salt/omv/deploy/apt/files/etc-apt-preferences_d-openmediavault-kernel-backports_pref.j2) assigns priority 500 to `linux-base`, `linux-image-*`, `linux-headers-*` and `firmware-*` from Backports (not a global pin, nor a pin matching the two CPU microcode names). Therefore package-specific selection may differ from ordinary Debian's priority 100, and a repository can appear even when Chapter 03 was skipped. OMV's official [software guidance](https://docs.openmediavault.org/en/8.x/various/apt.html) warns that arbitrary packages from Backports/Testing/Experimental may cause incompatibilities.
@@ -223,7 +286,7 @@ Inspect both relevant source/preference files and the actual candidate versions.
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 OMV's [nonrotating-root Salt state](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/srv/salt/omv/deploy/sysctl/nonrot.sls) can generate `/etc/sysctl.d/99-openmediavault-nonrot.conf` on a detected nonrotating root disk, setting `vm.swappiness` to 1 by default along with other I/O tuning. Its [sysctl state](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/srv/salt/omv/deploy/sysctl/default.sls) reloads sysctl configuration. The later filename takes precedence over this project's `90-zram.conf` setting of 100 under normal [sysctl.d ordering](https://manpages.debian.org/trixie/systemd/sysctl.d.5.en.html). This is a possible real conflict even if the ZRAM files themselves were never edited. Check after installing OMV, after reboot and after a relevant redeployment:
@@ -248,7 +311,7 @@ OMV's [fstab state](https://github.com/openmediavault/openmediavault/blob/d2f39b
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 OMV imports certain network/time settings, but the [installation documentation](https://docs.openmediavault.org/en/8.x/installation/on_debian.html) says its network import currently parses `/etc/network/interfaces` only. It documents `omv-salt deploy run systemd-networkd` or `omv-firstaid` for network setup and warns that the IP can change. The [network states](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/srv/salt/omv/deploy/systemd-networkd/10network_interfaces.sls) manage the interfaces file, and the [resolver state](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/srv/salt/omv/deploy/systemd-networkd/90resolv_conf.sls) can replace `/etc/resolv.conf` with a systemd-resolved symlink. The [postinst](https://github.com/openmediavault/openmediavault/blob/d2f39bc069c0273d1890a1913bef63c87915f415/deb/openmediavault/debian/openmediavault.postinst) also enables networkd/resolved on first installation, uses chrony and disables/masks the replaced systemd-timesyncd/ntp services. These are vendor operations, not additional CDD policy.
@@ -269,7 +332,7 @@ These commands inspect the active network, name resolution and time synchronizat
 
 <table>
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv-warning.svg" width="72" height="72" alt="Warning: OMV configuration"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
 <td valign="top">
 
 **Scope ends here.** SSH access policy, account groups, update schedules, APT notifications, storage, shares and additional applications are separate decisions. Neither the standalone guide nor the OMV CDD profile imposes them. Docker remains independent in [08 — Docker](../08_docker/README.md).
@@ -278,4 +341,13 @@ These commands inspect the active network, name resolution and time synchronizat
 </tr>
 </table>
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="../assets/openmediavault.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 **Runtime status:** the signed-repository installation and subsequent networking/first-boot behavior must still be verified on a fresh Debian 13 VM. Do not claim functional success from the presence of the package alone.
+
+</td>
+</tr>
+</table>

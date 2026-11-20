@@ -21,9 +21,27 @@ The recommended order is:
 
 Start with [01](01_base_debian/README.md). Then apply only the optional chapters you want. **02 is recommended immediately after 01**, because it establishes fundamental boot and SSH settings before other installations.
 
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 The numbered order describes **dependencies and a safe working sequence**, not a requirement to install every feature. In particular, the intended ZRAM writeback configuration requires a compatible Linux 7.x kernel, so [04](04_kernel_7x/README.md) must be completed before [06](06_zram_writeback/README.md).
 
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td valign="top" align="center" width="72" nowrap><img src="assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
+<td valign="top">
+
 Each command is preceded by an explanation of its purpose, what it changes or reports, and what you should check. Follow commands **one at a time**. Instructions to **open a configuration file in a text editor** are deliberately editor-neutral: read what the file currently contains, make only the described change, save it and preserve any other settings. When a command contains placeholders such as `YOUR_PARTITION` or `YOUR_USERNAME`, identify the correct value on your own system before executing it.
+
+</td>
+</tr>
+</table>
 
 If you want a local copy of these guides, first install Git. This installs the repository client, not any NAS service:
 
