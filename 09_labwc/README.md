@@ -2,10 +2,10 @@
 
 **Goal:** add a small, on-demand local GUI (labwc, Firefox ESR, foot, Thunar, Geany and lxpolkit) to a normally installed Debian NAS, without installing a full desktop environment or a display manager. This chapter does **not** modify the custom Simple-CDD installer or create an installer profile.
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"></td>
+<td valign="top" width="100%">
 
 **Scope and release:** the repository's documented baseline is **Debian 13 (Trixie) with OpenMediaVault 8**. These commands may also work with packages on Debian 14 (Forky), but Debian 14 + OMV 8 is **not** an officially documented OMV 8 combination. Never mix Trixie and Forky APT sources to install a GUI. This guide is optional and follows the base Debian or OMV steps only when you specifically want a graphical session.
 
@@ -13,10 +13,10 @@
 </tr>
 </table>
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 **Requirements:** a local text-console login under a normal (non-root) user, an available DRM/KMS graphics device and connected display, and working seat access through an existing logind session or another compatible seat backend. You can **download and edit the files over SSH**, but a normal local labwc desktop does not launch inside SSH merely because the files are present. A truly headless server with no usable local display may need a different remote-display approach.
 
@@ -24,10 +24,10 @@
 </tr>
 </table>
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"></td>
+<td valign="top" width="100%">
 
 **When OMV will be installed:** OMV's [Debian installation guide](https://docs.openmediavault.org/en/8.x/installation/on_debian.html) rejects detected desktop environments. If both features are desired, complete OMV installation and verify its operation before considering this optional local session; labwc is not a prerequisite for OMV. The existing manual-only GUI scope is unchanged. For OMV-managed services and configuration, see [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks).
 
@@ -49,10 +49,10 @@ command -v lxpolkit
 systemctl get-default
 ~~~
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 **Selected packages and APT policies:** install **labwc, firefox-esr and foot with Recommends**; install **thunar, geany and lxpolkit without Recommends**. Do **not** install ShellCheck or the geany-plugins metapackage for this setup. APT's Recommends are not mandatory dependencies; selecting them for the first group can bring optional components such as Xwayland, and so will use more disk space than the strict minimum.
 
@@ -70,10 +70,10 @@ sudo apt-get -s --install-recommends install labwc firefox-esr foot
 sudo apt-get -s --no-install-recommends install thunar geany lxpolkit
 ~~~
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"></td>
+<td valign="top" width="100%">
 
 Read **both** APT plans. Stop if either would remove **openmediavault**, introduce an unwanted display manager (LightDM, GDM, SDDM, etc.), install a competing network manager, unexpectedly upgrade OMV-critical packages or add undesirable system services. The Wayland graphics stack may use logind or seatd; check the actual planned transaction. In particular, **labwc with Recommends may introduce Xwayland**, which is optional for the selected native-Wayland applications. Avoid mixing Debian 13 and 14 sources to satisfy dependencies.
 
@@ -91,10 +91,10 @@ sudo apt-get install --install-recommends labwc firefox-esr foot
 sudo apt-get install --no-install-recommends thunar geany lxpolkit
 ~~~
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 Do not install a full desktop/task metapackage, a graphical login manager, a separate taskbar or a competing disk-mounting utility for this procedure.
 
@@ -102,10 +102,10 @@ Do not install a full desktop/task metapackage, a graphical login manager, a sep
 </tr>
 </table>
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"></td>
+<td valign="top" width="100%">
 
 **Thunar:** keep **Enable Volume Management** disabled and browse OMV's existing mounts under ordinary user permissions. Avoid installing Thunar's optional volume-management helpers unless needed for a separately approved use case. **Geany:** provides syntax highlighting and IDE-style editing for Bash and configuration files; no ShellCheck or plugins are required for basic editing. **lxpolkit:** only supplies a graphical authentication agent; it does not itself enable privileged Thunar browsing. Its use is described in the optional administrator-access section below.
 
@@ -117,10 +117,10 @@ Do not install a full desktop/task metapackage, a graphical login manager, a sep
 
 The **only configuration file supplied** is [files/menu.xml](files/menu.xml): a right-click desktop menu for **Terminal**, **Firefox ESR**, **Files (Thunar)**, **Geany**, **Running Windows**, **Reconfigure**, and **Exit labwc**. No power-off, reboot, automount, shortcut override or session autostart command is included. No custom `rc.xml` is needed; labwc uses its native/default keybinding behavior.
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 Use your **normal user** account. The files belong in that user's home directory, **not** in /root or /etc. Create the directory:
 
@@ -132,10 +132,10 @@ Use your **normal user** account. The files belong in that user's home directory
 mkdir -p "$HOME/.config/labwc"
 ~~~
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 Choose **curl or wget**. Download to temporary names so a failed transfer does not overwrite your current configuration.
 
@@ -161,10 +161,10 @@ Inspect exactly what was downloaded **before** replacing any files:
 cat "$HOME/.config/labwc/menu.xml.new"
 ~~~
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 Do not proceed if the download failed, is empty, or contains unexpected text. If you already have a custom menu, **read it and merge the required entries rather than replacing it**. The following install step is for a fresh setup or one where replacing the menu is intentional.
 
@@ -181,10 +181,10 @@ fi
 mv "$HOME/.config/labwc/menu.xml.new" "$HOME/.config/labwc/menu.xml"
 ~~~
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 This affects **only the user-level menu file**. No system service, boot target, network setting, storage mount, keybinding or OMV configuration is edited. The repository's plain XML is downloaded as data; **do not pipe it to a shell**.
 
@@ -206,10 +206,10 @@ If you get an EGL renderer initialization error (for example **eglInitialize** o
 WLR_RENDERER=pixman labwc
 ~~~
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 This selects Pixman software rendering **for that invocation only**. It was reported to make labwc start on one Debian 14 installation; this is **not** proof of hardware acceleration, Firefox performance or universal device support. Do not modify system-wide environment files merely to use this fallback.
 
@@ -245,10 +245,10 @@ echo "$SSH_CONNECTION"
 labwc -d
 ~~~
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 The last command starts labwc in diagnostic mode; run it **after exiting** any existing labwc instance and capture its output if needed. Absence of a render device, GPU/Mesa issues and a session without local-seat access can all cause startup problems. Pixman fixes a renderer path, **not** every seat/DRM issue.
 
@@ -258,10 +258,10 @@ The last command starts labwc in diagnostic mode; run it **after exiting** any e
 
 Inside Firefox, open **about:support** and inspect **Window Protocol**. The menu requests the Wayland backend using **MOZ_ENABLE_WAYLAND=1**; actual behavior should be verified rather than assumed.
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"></td>
+<td valign="top" width="100%">
 
 If Thunar is installed, keep its volume-management feature disabled, leave NAS disks mounted and configured by OMV, and avoid using the file manager as root. Ordinary file deletion or permission changes can still affect NAS users if your normal account has the corresponding access.
 
@@ -277,10 +277,10 @@ The safest default on an OMV server is to leave Thunar unprivileged and use a te
 sudo ls -la /root
 ~~~
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 If you **specifically require graphical privileged browsing**, Thunar can use the GVfs **admin:///** URI backend (for example, **admin:///root**) after explicit Polkit authorization. This does **not** run the entire Thunar GUI as root, but it **does** permit root-level changes through the authorized backend. It is not read-only.
 
@@ -300,10 +300,10 @@ On a system missing them, simulate the smallest useful authorization setup:
 sudo apt-get -s --no-install-recommends install gvfs-backends
 ~~~
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"></td>
+<td valign="top" width="100%">
 
 The **gvfs-backends** package is **not part of the selected six-package installation**; it provides the GVfs admin backend as well as additional remote-filesystem and user-session volume-monitor functionality. That additional integration may not fit your OMV isolation policy. The selected **lxpolkit** agent can display authorization prompts but cannot provide the admin backend itself. Carefully review the new APT proposal and any services; install only if privileged GUI browsing is specifically required:
 
@@ -327,10 +327,10 @@ Then in Thunar press **Ctrl+L**, enter **admin:///root** and authenticate when p
 thunar admin:///root
 ~~~
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 If no prompt appears, check the user-session D-Bus/Polkit agent rather than using \`sudo thunar\` or \`pkexec thunar\`. On Debian 13/14, policy/agent availability and local-session status affect authentication.
 
@@ -338,10 +338,10 @@ If no prompt appears, check the user-session D-Bus/Polkit agent rather than usin
 </tr>
 </table>
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"></td>
+<td valign="top" width="100%">
 
 Do **not** add an always-privileged Thunar shortcut to the menu, loosen permissions recursively, or use this elevated view to change OMV-managed mounts, ACLs, owners or system configuration. For simply reading root-protected files without requiring a GUI, a limited **sudo terminal command** is more conservative.
 
@@ -353,10 +353,10 @@ Do **not** add an always-privileged Thunar shortcut to the menu, loosen permissi
 
 ## Keep this an optional local session
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"></td>
+<td valign="top" width="100%">
 
 Do **not** install or enable a display manager, graphical.target, a competing network manager, a desktop automounter or a power-management daemon for this procedure. The selected lxpolkit agent and the recommended dependency set for labwc/Firefox/foot may still introduce services or startup integration; inspect the actual APT plan and local session before relying on zero changes. No GUI component is added to the Simple-CDD ISO or OpenMediaVault profile. The existing default boot target and OMV-managed network/storage configuration remain the authority for the host.
 
@@ -364,10 +364,10 @@ Do **not** install or enable a display manager, graphical.target, a competing ne
 </tr>
 </table>
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 **Verification boundary:** repository XML and commands can be checked statically; this is not an end-to-end test on every Debian/OMV combination, GPU or physical machine. Always inspect the live APT plan and test locally.
 

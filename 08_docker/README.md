@@ -4,10 +4,10 @@
 
 Docker is independent of OpenMediaVault. Both guides use the same basic method—official signing key, signed APT repository, reviewed package installation, then verification. Docker requires its own package set; OMV additionally initializes its database and hosts. This guide does not install OMV-Extras, `openmediavault-compose`, containers or additional server services.
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/omv.svg" width="72" height="72" alt="OpenMediaVault-specific note"></td>
+<td valign="top" width="100%">
 
 **When OMV is installed:** Docker remains a separate installation decision. OMV also manages APT settings and has its own web, network and storage services. Review the actual Docker package transaction on the OMV host, and do not assume that an ordinary Debian repository or service configuration is unchanged. See [Chapter 07 — OMV configuration ownership and checks](../07_openmediavault/README.md#omv-8-configuration-ownership-and-post-install-checks). The guide still does not install OMV-Extras, Compose integrations or containers.
 
@@ -25,10 +25,10 @@ This asks APT which of Docker’s **potentially conflicting packages** are alrea
 apt list --installed docker.io docker-compose docker-doc docker-buildx podman-docker containerd runc
 ~~~
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 This checks just the potentially conflicting packages, rather than listing every installed package. If you find a conflicting package, follow the [official Docker removal guidance](https://docs.docker.com/engine/install/debian/) **after reviewing any existing containers and data**. Do not remove production data blindly.
 
@@ -60,10 +60,10 @@ sudo mkdir -p /etc/apt/keyrings
 
 Download Docker's signing key:
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 This downloads Docker’s **official repository signing key** into the keyring directory over HTTPS. If the download fails or reports a certificate error, do not continue to the repository configuration.
 
@@ -108,10 +108,10 @@ This example is specifically for **Debian 13 amd64**, the system used by this pr
 
 ## Step 4 — Refresh and install Docker
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 This refreshes package indexes again, **now including the Docker repository**. Stop if Docker’s repository is unreachable or its signature cannot be verified.
 
@@ -123,10 +123,10 @@ This refreshes package indexes again, **now including the Docker repository**. S
 sudo apt update
 ~~~
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 If APT reports a signing-key or repository error, stop and correct it.
 
@@ -136,10 +136,10 @@ If APT reports a signing-key or repository error, stop and correct it.
 
 Check that Docker's official packages are available:
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 This displays the available Docker Engine versions and their package origins. Verify the candidate comes from **`download.docker.com`**, not from a different repository.
 
@@ -161,10 +161,10 @@ This installs official Docker Engine, CLI, containerd runtime, Buildx and Compos
 sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 ~~~
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 APT will show the packages and dependencies it intends to install or remove. Read the summary before accepting.
 
@@ -202,10 +202,10 @@ This checks the underlying `containerd` runtime service. It should also report a
 sudo systemctl status containerd
 ~~~
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 The official packages normally manage their own startup. **Do not mask or disable these services** for this project.
 
@@ -224,10 +224,10 @@ This guide deliberately does **not**:
 - Change Docker's daemon, storage or network settings.
 - Install any OMV Docker or Compose integration.
 
-<table>
+<table width="100%">
 <tr>
-<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"><br><span aria-hidden="true">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td>
-<td valign="top">
+<td valign="top" align="center" width="72" nowrap><img src="../assets/warning.svg" width="72" height="72" alt="Important note"></td>
+<td valign="top" width="100%">
 
 If you later publish container ports, review Docker's [firewall considerations](https://docs.docker.com/engine/install/debian/). Published ports may behave differently from the host firewall rules you expect.
 
