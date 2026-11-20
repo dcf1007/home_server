@@ -32,6 +32,10 @@ EMERGENCY_SECONDS = 240
 READBACK_STALL_SECONDS = 300  # only inactivity, no overall deadline
 READBACK_PROGRESS = MIB
 THREADS_PER_CPU = 4
+TUNE_SECONDS = 10
+TUNE_CPU_TARGET = 80.0
+TUNE_MIN_GAIN = 0.05
+TUNE_FLAT_WINDOWS = 2
 STAGES = ('retrieve', 'sha256', 'modify', 'discard')
 AGE_SECONDS = 65
 POLL = 1.0
@@ -94,7 +98,9 @@ CSV_FIELDS = ('elapsed_s', 'phase', 'occupancy_pct', 'psi_avg10_pct',
               'retrieve_wall_s_sum', 'retrieve_cpu_s_sum', 'sha256_wall_s_sum', 'sha256_cpu_s_sum',
               'modify_wall_s_sum', 'modify_cpu_s_sum', 'discard_wall_s_sum', 'discard_cpu_s_sum',
               'readback_minor_faults', 'readback_major_faults', 'backing_read_await_ms',
-              'backing_avg_queue_depth', 'system_cpu_steal_pct')
+              'backing_avg_queue_depth', 'system_cpu_steal_pct',
+              'tune_cpu_busy_pct', 'tune_backing_mib_s', 'tune_verified_mib_s',
+              'tune_state')
 
 
 def run(*args, timeout=10, check=True):
@@ -366,14 +372,16 @@ def cold_worker():
     blocks = []
     def reply(**data):
         print('ZTEST '+json.dumps(data), flush=True)
-    cpus = len(os.sched_getaffinity(0))
+    cpu_ids = sorted(os.sched_getaffinity(0))
+    cpus = len(cpu_ids)
     requested = THREADS_PER_CPU*cpus
     if requested < 1:
         raise RuntimeError('No available CPUs for readback')
     # Smaller native stacks keep large CPU-count VMs within the worker cgroup.
     threading.stack_size(256*1024)
     pool = None
-    reply(ready=True, cpus=cpus, threads=requested)
+    pool_size = 0
+    reply(ready=True, cpus=cpus, cpu_ids=cpu_ids, threads=requested)
     for line in sys.stdin:
         command = json.loads(line)
         if command['op'] == 'alloc':
@@ -410,9 +418,17 @@ def cold_worker():
             if not blocks:
                 reply(done=True)
                 continue
+            requested = command.get('threads')
+            if type(requested) is not int or requested < 1:
+                raise ValueError('Invalid readback thread count')
             m, digests, n = blocks.pop(0)
-            if pool is None:
-                pool = ThreadPoolExecutor(max_workers=requested)
+            # A previous block has fully drained; no outstanding page faults.
+            pool_target = min(requested, n//PAGE)
+            if pool is None or pool_size != pool_target:
+                if pool is not None:
+                    pool.shutdown(wait=True)
+                pool = ThreadPoolExecutor(max_workers=pool_target)
+                pool_size = pool_target
             try:
                 parallel_verify(m, digests, n, pool, requested, reply)
             except Exception as e:
@@ -513,6 +529,16 @@ class Test:
         self.allocations = []
         self.readback_threads = 0
         self.readback_active = 0
+        self.cpu_ids = []
+        self.tune_step = 0
+        self.tune_limit = 0
+        self.tune_sample = None
+        self.tune_best_rate = None
+        self.tune_best_threads = None
+        self.tune_flat = 0
+        self.tune_locked = False
+        self.tune_state = 'pending'
+        self.tune_metrics = (None, None, None)
         self.stage_wall = [0]*len(STAGES)
         self.stage_cpu = [0]*len(STAGES)
         self.readback_faults = [0, 0]
@@ -616,11 +642,16 @@ class Test:
         ready = self.receive(self.cold)
         if not ready.get('ready'):
             raise Failure('Cold worker did not initialize')
-        cpus, threads = ready.get('cpus'), ready.get('threads')
-        if type(cpus) is not int or cpus < 1 or threads != THREADS_PER_CPU*cpus:
+        cpus, threads, cpu_ids = ready.get('cpus'), ready.get('threads'), ready.get('cpu_ids')
+        if (type(cpus) is not int or cpus < 1 or threads != THREADS_PER_CPU*cpus
+                or not isinstance(cpu_ids, list) or len(cpu_ids) != cpus
+                or any(type(i) is not int or i < 0 for i in cpu_ids)
+                or len(set(cpu_ids)) != cpus):
             raise Failure(f'Invalid cold worker CPU/thread report: {ready}')
+        self.cpu_ids = cpu_ids
+        self.tune_step = threads
         self.readback_threads = threads
-        say(f'Readback configured: {cpus} available logical CPUs x {THREADS_PER_CPU} = {threads} threads.')
+        say(f'Readback starts at {cpus} available logical CPUs x {THREADS_PER_CPU} = {threads} threads; adaptive growth.')
         group = run('systemctl', 'show', self.cold.unit, '-p', 'ControlGroup', '--value').stdout.strip()
         if not group.startswith('/') or group == '/' or '..' in Path(group).parts:
             raise Failure('Cannot identify cold worker cgroup')
@@ -774,7 +805,9 @@ class Test:
                 discard_wall_s_sum=self.stage_wall[3]/1e9, discard_cpu_s_sum=self.stage_cpu[3]/1e9,
                 readback_minor_faults=self.readback_faults[0], readback_major_faults=self.readback_faults[1],
                 backing_read_await_ms=self.io_metrics[0], backing_avg_queue_depth=self.io_metrics[1],
-                system_cpu_steal_pct=self.io_metrics[2]))
+                system_cpu_steal_pct=self.io_metrics[2],
+                tune_cpu_busy_pct=self.tune_metrics[0], tune_backing_mib_s=self.tune_metrics[1],
+                tune_verified_mib_s=self.tune_metrics[2], tune_state=self.tune_state))
 
     def receive(self, worker):
         while True:
@@ -880,6 +913,85 @@ class Test:
                 continue
             time.sleep(POLL)
 
+    def tune_point(self):
+        """CPU busy ticks over the worker's affinity mask, excluding wait/steal."""
+        wanted = {f'cpu{i}' for i in self.cpu_ids}
+        rows = {}
+        try:
+            for line in Path('/proc/stat').read_text().splitlines():
+                parts = line.split()
+                if parts and parts[0] in wanted:
+                    v = [int(x) for x in parts[1:9]]
+                    if len(v) != 8:
+                        return None
+                    # user, nice, system, idle, iowait, irq, softirq, steal
+                    rows[parts[0]] = (sum(v), sum(v[i] for i in (0,1,2,5,6)))
+            if set(rows) != wanted:
+                return None
+            return (time.monotonic(), self.verified, fields(Z/'bd_stat')[1],
+                    sum(x[0] for x in rows.values()), sum(x[1] for x in rows.values()))
+        except (OSError, ValueError, IndexError):
+            return None
+
+    def tune_readback(self, block):
+        """Only resize between blocks; compare like-for-like durations approximately."""
+        point = self.tune_point()
+        if point is None:
+            self.tune_sample = None
+            say('TUNE: counters unavailable; holding current count')
+            return
+        if block//PAGE < self.readback_threads:
+            # A short block cannot exercise the configured concurrency.
+            self.tune_sample = point
+            return
+        if self.tune_sample is None:
+            self.tune_sample = point
+            return
+        dt, dv, dr, ticks, busy = (a-b for a,b in zip(point, self.tune_sample))
+        if dt < TUNE_SECONDS:
+            return
+        self.tune_sample = point
+        if ticks <= 0 or not 0 <= busy <= ticks or min(dv, dr) < 0:
+            say('TUNE: inconsistent counters; holding current count')
+            return
+        cpu_pct = 100*busy/ticks
+        disk_rate = dr*BD_UNIT/MIB/dt
+        verified_rate = dv/MIB/dt
+        self.tune_metrics = (cpu_pct, disk_rate, verified_rate)
+        old = self.readback_threads
+        say(f'TUNE: {old} threads | CPU busy={cpu_pct:.1f}% | backing={disk_rate:.2f} MiB/s | verified={verified_rate:.2f} MiB/s')
+        if cpu_pct >= TUNE_CPU_TARGET:
+            # Stop increasing; back off if CPU remains busy in later windows.
+            self.readback_threads = max(1, old-self.tune_step if old > self.tune_step else old//2)
+            self.tune_locked = True
+            self.tune_state = 'CPU target reached; hold/back off'
+            self.tune_flat = 0
+        elif self.tune_locked:
+            return
+        elif dr == 0 or dv == 0:
+            # Same-element/resident-only work is not a backing speed sample.
+            self.tune_state = 'waiting for backing reads'
+            return
+        elif self.tune_best_rate is None or disk_rate >= self.tune_best_rate*(1+TUNE_MIN_GAIN):
+            self.tune_best_rate = disk_rate
+            self.tune_best_threads = old
+            self.tune_flat = 0
+            self.readback_threads = min(self.tune_limit, old+self.tune_step)
+            self.tune_locked = self.readback_threads <= old
+            self.tune_state = ('page-count limit; hold' if self.tune_locked else 'ramping')
+        else:
+            self.tune_flat += 1
+            if self.tune_flat >= TUNE_FLAT_WINDOWS:
+                self.readback_threads = self.tune_best_threads
+                self.tune_locked = True
+                self.tune_state = 'plateau; hold best measured count'
+            else:
+                self.tune_state = 'checking plateau'
+        if self.readback_threads != old:
+            say(f'TUNE: next block {old} -> {self.readback_threads} threads ({self.tune_state})')
+        else:
+            say(f'TUNE: {self.tune_state}')
+
     def readback(self):
         self.phase = 'READBACK'
         self.readback_started = self.last_progress = time.monotonic()
@@ -888,11 +1000,16 @@ class Test:
         say(f'3/3 READBACK: oldest first; access, flip/restore one bit per page, '
             f'verify SHA-256 and immediately discard all {self.total/MIB:.1f} MiB.')
         say(f'No overall readback deadline; no-progress timeout {READBACK_STALL_SECONDS}s.')
-        say(f'Parallel readback: {self.readback_threads} threads configured; fewer lanes for smaller blocks.')
+        say(f'Parallel readback: starts at {self.readback_threads} threads; increase by {self.tune_step} per trial.')
+        say(f'Tuning: >= {TUNE_SECONDS}s windows; {TUNE_CPU_TARGET:.0f}% busy CPU target; plateau after {TUNE_FLAT_WINDOWS} windows below {TUNE_MIN_GAIN*100:.0f}% gain.')
+        self.tune_state = 'ramping'
         if not self.total:
             raise Inconclusive('No cold data allocated')
+        self.tune_limit = max(self.allocations)//PAGE
+        self.readback_threads = min(self.readback_threads, self.tune_limit)
+        self.tune_sample = self.tune_point()
         for block in self.allocations:
-            self.cold.send(op='verify')
+            self.cold.send(op='verify', threads=self.readback_threads)
             last = 0
             by_type = [0]*MIX_PAGES
             last_wall = [0]*len(STAGES)
@@ -936,6 +1053,7 @@ class Test:
                 if msg.get('match') is not True or msg.get('verified') != block or last != block or msg.get('pages') != block//PAGE:
                     raise Failure(f'Cold data checksum mismatch or invalid response: {msg}')
                 break
+            self.tune_readback(block)
         self.readback_active = 0
         s = self.tick()
         if self.verified != self.total or self.accessed != self.total or self.discarded != self.total:
@@ -1036,7 +1154,9 @@ class Test:
                 emit('-'*58)
                 for i, stage in enumerate(STAGES):
                     emit(f'{stage:11} | {self.stage_wall[i]/1e9:10.3f} | {self.stage_cpu[i]/1e9:9.3f} | {self.stage_wall[i]/1000/self.pages_modified:17.2f}')
-                emit(f'Threads configured: {self.readback_threads}; minor faults: {self.readback_faults[0]}; major faults: {self.readback_faults[1]}')
+                emit(f'Last thread target: {self.readback_threads}; minor faults: {self.readback_faults[0]}; major faults: {self.readback_faults[1]}')
+                emit(f'Adaptive tuning: {self.tune_state}; best sampled backing rate: {self.tune_best_rate if self.tune_best_rate is not None else "unavailable"} MiB/s')
+                emit('See TUNE log lines for concurrency, busy CPU and separate backing/verified rates.')
                 emit('Retrieve wall vs CPU includes page faults, I/O, scheduling and kernel work; not isolated NVMe or decompression time.')
                 emit('CSV contains interval backing read latency, queue depth and system CPU steal when available.')
             emit('COMPRESSION | largest sampled logical volume before/no backing entries')
