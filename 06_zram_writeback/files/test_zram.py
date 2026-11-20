@@ -33,6 +33,8 @@ POLL = 1.0
 PAGE = os.sysconf('SC_PAGE_SIZE')
 MIX_PAGES = 3
 MIX_BYTES = MIX_PAGES * PAGE
+BD_UNIT = 4096  # bd_stat units are 4 KiB
+CAPACITY_RESERVE_PCT = 15
 # Linux UAPI values: Python builds do not always export these constants.
 MADV_COLD = getattr(mmap, 'MADV_COLD', 20)
 MADV_PAGEOUT = getattr(mmap, 'MADV_PAGEOUT', 21)
@@ -77,7 +79,12 @@ CSV_FIELDS = ('elapsed_s', 'phase', 'occupancy_pct', 'psi_avg10_pct',
               'non_same_payload_ratio_no_backing', 'huge_pages',
               'huge_pages_since', 'compression_ratio_no_backing',
               'payload_savings_pct_no_backing', 'resident_savings_pct_no_backing',
-              'readback_idle_s')
+              'readback_idle_s', 'backing_capacity_bytes', 'backing_used_bytes',
+              'backing_pending_bytes', 'cold_resident_charge_bytes', 'hot_reserve_bytes',
+              'swap_reserve_bytes', 'backing_reserve_bytes', 'swap_additional_bytes',
+              'backing_additional_bytes', 'cold_additional_bytes', 'capacity_sample_valid',
+              'resident_logical_bytes', 'resident_payload_ratio', 'resident_non_same_ratio',
+              'resident_payload_savings_pct', 'resident_ram_savings_pct', 'resident_same_logical_pct')
 
 
 def run(*args, timeout=10, check=True):
@@ -118,10 +125,14 @@ def snapshot():
     mm = fields(Z/'mm_stat')
     original, compressed, used, limit, *_ = mm
     backing, reads, writes, *_ = fields(Z/'bd_stat')
-    # orig_data_size may include entries already written back, whereas
-    # compr_data_size is resident payload. Only compute compression ratios
-    # when there are no backing entries and no intervening backing writes.
-    comparable = backing == bd_before[0] == 0 and writes == bd_before[2]
+    # Non-atomic sysfs reads: reject visibly changing or inconsistent samples.
+    same = mm[5] if len(mm)>5 else None
+    backed = backing * BD_UNIT
+    stable = bd_before[:3] == [backing, reads, writes]
+    consistent = (stable and same is not None and same >= 0 and backed >= 0
+                  and original % PAGE == 0 and backed % PAGE == 0
+                  and original >= backed + same*PAGE)
+    comparable = consistent and backing == 0
     errors = tuple(fields(Z/'io_stat')[:2])
     if limit <= 0:
         raise Failure('ZRAM resident limit is zero or was removed')
@@ -137,7 +148,7 @@ def snapshot():
                 backing=backing, reads=reads, writes=writes, errors=errors,
                 available=meminfo()['MemAvailable'], swap_used=swap[2],
                 swap_free=swap[1]-swap[2], comparable=comparable,
-                same_pages=mm[5] if len(mm)>5 else None,
+                capacity_valid=consistent, same_pages=same,
                 huge_pages=mm[7] if len(mm)>7 else None,
                 huge_pages_since=mm[8] if len(mm)>8 else None)
 
@@ -159,6 +170,37 @@ def compression(s):
         return None, None, None
     o, c, u = s['original'], s['compressed'], s['used']
     return (o/c if c else None, 100*(1-c/o), 100*(1-u/o))
+
+
+def resident_metrics(s):
+    """Resident logical bytes and payload ratios under the full-page backing model."""
+    if not s.get('capacity_valid'):
+        return None, None, None, None, None, None
+    logical = s['original'] - s['backing']*BD_UNIT
+    same = s['same_pages']*PAGE
+    payload = s['compressed']
+    if logical <= 0 or payload < 0 or payload > logical-same or s['used'] < 0:
+        return logical, None, None, None, None, None
+    return (logical, logical/payload if payload else None,
+            (logical-same)/payload if payload else None,
+            100*(1-payload/logical), 100*(1-s['used']/logical), 100*same/logical)
+
+
+def capacity(s, backing_capacity, swap_reserve, backing_reserve, cold_charge, hot_reserve):
+    """Additional cold logical bytes; three logical slots, two backing slots.
+
+    Count existing backed + pending non-same slots once. Conservatively
+    charge all resident cold-worker memory; swap-cache overlap may overreserve.
+    """
+    if not s.get('capacity_valid'):
+        return None
+    backed = s['backing']*BD_UNIT
+    pending = s['original']-s['same_pages']*PAGE-backed
+    swap_room = max(0, s['swap_free']-swap_reserve-cold_charge-hot_reserve)
+    backing_room = max(0, backing_capacity-backed-pending-backing_reserve-cold_charge-hot_reserve)
+    cold_room = min(swap_room//MIX_BYTES, backing_room//(2*PAGE))*MIX_BYTES
+    return dict(backed=backed, pending=pending, swap_room=swap_room,
+                backing_room=backing_room, cold_room=cold_room)
 
 
 class Journal:
@@ -371,6 +413,9 @@ class Test:
         self.discarded = 0
         self.discarded_by_type = [0, 0, 0]
         self.compression_peak = None
+        self.resident_peak = None
+        self.cold_charge_file = None
+        self.capacity_block = None
         self.readback_started = None
         self.last_progress = None
         self.display_phase = None
@@ -415,34 +460,60 @@ class Test:
         self.identity = service_identity()
         self.base = snapshot()
         s = self.base
+        if not s['capacity_valid']:
+            raise Inconclusive('Initial backing/logical counters inconsistent; retry on a quiet VM')
+        device_bytes = int(run('blockdev', '--getsize64', backing).stdout.strip())
+        # Slot zero is reserved; usable capacity is rounded to whole pages.
+        self.backing_capacity = max(0, device_bytes//PAGE-1)*PAGE
+        if self.backing_capacity <= 0 or s['backing']*BD_UNIT > self.backing_capacity:
+            raise Failure('Invalid backing capacity or occupancy')
+        self.swap_reserve = (s['swap_free']*CAPACITY_RESERVE_PCT+99)//100
+        self.backing_reserve = ((self.backing_capacity-s['backing']*BD_UNIT)*CAPACITY_RESERVE_PCT+99)//100
         ram = meminfo()['MemTotal']
         # Reserve other system memory and swap. Bounded test-only allocation.
         self.reserve = max(128*MIB, ram//16)
         self.resident = min(256*MIB, s['available']//4, ram//8)
         self.hot_size = min(96*MIB, max(16*MIB, s['limit']//25))//PAGE*PAGE
         self.hot_max = self.hot_size+48*MIB
-        self.budget = min(s['swap_free']*85//100, s['limit']*3)
-        self.budget = self.budget//MIX_BYTES*MIX_BYTES
+        # The cgroup ceiling bounds swap, not total logical allocations.
+        self.swap_ceiling = max(0, s['swap_free']-self.swap_reserve)//PAGE*PAGE
+        self.hot_reserve = self.hot_max+self.hot_size+16*MIB
+        initial = capacity(s, self.backing_capacity, self.swap_reserve,
+                           self.backing_reserve, 0, self.hot_reserve)
         self.chunk = max(MIX_BYTES, min(32*MIB, self.resident//8)//MIX_BYTES*MIX_BYTES)
         if s['occupancy'] >= 70:
             raise Inconclusive('Baseline occupancy >=70%; use a quiet VM')
         if self.resident < 64*MIB or s['available'] < self.reserve+self.resident+self.hot_max:
             raise Inconclusive('Insufficient available RAM for bounded worker cgroups')
-        if self.budget < s['limit']:
-            raise Inconclusive('Insufficient free logical swap for a meaningful run')
+        if initial['cold_room'] < MIX_BYTES:
+            raise Inconclusive('No capacity for a cold page triplet after reserves')
         say(f'Kernel={os.uname().release}; backing={backing}; '
             f'RAM={ram/MIB:.0f} MiB; resident limit={s["limit"]/MIB:.0f} MiB')
-        say(f'Cold allocation cap={self.budget/MIB:.0f} MiB; cold RAM cap={self.resident/MIB:.0f} MiB; '
-            f'hot working set={self.hot_size/MIB:.0f} MiB; reserve={self.reserve/MIB:.0f} MiB')
+        say(f'Usable backing={self.backing_capacity/MIB:.1f} MiB; initial cold allowance={initial["cold_room"]/MIB:.1f} MiB')
+        say(f'Logical swap reserve={self.swap_reserve/MIB:.1f} MiB; backing reserve={self.backing_reserve/MIB:.1f} MiB; hot allowance={self.hot_reserve/MIB:.1f} MiB')
+        say(f'Cold swap ceiling={self.swap_ceiling/MIB:.0f} MiB; cold RAM cap={self.resident/MIB:.0f} MiB; system RAM reserve={self.reserve/MIB:.0f} MiB')
         say('WARNING: deliberate memory/swap pressure and SSD writes; disposable VM only.')
         # Controller deadlines/watchdog govern the cold worker, not systemd.
         say('Cold workload: exactly 1/3 repeated-pattern, 1/3 random, 1/3 nonzero same-element pages.')
         say('Hot worker separately random; kernel counters are device-wide.')
-        say('Existing allocation cap retained; greater compression may prevent reaching a trigger.')
-        self.cold = Worker(self.units, 'cold', self.resident, self.budget, runtime=None)
+        say('Adaptive capacity: three logical slots, at most two backing slots per cold triplet.')
+        self.cold = Worker(self.units, 'cold', self.resident, self.swap_ceiling, runtime=None)
         self.workers.append(self.cold)
         if not self.receive(self.cold).get('ready'):
             raise Failure('Cold worker did not initialize')
+        group = run('systemctl', 'show', self.cold.unit, '-p', 'ControlGroup', '--value').stdout.strip()
+        if not group.startswith('/') or group == '/' or '..' in Path(group).parts:
+            raise Failure('Cannot identify cold worker cgroup')
+        self.cold_charge_file = Path('/sys/fs/cgroup')/group.lstrip('/')/'memory.current'
+        if not self.cold_charge_file.is_file():
+            raise Failure('Cold worker memory.current unavailable')
+
+    def capacity_state(self, s):
+        charge = (int(self.cold_charge_file.read_text()) if self.cold_charge_file is not None
+                  else (self.resident if self.cold is not None else 0))
+        hot = self.hot_reserve if self.phase in ('PREFLIGHT', 'NORMAL') or self.hot is not None else 0
+        return charge, hot, capacity(s, self.backing_capacity, self.swap_reserve,
+                                     self.backing_reserve, charge, hot)
 
     def tick(self):
         if self.deadline is not None and time.monotonic() >= self.deadline:
@@ -450,6 +521,9 @@ class Test:
         s = snapshot()
         if self.total and s['comparable'] and s['original'] > self.base['original'] and (self.compression_peak is None or s['original'] > self.compression_peak['original']):
             self.compression_peak = dict(s)
+        logical, ratio, *_ = resident_metrics(s)
+        if self.total and ratio is not None and (self.resident_peak is None or logical > self.resident_peak['original']-self.resident_peak['backing']*BD_UNIT):
+            self.resident_peak = dict(s)
         if s['limit'] != self.base['limit']:
             raise Failure('ZRAM resident limit changed during test')
         if s['errors'] != self.base['errors']:
@@ -478,6 +552,8 @@ class Test:
         idle = max(0, now-self.last_progress) if self.phase == 'READBACK' and self.last_progress is not None else None
         ratio, payload_saving, resident_saving = compression(s)
         same_bytes, same_pct, non_same_ratio = same_metrics(s)
+        logical, live_ratio, live_non_same, live_payload_save, live_ram_save, live_same_pct = resident_metrics(s)
+        charge, hot, cap = self.capacity_state(s)
         same_delta = (s['same_pages']-self.base['same_pages'] if s['same_pages'] is not None and self.base['same_pages'] is not None else None)
         rate = (self.accessed/MIB/max(0.001, now-self.readback_started)
                 if self.readback_started is not None else 0)
@@ -498,12 +574,12 @@ class Test:
                  f'{s["swap_used"]/MIB:6.1f} | {rate:7.2f} | {eta_text:>6} | {idle:6.0f}')
         else:
             if header:
-                emit('   Time |Occ%| PSI%|  ZRAM |   Swap |     W+ |Ratio|SameMiB|Left')
-                emit('-'*70)
-            ratio_text = f'{ratio:.2f}' if ratio is not None else '-'
-            same_text = f'{same_bytes/MIB:.1f}' if same_bytes is not None else '-'
+                emit('   Time |Occ%| PSI%|  ZRAM |   Swap |   Back |Ratio| Cold+ |Left')
+                emit('-'*71)
+            ratio_text = f'{live_ratio:.2f}' if live_ratio is not None else '-'
+            room_text = f'{cap["cold_room"]/MIB:.0f}' if cap is not None else '-'
             emit(f'{now-START:7.1f} |{s["occupancy"]:4}|{s["psi"]:5.2f}|{s["used"]/MIB:7.1f}| '
-                 f'{s["swap_used"]/MIB:6.1f} | {writes:6.1f} |{ratio_text:>5}|{same_text:>7}|{remaining:4.0f}')
+                 f'{s["swap_used"]/MIB:6.1f} | {s["backing"]/256:6.1f} |{ratio_text:>5}|{room_text:>6} |{remaining:4.0f}')
         self.display_rows += 1
         if CSV is not None:
             CSV.writerow(dict(elapsed_s=f'{now-START:.3f}', phase=self.phase,
@@ -528,7 +604,18 @@ class Test:
                 non_same_payload_ratio_no_backing=non_same_ratio,
                 huge_pages=s['huge_pages'], huge_pages_since=s['huge_pages_since'],
                 compression_ratio_no_backing=ratio, payload_savings_pct_no_backing=payload_saving,
-                resident_savings_pct_no_backing=resident_saving, readback_idle_s=idle))
+                resident_savings_pct_no_backing=resident_saving, readback_idle_s=idle,
+                backing_capacity_bytes=self.backing_capacity, backing_used_bytes=s['backing']*BD_UNIT,
+                backing_pending_bytes=cap['pending'] if cap is not None else None,
+                cold_resident_charge_bytes=charge, hot_reserve_bytes=hot,
+                swap_reserve_bytes=self.swap_reserve, backing_reserve_bytes=self.backing_reserve,
+                swap_additional_bytes=cap['swap_room'] if cap is not None else None,
+                backing_additional_bytes=cap['backing_room'] if cap is not None else None,
+                cold_additional_bytes=cap['cold_room'] if cap is not None else None,
+                capacity_sample_valid=int(cap is not None), resident_logical_bytes=logical,
+                resident_payload_ratio=live_ratio, resident_non_same_ratio=live_non_same,
+                resident_payload_savings_pct=live_payload_save, resident_ram_savings_pct=live_ram_save,
+                resident_same_logical_pct=live_same_pct))
 
     def receive(self, worker):
         while True:
@@ -544,10 +631,20 @@ class Test:
     def alloc(self, s, target):
         # Near a threshold, use smaller steps. Never allocate blindly above it.
         gap = max(PAGE, (target*s['limit']//100)-s['used'])
-        n = min(self.chunk, max(MIX_BYTES, gap//2), self.budget-self.total,
-                max(0, s['swap_free']-self.hot_size-32*MIB))//MIX_BYTES*MIX_BYTES
+        _, _, cap = self.capacity_state(s)
+        if cap is None:
+            # Concurrent backing I/O: defer and re-sample without allocating.
+            time.sleep(POLL)
+            return True
+        n = min(self.chunk, max(MIX_BYTES, gap//2), cap['cold_room'])//MIX_BYTES*MIX_BYTES
         if n <= 0:
+            reason = ('logical swap headroom' if cap['swap_room']//MIX_BYTES <= cap['backing_room']//(2*PAGE)
+                      else 'backing headroom (occupied + pending + reserves)')
+            if self.capacity_block != reason:
+                say('Allocation paused: '+reason)
+                self.capacity_block = reason
             return False
+        self.capacity_block = None
         self.cold.send(op='alloc', n=n)
         msg = self.receive(self.cold)
         if msg.get('allocated') != n or any(msg.get(k) != n//3 for k in ('compressible', 'random', 'same_element')):
@@ -577,7 +674,7 @@ class Test:
             if s['occupancy'] >= 76:
                 break
             if not self.alloc(s, 77):
-                raise Inconclusive('Allocation budget exhausted before normal prefill')
+                raise Inconclusive('Capacity exhausted before normal prefill: '+str(self.capacity_block))
         say('Cold pages aging; no test pages are accessed during this interval.')
         self.sleep(AGE_SECONDS)
         try:
@@ -769,7 +866,17 @@ class Test:
                 emit('No comparable sample; cannot report a compression ratio.')
             emit('Compression statistics are device-wide, not an isolated per-class codec benchmark.')
             emit('Same-element logical volume is not measured physical RAM savings; backing I/O is separate.')
-            emit('Ratio is suppressed when backing entries exist. See CSV for all raw counters.')
+            emit('RESIDENT COMPRESSION | largest consistent sampled resident logical volume')
+            if self.resident_peak is not None:
+                s = self.resident_peak
+                logical, ratio, non_same, saved, ram_saved, same_pct = resident_metrics(s)
+                emit(f'Resident logical={logical/MIB:.2f} MiB | backing={s["backing"]/256:.2f} MiB | payload={s["compressed"]/MIB:.2f} MiB')
+                emit(f'Resident payload ratio={ratio:.2f}:1 | payload saved={saved:.2f}% | RAM saved={ram_saved:.2f}%')
+                emit(f'Excluding same-element={non_same:.2f}:1 | same-element resident logical share={same_pct:.2f}%')
+            else:
+                emit('No consistent resident compression sample.')
+            emit('Live resident ratios subtract full backing slot bytes; inconsistent samples are blank.')
+            emit('CSV retains legacy no-backing ratios and adds separate live resident/capacity columns.')
             if hasattr(self, 'base'):
                 try:
                     s = snapshot()
