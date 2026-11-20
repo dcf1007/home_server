@@ -31,6 +31,8 @@ READBACK_PROGRESS = MIB
 AGE_SECONDS = 65
 POLL = 1.0
 PAGE = os.sysconf('SC_PAGE_SIZE')
+MIX_PAGES = 3
+MIX_BYTES = MIX_PAGES * PAGE
 # Linux UAPI values: Python builds do not always export these constants.
 MADV_COLD = getattr(mmap, 'MADV_COLD', 20)
 MADV_PAGEOUT = getattr(mmap, 'MADV_PAGEOUT', 21)
@@ -68,7 +70,11 @@ CSV_FIELDS = ('elapsed_s', 'phase', 'occupancy_pct', 'psi_avg10_pct',
               'allocated_bytes', 'accessed_bytes', 'verified_bytes',
               'pages_modified', 'remaining_s', 'readback_rate_mib_s',
               'discarded_bytes', 'compressible_allocated_bytes', 'random_allocated_bytes',
-              'orig_data_bytes', 'compr_data_bytes', 'same_pages', 'huge_pages',
+              'same_element_allocated_bytes', 'same_element_discarded_bytes',
+              'compressible_discarded_bytes', 'random_discarded_bytes',
+              'orig_data_bytes', 'compr_data_bytes', 'same_pages', 'same_pages_delta',
+              'same_element_logical_bytes', 'same_element_logical_pct_no_backing',
+              'non_same_payload_ratio_no_backing', 'huge_pages',
               'huge_pages_since', 'compression_ratio_no_backing',
               'payload_savings_pct_no_backing', 'resident_savings_pct_no_backing',
               'readback_idle_s')
@@ -136,6 +142,18 @@ def snapshot():
                 huge_pages_since=mm[8] if len(mm)>8 else None)
 
 
+def same_metrics(s):
+    """Device-wide logical same-element bytes; ratio only without backing."""
+    count = s.get('same_pages')
+    if count is None:
+        return None, None, None
+    logical = count * PAGE
+    if not s.get('comparable') or not s['original'] or logical > s['original']:
+        return logical, None, None
+    remaining = s['original'] - logical
+    return logical, 100 * logical / s['original'], (remaining / s['compressed'] if s['compressed'] else None)
+
+
 def compression(s):
     if not s.get('comparable') or not s['original']:
         return None, None, None
@@ -192,7 +210,7 @@ def private_mapping(length):
 
 
 def cold_worker():
-    """Equal mixed pages, FIFO verification, immediate per-page discard."""
+    """Three equal page populations, FIFO verification and per-page discard."""
     blocks = []
     def reply(**data):
         print('ZTEST '+json.dumps(data), flush=True)
@@ -201,8 +219,8 @@ def cold_worker():
         command = json.loads(line)
         if command['op'] == 'alloc':
             n = command['n']
-            if n <= 0 or n % (2*PAGE):
-                raise ValueError('Cold allocations must contain an even number of pages')
+            if n <= 0 or n % MIX_BYTES:
+                raise ValueError('Cold allocations must contain a multiple of three pages')
             m = private_mapping(n)
             # Repeated non-uniform 64-byte pattern; not a same-element page.
             pattern = bytes(range(64))
@@ -210,7 +228,15 @@ def cold_worker():
             digests = bytearray()
             try:
                 for i in range(n//PAGE):
-                    page = repeated if i % 2 == 0 else os.urandom(PAGE)
+                    kind = i % MIX_PAGES
+                    if kind == 0:
+                        page = repeated
+                    elif kind == 1:
+                        page = os.urandom(PAGE)
+                    else:
+                        # Nonzero repeated byte gives identical machine words.
+                        # Touch the whole page, rather than rely on zero-page sharing.
+                        page = bytes([1 + (i // MIX_PAGES) % 255]) * PAGE
                     m[i*PAGE:(i+1)*PAGE] = page
                     digests.extend(hashlib.sha256(page).digest())
                 del page
@@ -220,7 +246,7 @@ def cold_worker():
             except BaseException:
                 m.close()
                 raise
-            reply(allocated=n, compressible=n//2, random=n//2)
+            reply(allocated=n, compressible=n//3, random=n//3, same_element=n//3)
         elif command['op'] == 'verify':
             if not blocks:
                 reply(done=True)
@@ -343,6 +369,7 @@ class Test:
         self.accessed = 0
         self.pages_modified = 0
         self.discarded = 0
+        self.discarded_by_type = [0, 0, 0]
         self.compression_peak = None
         self.readback_started = None
         self.last_progress = None
@@ -395,8 +422,8 @@ class Test:
         self.hot_size = min(96*MIB, max(16*MIB, s['limit']//25))//PAGE*PAGE
         self.hot_max = self.hot_size+48*MIB
         self.budget = min(s['swap_free']*85//100, s['limit']*3)
-        self.budget = self.budget//(2*PAGE)*(2*PAGE)
-        self.chunk = min(32*MIB, max(PAGE, self.resident//8))//PAGE*PAGE
+        self.budget = self.budget//MIX_BYTES*MIX_BYTES
+        self.chunk = max(MIX_BYTES, min(32*MIB, self.resident//8)//MIX_BYTES*MIX_BYTES)
         if s['occupancy'] >= 70:
             raise Inconclusive('Baseline occupancy >=70%; use a quiet VM')
         if self.resident < 64*MIB or s['available'] < self.reserve+self.resident+self.hot_max:
@@ -409,7 +436,9 @@ class Test:
             f'hot working set={self.hot_size/MIB:.0f} MiB; reserve={self.reserve/MIB:.0f} MiB')
         say('WARNING: deliberate memory/swap pressure and SSD writes; disposable VM only.')
         # Controller deadlines/watchdog govern the cold worker, not systemd.
-        say('Cold workload: exactly 50% repeated-pattern pages, 50% random pages; hot worker separately random.')
+        say('Cold workload: exactly 1/3 repeated-pattern, 1/3 random, 1/3 nonzero same-element pages.')
+        say('Hot worker separately random; kernel counters are device-wide.')
+        say('Existing allocation cap retained; greater compression may prevent reaching a trigger.')
         self.cold = Worker(self.units, 'cold', self.resident, self.budget, runtime=None)
         self.workers.append(self.cold)
         if not self.receive(self.cold).get('ready'):
@@ -448,6 +477,8 @@ class Test:
         remaining = max(0, self.deadline-now) if self.deadline is not None else None
         idle = max(0, now-self.last_progress) if self.phase == 'READBACK' and self.last_progress is not None else None
         ratio, payload_saving, resident_saving = compression(s)
+        same_bytes, same_pct, non_same_ratio = same_metrics(s)
+        same_delta = (s['same_pages']-self.base['same_pages'] if s['same_pages'] is not None and self.base['same_pages'] is not None else None)
         rate = (self.accessed/MIB/max(0.001, now-self.readback_started)
                 if self.readback_started is not None else 0)
         writes = (s['writes']-self.base['writes'])/256
@@ -467,12 +498,12 @@ class Test:
                  f'{s["swap_used"]/MIB:6.1f} | {rate:7.2f} | {eta_text:>6} | {idle:6.0f}')
         else:
             if header:
-                emit('   Time | Occ% |  PSI% |   ZRAM |   Swap |     W+ | Ratio | Left')
-                emit('-'*69)
+                emit('   Time |Occ%| PSI%|  ZRAM |   Swap |     W+ |Ratio|SameMiB|Left')
+                emit('-'*70)
             ratio_text = f'{ratio:.2f}' if ratio is not None else '-'
-            emit(f'{now-START:7.1f} | {s["occupancy"]:4} | {s["psi"]:5.2f} | '
-                 f'{s["used"]/MIB:6.1f} | {s["swap_used"]/MIB:6.1f} | '
-                 f'{writes:6.1f} | {ratio_text:>5} | {remaining:4.0f}')
+            same_text = f'{same_bytes/MIB:.1f}' if same_bytes is not None else '-'
+            emit(f'{now-START:7.1f} |{s["occupancy"]:4}|{s["psi"]:5.2f}|{s["used"]/MIB:7.1f}| '
+                 f'{s["swap_used"]/MIB:6.1f} | {writes:6.1f} |{ratio_text:>5}|{same_text:>7}|{remaining:4.0f}')
         self.display_rows += 1
         if CSV is not None:
             CSV.writerow(dict(elapsed_s=f'{now-START:.3f}', phase=self.phase,
@@ -486,9 +517,16 @@ class Test:
                 verified_bytes=self.verified, pages_modified=self.pages_modified,
                 remaining_s=f'{remaining:.1f}' if remaining is not None else '',
                 readback_rate_mib_s=f'{rate:.3f}', discarded_bytes=self.discarded,
-                compressible_allocated_bytes=self.total//2, random_allocated_bytes=self.total//2,
+                compressible_allocated_bytes=self.total//3, random_allocated_bytes=self.total//3,
+                same_element_allocated_bytes=self.total//3,
+                compressible_discarded_bytes=self.discarded_by_type[0],
+                random_discarded_bytes=self.discarded_by_type[1],
+                same_element_discarded_bytes=self.discarded_by_type[2],
                 orig_data_bytes=s['original'], compr_data_bytes=s['compressed'],
-                same_pages=s['same_pages'], huge_pages=s['huge_pages'], huge_pages_since=s['huge_pages_since'],
+                same_pages=s['same_pages'], same_pages_delta=same_delta,
+                same_element_logical_bytes=same_bytes, same_element_logical_pct_no_backing=same_pct,
+                non_same_payload_ratio_no_backing=non_same_ratio,
+                huge_pages=s['huge_pages'], huge_pages_since=s['huge_pages_since'],
                 compression_ratio_no_backing=ratio, payload_savings_pct_no_backing=payload_saving,
                 resident_savings_pct_no_backing=resident_saving, readback_idle_s=idle))
 
@@ -506,13 +544,13 @@ class Test:
     def alloc(self, s, target):
         # Near a threshold, use smaller steps. Never allocate blindly above it.
         gap = max(PAGE, (target*s['limit']//100)-s['used'])
-        n = min(self.chunk, max(2*PAGE, gap//2), self.budget-self.total,
-                max(0, s['swap_free']-self.hot_size-32*MIB))//(2*PAGE)*(2*PAGE)
+        n = min(self.chunk, max(MIX_BYTES, gap//2), self.budget-self.total,
+                max(0, s['swap_free']-self.hot_size-32*MIB))//MIX_BYTES*MIX_BYTES
         if n <= 0:
             return False
         self.cold.send(op='alloc', n=n)
         msg = self.receive(self.cold)
-        if msg.get('allocated') != n or msg.get('compressible') != n//2 or msg.get('random') != n//2:
+        if msg.get('allocated') != n or any(msg.get(k) != n//3 for k in ('compressible', 'random', 'same_element')):
             raise Failure(f'Unexpected allocation reply: {msg}')
         self.total += n
         return True
@@ -607,6 +645,10 @@ class Test:
                     self.accessed += processed-last
                     self.pages_modified += (processed-last)//PAGE
                     self.discarded += processed-last
+                    # Each block begins with class 0 and repeats 0,1,2.
+                    for kind in range(MIX_PAGES):
+                        count = ((processed//PAGE + 2-kind)//3 - (last//PAGE + 2-kind)//3)
+                        self.discarded_by_type[kind] += count*PAGE
                     self.verified += processed-last
                     self.last_progress = time.monotonic()
                     last = processed
@@ -701,7 +743,11 @@ class Test:
             emit(f'Accessed: {self.accessed/MIB:.1f}/{self.total/MIB:.1f} MiB  '
                  f'Verified: {self.verified/MIB:.1f} MiB')
             emit(f'Pages modified, restored and discarded: {self.pages_modified}')
-            emit(f'Cold allocation: compressible={self.total/2/MIB:.1f} MiB; random={self.total/2/MIB:.1f} MiB')
+            emit('COLD WORKLOAD | exact thirds; MiB (hot worker excluded)')
+            emit('Page type          | Allocated  | Discarded')
+            emit('-'*45)
+            for kind, name in enumerate(('Repeated pattern', 'Random', 'Same-element')):
+                emit(f'{name:18} | {self.total/3/MIB:10.2f} | {self.discarded_by_type[kind]/MIB:9.2f}')
             emit(f'Discarded: {self.discarded/MIB:.1f} MiB')
             emit('COMPRESSION | largest sampled logical volume before/no backing entries')
             if self.compression_peak is not None:
@@ -713,9 +759,16 @@ class Test:
                 else:
                     emit(f'Payload ratio: undefined (zero payload) | Payload saved: {payload_saving:.2f}% | RAM saved: {resident_saving:.2f}%')
                 emit(f'Same-element pages: {c["same_pages"]} | Incompressible pages: {c["huge_pages"]}')
+                logical, share, non_same = same_metrics(c)
+                if share is not None:
+                    emit(f'Same-element logical volume: {logical/MIB:.2f} MiB ({share:.2f}% of device logical data)')
+                if non_same is not None:
+                    emit(f'Payload ratio excluding same-element logical pages: {non_same:.2f}:1')
+                emit('Same-element entries use no separate compressed payload; metadata overhead remains.')
             else:
                 emit('No comparable sample; cannot report a compression ratio.')
-            emit('Compression statistics are device-wide, not per data type; backing I/O is separate.')
+            emit('Compression statistics are device-wide, not an isolated per-class codec benchmark.')
+            emit('Same-element logical volume is not measured physical RAM savings; backing I/O is separate.')
             emit('Ratio is suppressed when backing entries exist. See CSV for all raw counters.')
             if hasattr(self, 'base'):
                 try:
