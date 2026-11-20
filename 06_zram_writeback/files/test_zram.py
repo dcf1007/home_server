@@ -6,6 +6,9 @@ No package installation, service changes, swapoff, or writes to ZRAM sysfs.
 Internal worker modes are launched only by the controller in transient units.
 """
 import csv
+import ctypes
+import resource
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 import hashlib
 import json
 import mmap
@@ -28,6 +31,8 @@ NORMAL_SECONDS = 360
 EMERGENCY_SECONDS = 240
 READBACK_STALL_SECONDS = 300  # only inactivity, no overall deadline
 READBACK_PROGRESS = MIB
+THREADS_PER_CPU = 4
+STAGES = ('retrieve', 'sha256', 'modify', 'discard')
 AGE_SECONDS = 65
 POLL = 1.0
 PAGE = os.sysconf('SC_PAGE_SIZE')
@@ -84,7 +89,12 @@ CSV_FIELDS = ('elapsed_s', 'phase', 'occupancy_pct', 'psi_avg10_pct',
               'swap_reserve_bytes', 'backing_reserve_bytes', 'swap_additional_bytes',
               'backing_additional_bytes', 'cold_additional_bytes', 'capacity_sample_valid',
               'resident_logical_bytes', 'resident_payload_ratio', 'resident_non_same_ratio',
-              'resident_payload_savings_pct', 'resident_ram_savings_pct', 'resident_same_logical_pct')
+              'resident_payload_savings_pct', 'resident_ram_savings_pct', 'resident_same_logical_pct',
+              'readback_threads_requested', 'readback_threads_active', 'readback_worker_cpu_s',
+              'retrieve_wall_s_sum', 'retrieve_cpu_s_sum', 'sha256_wall_s_sum', 'sha256_cpu_s_sum',
+              'modify_wall_s_sum', 'modify_cpu_s_sum', 'discard_wall_s_sum', 'discard_cpu_s_sum',
+              'readback_minor_faults', 'readback_major_faults', 'backing_read_await_ms',
+              'backing_avg_queue_depth', 'system_cpu_steal_pct')
 
 
 def run(*args, timeout=10, check=True):
@@ -251,12 +261,119 @@ def private_mapping(length):
                      prot=mmap.PROT_READ | mmap.PROT_WRITE)
 
 
+def parallel_verify(m, digests, n, pool, requested, reply):
+    """Process distinct pages within the oldest allocation; never fork its mapping.
+
+    Native CDLL calls release the GIL while faults, native copies and madvise
+    execute. All threads finish before the mapping is closed.
+    """
+    libc = ctypes.CDLL(None, use_errno=True)
+    copy = libc.memcpy
+    copy.argtypes = (ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t)
+    copy.restype = ctypes.c_void_p
+    advise = libc.madvise
+    advise.argtypes = (ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int)
+    advise.restype = ctypes.c_int
+    address = ctypes.addressof(ctypes.c_char.from_buffer(m))
+    count = n//PAGE
+    lanes = min(requested, count)
+    lock = threading.Lock()
+    stop = threading.Event()
+    completed = [0]*MIX_PAGES
+    wall = [0]*len(STAGES)
+    cpu = [0]*len(STAGES)
+    faults = [0, 0]
+
+    def lane(k):
+        buf = ctypes.create_string_buffer(PAGE)
+        byte = ctypes.c_ubyte()
+        bufaddr = ctypes.addressof(buf)
+        byteaddr = ctypes.addressof(byte)
+        for i in range(k, count, lanes):
+            if stop.is_set():
+                break
+            src = address+i*PAGE
+            w, q = [0]*len(STAGES), [0]*len(STAGES)
+            ru0 = resource.getrusage(resource.RUSAGE_THREAD)
+            t, p = time.perf_counter_ns(), time.thread_time_ns()
+            copy(bufaddr, src, PAGE)
+            w[0], q[0] = time.perf_counter_ns()-t, time.thread_time_ns()-p
+            t, p = time.perf_counter_ns(), time.thread_time_ns()
+            digest = hashlib.sha256(buf).digest()
+            w[1], q[1] = time.perf_counter_ns()-t, time.thread_time_ns()-p
+            if digest != digests[i*32:(i+1)*32]:
+                raise RuntimeError(f'Page checksum mismatch at offset {i*PAGE}')
+            t, p = time.perf_counter_ns(), time.thread_time_ns()
+            first = ctypes.c_ubyte.from_buffer(buf).value
+            byte.value = first ^ 1
+            copy(src, byteaddr, 1)
+            copy(byteaddr, src, 1)
+            if byte.value != first ^ 1:
+                raise RuntimeError(f'Page modification failed at offset {i*PAGE}')
+            byte.value = first
+            copy(src, byteaddr, 1)
+            copy(byteaddr, src, 1)
+            if byte.value != first:
+                raise RuntimeError(f'Page restoration failed at offset {i*PAGE}')
+            w[2], q[2] = time.perf_counter_ns()-t, time.thread_time_ns()-p
+            t, p = time.perf_counter_ns(), time.thread_time_ns()
+            if advise(src, PAGE, MADV_DONTNEED) != 0:
+                err = ctypes.get_errno()
+                raise OSError(err, os.strerror(err))
+            w[3], q[3] = time.perf_counter_ns()-t, time.thread_time_ns()-p
+            ru1 = resource.getrusage(resource.RUSAGE_THREAD)
+            with lock:
+                completed[i % MIX_PAGES] += 1
+                for stage in range(len(STAGES)):
+                    wall[stage] += w[stage]
+                    cpu[stage] += q[stage]
+                faults[0] += ru1.ru_minflt-ru0.ru_minflt
+                faults[1] += ru1.ru_majflt-ru0.ru_majflt
+
+    futures = []
+    last = 0
+    last_report = time.monotonic()
+    try:
+        for k in range(lanes):
+            futures.append(pool.submit(lane, k))
+        pending = set(futures)
+        while pending:
+            done, pending = wait(pending, timeout=0.25, return_when=FIRST_COMPLETED)
+            for future in done:
+                future.result()
+            with lock:
+                by_type = completed.copy()
+                wall_ns, cpu_ns, page_faults = wall.copy(), cpu.copy(), faults.copy()
+            processed = sum(by_type)*PAGE
+            now = time.monotonic()
+            if processed > last and (processed-last >= READBACK_PROGRESS or now-last_report >= 1 or not pending):
+                reply(processed=processed, pages=sum(by_type), discarded=processed,
+                      by_type=by_type, wall_ns=wall_ns, cpu_ns=cpu_ns,
+                      faults=page_faults, lanes=lanes)
+                last, last_report = processed, now
+        if last != n or completed != [count//MIX_PAGES]*MIX_PAGES:
+            raise RuntimeError('Parallel page completion count mismatch')
+    finally:
+        stop.set()
+        # A faulting thread may block; the controller inactivity watchdog can
+        # terminate the entire transient unit. Do not close its mapping early.
+        wait(futures)
+    reply(verified=n, match=True, pages=count)
+
+
 def cold_worker():
     """Three equal page populations, FIFO verification and per-page discard."""
     blocks = []
     def reply(**data):
         print('ZTEST '+json.dumps(data), flush=True)
-    reply(ready=True)
+    cpus = len(os.sched_getaffinity(0))
+    requested = THREADS_PER_CPU*cpus
+    if requested < 1:
+        raise RuntimeError('No available CPUs for readback')
+    # Smaller native stacks keep large CPU-count VMs within the worker cgroup.
+    threading.stack_size(256*1024)
+    pool = None
+    reply(ready=True, cpus=cpus, threads=requested)
     for line in sys.stdin:
         command = json.loads(line)
         if command['op'] == 'alloc':
@@ -294,35 +411,21 @@ def cold_worker():
                 reply(done=True)
                 continue
             m, digests, n = blocks.pop(0)
-            last_report = time.monotonic()
-            for i, offset in enumerate(range(0, n, PAGE)):
-                original = m[offset:offset+PAGE]
-                if hashlib.sha256(original).digest() != digests[i*32:(i+1)*32]:
-                    reply(error=f'Page checksum mismatch at offset {offset}')
-                    m.close()
-                    return
-                first = original[0]
-                m[offset] = first ^ 1
-                if m[offset] != (first ^ 1):
-                    raise RuntimeError(f'Page modification failed at {offset}')
-                m[offset] = first
-                if m[offset] != first:
-                    raise RuntimeError(f'Page restoration failed at {offset}')
-                # The mapping is private anonymous memory, and this specific
-                # page is verified. Discard it, not the rest of the mapping.
-                m.madvise(MADV_DONTNEED, offset, PAGE)
-                del original
-                processed = offset+PAGE
-                now = time.monotonic()
-                if processed % READBACK_PROGRESS == 0 or processed == n or now-last_report >= 1:
-                    reply(processed=processed, pages=i+1, discarded=processed)
-                    last_report = now
-            m.close()
-            reply(verified=n, match=True, pages=n//PAGE)
+            if pool is None:
+                pool = ThreadPoolExecutor(max_workers=requested)
+            try:
+                parallel_verify(m, digests, n, pool, requested, reply)
+            except Exception as e:
+                reply(error=str(e))
+                return
+            finally:
+                m.close()
         elif command['op'] == 'exit':
             break
         else:
             raise ValueError('Invalid internal command')
+    if pool is not None:
+        pool.shutdown(wait=True)
     for m, _, _ in blocks:
         m.close()
 
@@ -407,6 +510,15 @@ class Test:
         self.hot = None
         self.journal = Journal()
         self.total = 0
+        self.allocations = []
+        self.readback_threads = 0
+        self.readback_active = 0
+        self.stage_wall = [0]*len(STAGES)
+        self.stage_cpu = [0]*len(STAGES)
+        self.readback_faults = [0, 0]
+        self.disk_stat = None
+        self.io_sample = None
+        self.io_metrics = (None, None, None)
         self.verified = 0
         self.accessed = 0
         self.pages_modified = 0
@@ -463,6 +575,8 @@ class Test:
         if not s['capacity_valid']:
             raise Inconclusive('Initial backing/logical counters inconsistent; retry on a quiet VM')
         device_bytes = int(run('blockdev', '--getsize64', backing).stdout.strip())
+        # Optional block-layer instrumentation, not a new preflight gate.
+        self.disk_stat = Path('/sys/class/block')/Path(os.path.realpath(backing)).name/'stat'
         # Slot zero is reserved; usable capacity is rounded to whole pages.
         self.backing_capacity = max(0, device_bytes//PAGE-1)*PAGE
         if self.backing_capacity <= 0 or s['backing']*BD_UNIT > self.backing_capacity:
@@ -499,8 +613,14 @@ class Test:
         say('Adaptive capacity: three logical slots, at most two backing slots per cold triplet.')
         self.cold = Worker(self.units, 'cold', self.resident, self.swap_ceiling, runtime=None)
         self.workers.append(self.cold)
-        if not self.receive(self.cold).get('ready'):
+        ready = self.receive(self.cold)
+        if not ready.get('ready'):
             raise Failure('Cold worker did not initialize')
+        cpus, threads = ready.get('cpus'), ready.get('threads')
+        if type(cpus) is not int or cpus < 1 or threads != THREADS_PER_CPU*cpus:
+            raise Failure(f'Invalid cold worker CPU/thread report: {ready}')
+        self.readback_threads = threads
+        say(f'Readback configured: {cpus} available logical CPUs x {THREADS_PER_CPU} = {threads} threads.')
         group = run('systemctl', 'show', self.cold.unit, '-p', 'ControlGroup', '--value').stdout.strip()
         if not group.startswith('/') or group == '/' or '..' in Path(group).parts:
             raise Failure('Cannot identify cold worker cgroup')
@@ -546,8 +666,37 @@ class Test:
             self.last_display = time.monotonic()
         return s
 
+    def sample_io(self, now):
+        """Interval block statistics and system CPU steal; absence is not failure."""
+        try:
+            disk = fields(self.disk_stat) if self.disk_stat is not None else []
+            d = (disk[0], disk[3], disk[10]) if len(disk) >= 11 else None
+        except (OSError, ValueError):
+            d = None
+        try:
+            cpu = [int(x) for x in Path('/proc/stat').read_text().splitlines()[0].split()[1:9]]
+            u = (sum(cpu), cpu[7]) if len(cpu) == 8 else None
+        except (OSError, ValueError, IndexError):
+            u = None
+        prev = self.io_sample
+        self.io_sample = (now, d, u)
+        await_ms = depth = steal = None
+        if prev is not None and now > prev[0]:
+            if d is not None and prev[1] is not None:
+                dr, dm, dw = (a-b for a, b in zip(d, prev[1]))
+                if min(dr, dm, dw) >= 0:
+                    await_ms = dm/dr if dr else None
+                    depth = dw/(1000*(now-prev[0]))
+            if u is not None and prev[2] is not None:
+                dt, ds = (a-b for a, b in zip(u, prev[2]))
+                if dt > 0 and 0 <= ds <= dt:
+                    steal = 100*ds/dt
+        self.io_metrics = (await_ms, depth, steal)
+
     def display(self, s):
         now = time.monotonic()
+        if self.phase == 'READBACK':
+            self.sample_io(now)
         remaining = max(0, self.deadline-now) if self.deadline is not None else None
         idle = max(0, now-self.last_progress) if self.phase == 'READBACK' and self.last_progress is not None else None
         ratio, payload_saving, resident_saving = compression(s)
@@ -568,10 +717,10 @@ class Test:
             eta = (max(0,self.total-self.accessed)/MIB/rate if rate > 0 else None)
             eta_text = f'{eta:.0f}' if eta is not None else '-'
             if header:
-                emit('   Time |   Read+ | Discarded |   Swap |   MiB/s |  ETA s | Idle s')
-                emit('-'*69)
+                emit('   Time |   Read+ | Discarded |   Swap |  MiB/s | Thr | ETA s | Idle')
+                emit('-'*70)
             emit(f'{now-START:7.1f} | {reads:7.1f} | {self.discarded/MIB:9.1f} | '
-                 f'{s["swap_used"]/MIB:6.1f} | {rate:7.2f} | {eta_text:>6} | {idle:6.0f}')
+                 f'{s["swap_used"]/MIB:6.1f} | {rate:6.2f} |{self.readback_active:4}|{eta_text:>6}|{idle:5.0f}')
         else:
             if header:
                 emit('   Time |Occ%| PSI%|  ZRAM |   Swap |   Back |Ratio| Cold+ |Left')
@@ -615,7 +764,17 @@ class Test:
                 capacity_sample_valid=int(cap is not None), resident_logical_bytes=logical,
                 resident_payload_ratio=live_ratio, resident_non_same_ratio=live_non_same,
                 resident_payload_savings_pct=live_payload_save, resident_ram_savings_pct=live_ram_save,
-                resident_same_logical_pct=live_same_pct))
+                resident_same_logical_pct=live_same_pct,
+                readback_threads_requested=self.readback_threads,
+                readback_threads_active=self.readback_active,
+                readback_worker_cpu_s=sum(self.stage_cpu)/1e9,
+                retrieve_wall_s_sum=self.stage_wall[0]/1e9, retrieve_cpu_s_sum=self.stage_cpu[0]/1e9,
+                sha256_wall_s_sum=self.stage_wall[1]/1e9, sha256_cpu_s_sum=self.stage_cpu[1]/1e9,
+                modify_wall_s_sum=self.stage_wall[2]/1e9, modify_cpu_s_sum=self.stage_cpu[2]/1e9,
+                discard_wall_s_sum=self.stage_wall[3]/1e9, discard_cpu_s_sum=self.stage_cpu[3]/1e9,
+                readback_minor_faults=self.readback_faults[0], readback_major_faults=self.readback_faults[1],
+                backing_read_await_ms=self.io_metrics[0], backing_avg_queue_depth=self.io_metrics[1],
+                system_cpu_steal_pct=self.io_metrics[2]))
 
     def receive(self, worker):
         while True:
@@ -650,6 +809,7 @@ class Test:
         if msg.get('allocated') != n or any(msg.get(k) != n//3 for k in ('compressible', 'random', 'same_element')):
             raise Failure(f'Unexpected allocation reply: {msg}')
         self.total += n
+        self.allocations.append(n)
         return True
 
     def sleep(self, seconds):
@@ -728,31 +888,55 @@ class Test:
         say(f'3/3 READBACK: oldest first; access, flip/restore one bit per page, '
             f'verify SHA-256 and immediately discard all {self.total/MIB:.1f} MiB.')
         say(f'No overall readback deadline; no-progress timeout {READBACK_STALL_SECONDS}s.')
+        say(f'Parallel readback: {self.readback_threads} threads configured; fewer lanes for smaller blocks.')
         if not self.total:
             raise Inconclusive('No cold data allocated')
-        while self.verified < self.total:
+        for block in self.allocations:
             self.cold.send(op='verify')
             last = 0
+            by_type = [0]*MIX_PAGES
+            last_wall = [0]*len(STAGES)
+            last_cpu = [0]*len(STAGES)
+            last_faults = [0, 0]
             while True:
                 msg = self.receive(self.cold)
                 if 'processed' in msg:
                     processed = msg['processed']
-                    if not isinstance(processed, int) or not last < processed <= self.total-self.verified+last or processed % PAGE or msg.get('pages') != processed//PAGE or msg.get('discarded') != processed:
-                        raise Failure(f'Invalid page progress: {msg}')
-                    self.accessed += processed-last
-                    self.pages_modified += (processed-last)//PAGE
-                    self.discarded += processed-last
-                    # Each block begins with class 0 and repeats 0,1,2.
+                    counts = msg.get('by_type')
+                    wall, cpu, faults = (msg.get(k) for k in ('wall_ns', 'cpu_ns', 'faults'))
+                    lanes = msg.get('lanes')
+                    def valid(values, previous):
+                        return (isinstance(values, list) and len(values) == len(previous)
+                                and all(type(a) is int and a >= b for a,b in zip(values, previous)))
+                    if (type(processed) is not int or not last < processed <= block or processed % PAGE
+                            or msg.get('pages') != processed//PAGE or msg.get('discarded') != processed
+                            or lanes != min(self.readback_threads, block//PAGE)
+                            or not valid(counts, by_type) or sum(counts)*PAGE != processed
+                            or any(x > block//MIX_BYTES for x in counts)
+                            or not valid(wall, last_wall) or not valid(cpu, last_cpu)
+                            or not valid(faults, last_faults)):
+                        raise Failure(f'Invalid parallel page progress: {msg}')
+                    delta = processed-last
+                    self.accessed += delta
+                    self.pages_modified += delta//PAGE
+                    self.discarded += delta
+                    self.verified += delta
+                    self.readback_active = lanes
                     for kind in range(MIX_PAGES):
-                        count = ((processed//PAGE + 2-kind)//3 - (last//PAGE + 2-kind)//3)
-                        self.discarded_by_type[kind] += count*PAGE
-                    self.verified += processed-last
+                        self.discarded_by_type[kind] += (counts[kind]-by_type[kind])*PAGE
+                    for i in range(len(STAGES)):
+                        self.stage_wall[i] += wall[i]-last_wall[i]
+                        self.stage_cpu[i] += cpu[i]-last_cpu[i]
+                    for i in range(2):
+                        self.readback_faults[i] += faults[i]-last_faults[i]
+                    by_type, last_wall, last_cpu, last_faults = counts, wall, cpu, faults
                     self.last_progress = time.monotonic()
                     last = processed
                     continue
-                if msg.get('match') is not True or msg.get('verified') != last or not last or msg.get('pages') != last//PAGE:
+                if msg.get('match') is not True or msg.get('verified') != block or last != block or msg.get('pages') != block//PAGE:
                     raise Failure(f'Cold data checksum mismatch or invalid response: {msg}')
                 break
+        self.readback_active = 0
         s = self.tick()
         if self.verified != self.total or self.accessed != self.total or self.discarded != self.total:
             raise Failure('Verified/accessed byte count does not match allocation')
@@ -846,6 +1030,15 @@ class Test:
             for kind, name in enumerate(('Repeated pattern', 'Random', 'Same-element')):
                 emit(f'{name:18} | {self.total/3/MIB:10.2f} | {self.discarded_by_type[kind]/MIB:9.2f}')
             emit(f'Discarded: {self.discarded/MIB:.1f} MiB')
+            if self.pages_modified:
+                emit('READBACK TIMING | summed per-thread stage times, not elapsed phase time')
+                emit('Stage       | Wall s sum | CPU s sum | Mean wall us/page')
+                emit('-'*58)
+                for i, stage in enumerate(STAGES):
+                    emit(f'{stage:11} | {self.stage_wall[i]/1e9:10.3f} | {self.stage_cpu[i]/1e9:9.3f} | {self.stage_wall[i]/1000/self.pages_modified:17.2f}')
+                emit(f'Threads configured: {self.readback_threads}; minor faults: {self.readback_faults[0]}; major faults: {self.readback_faults[1]}')
+                emit('Retrieve wall vs CPU includes page faults, I/O, scheduling and kernel work; not isolated NVMe or decompression time.')
+                emit('CSV contains interval backing read latency, queue depth and system CPU steal when available.')
             emit('COMPRESSION | largest sampled logical volume before/no backing entries')
             if self.compression_peak is not None:
                 c = self.compression_peak
