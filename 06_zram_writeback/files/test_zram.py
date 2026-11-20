@@ -32,10 +32,13 @@ EMERGENCY_SECONDS = 240
 READBACK_STALL_SECONDS = 300  # only inactivity, no overall deadline
 READBACK_PROGRESS = MIB
 THREADS_PER_CPU = 4
-TUNE_SECONDS = 10
+TUNE_SECONDS = 30
 TUNE_CPU_TARGET = 80.0
 TUNE_MIN_GAIN = 0.05
-TUNE_FLAT_WINDOWS = 2
+TUNE_BAD_DROP = 0.10
+TUNE_EXTRA_LEVELS = 3
+TUNE_BAD_WINDOWS = 2
+TUNE_RETRY_SECONDS = 60
 STAGES = ('retrieve', 'sha256', 'modify', 'discard')
 AGE_SECONDS = 65
 POLL = 1.0
@@ -100,7 +103,9 @@ CSV_FIELDS = ('elapsed_s', 'phase', 'occupancy_pct', 'psi_avg10_pct',
               'readback_minor_faults', 'readback_major_faults', 'backing_read_await_ms',
               'backing_avg_queue_depth', 'system_cpu_steal_pct',
               'tune_cpu_busy_pct', 'tune_backing_mib_s', 'tune_verified_mib_s',
-              'tune_state')
+              'tune_state', 'record_type', 'tune_measured_threads',
+              'tune_next_threads', 'tune_window_s', 'tune_gain_pct',
+              'tune_best_verified_mib_s', 'tune_best_threads')
 
 
 def run(*args, timeout=10, check=True):
@@ -308,7 +313,7 @@ def parallel_verify(m, digests, n, pool, requested, reply):
             digest = hashlib.sha256(buf).digest()
             w[1], q[1] = time.perf_counter_ns()-t, time.thread_time_ns()-p
             if digest != digests[i*32:(i+1)*32]:
-                raise RuntimeError(f'Page checksum mismatch at offset {i*PAGE}')
+                raise RuntimeError(f'Data integrity error: page checksum mismatch at offset {i*PAGE}')
             t, p = time.perf_counter_ns(), time.thread_time_ns()
             first = ctypes.c_ubyte.from_buffer(buf).value
             byte.value = first ^ 1
@@ -536,7 +541,10 @@ class Test:
         self.tune_best_rate = None
         self.tune_best_threads = None
         self.tune_flat = 0
-        self.tune_locked = False
+        self.tune_reference = None
+        self.tune_candidates = {}
+        self.tune_trial = []
+        self.tune_hold_until = None
         self.tune_state = 'pending'
         self.tune_metrics = (None, None, None)
         self.stage_wall = [0]*len(STAGES)
@@ -678,7 +686,7 @@ class Test:
         if s['limit'] != self.base['limit']:
             raise Failure('ZRAM resident limit changed during test')
         if s['errors'] != self.base['errors']:
-            raise Failure(f'ZRAM I/O error counters changed: {self.base["errors"]} -> {s["errors"]}')
+            raise Failure(f'ZRAM storage I/O error counters changed: {self.base["errors"]} -> {s["errors"]}')
         if s['available'] < self.reserve:
             raise Inconclusive('System RAM headroom fell below test reserve')
         for worker in (self.cold, self.hot):
@@ -807,7 +815,9 @@ class Test:
                 backing_read_await_ms=self.io_metrics[0], backing_avg_queue_depth=self.io_metrics[1],
                 system_cpu_steal_pct=self.io_metrics[2],
                 tune_cpu_busy_pct=self.tune_metrics[0], tune_backing_mib_s=self.tune_metrics[1],
-                tune_verified_mib_s=self.tune_metrics[2], tune_state=self.tune_state))
+                tune_verified_mib_s=self.tune_metrics[2], tune_state=self.tune_state,
+                record_type='sample', tune_best_verified_mib_s=self.tune_best_rate,
+                tune_best_threads=self.tune_best_threads))
 
     def receive(self, worker):
         while True:
@@ -933,16 +943,80 @@ class Test:
         except (OSError, ValueError, IndexError):
             return None
 
+    def reset_tune_search(self):
+        self.tune_best_rate = self.tune_best_threads = self.tune_reference = None
+        self.tune_candidates.clear()
+        self.tune_trial.clear()
+        self.tune_flat = 0
+        self.tune_hold_until = None
+
+    def tune_hold(self, now, reason):
+        self.tune_hold_until = now + TUNE_RETRY_SECONDS
+        self.tune_state = reason
+        self.tune_trial.clear()
+
+    def remember_tune_rate(self, threads, rate):
+        self.tune_candidates[threads] = rate
+        self.tune_best_rate = max(self.tune_candidates.values())
+        # Among effectively equivalent rates, prefer less concurrency.
+        self.tune_best_threads = min(k for k, v in self.tune_candidates.items()
+                                     if v >= self.tune_best_rate*(1-TUNE_MIN_GAIN))
+
+    def tune_decision(self, now, cpu_pct, verified_rate, dt):
+        old = self.readback_threads
+        best = self.tune_best_rate
+        if cpu_pct >= TUNE_CPU_TARGET:
+            self.readback_threads = max(1, old-self.tune_step if old > self.tune_step else old//2)
+            self.tune_hold(now, 'CPU target; back off')
+            return
+        if self.tune_hold_until is not None:
+            if now < self.tune_hold_until:
+                return
+            # Old samples must not permanently bias a changing workload.
+            self.reset_tune_search()
+            best = None
+            self.tune_state = 'retune baseline'
+        # A poor first window is not enough to reject a higher count.
+        self.tune_trial.append((verified_rate, dt))
+        trial_rate = sum(r*t for r,t in self.tune_trial)/sum(t for _,t in self.tune_trial)
+        bad = best is not None and trial_rate < best*(1-TUNE_BAD_DROP)
+        if bad and len(self.tune_trial) < TUNE_BAD_WINDOWS:
+            self.tune_state = 'confirm slowdown'
+            return
+        if bad:
+            self.readback_threads = self.tune_best_threads
+            self.tune_hold(now, 'confirmed slowdown; back off')
+            return
+        self.remember_tune_rate(old, trial_rate)
+        if self.tune_reference is None or trial_rate >= self.tune_reference*(1+TUNE_MIN_GAIN):
+            self.tune_reference = trial_rate
+            self.tune_flat = 0
+        else:
+            self.tune_flat += 1
+        self.tune_trial.clear()
+        # After the first flat level, try three further distinct higher levels.
+        if self.tune_flat > TUNE_EXTRA_LEVELS:
+            self.readback_threads = self.tune_best_threads
+            self.tune_hold(now, 'plateau; hold near-best count')
+            return
+        self.readback_threads = min(self.tune_limit, old+self.tune_step)
+        if self.readback_threads == old:
+            self.tune_hold(now, 'page-count limit; hold')
+        else:
+            self.tune_state = 'explore higher' if self.tune_flat else 'increase'
+
     def tune_readback(self, block):
-        """Only resize between blocks; compare like-for-like durations approximately."""
+        """Tune at block boundaries; objective is verified and discarded bytes/s."""
         point = self.tune_point()
         if point is None:
             self.tune_sample = None
-            say('TUNE: counters unavailable; holding current count')
+            self.tune_trial.clear()
+            say(f'TUNE: {self.readback_threads} threads | counters unavailable; hold')
             return
         if block//PAGE < self.readback_threads:
-            # A short block cannot exercise the configured concurrency.
+            # Do not attribute a short, underfilled block to a higher target.
             self.tune_sample = point
+            self.tune_trial.clear()
             return
         if self.tune_sample is None:
             self.tune_sample = point
@@ -952,45 +1026,34 @@ class Test:
             return
         self.tune_sample = point
         if ticks <= 0 or not 0 <= busy <= ticks or min(dv, dr) < 0:
-            say('TUNE: inconsistent counters; holding current count')
+            self.tune_trial.clear()
+            say(f'TUNE: {self.readback_threads} threads | inconsistent counters; hold')
             return
         cpu_pct = 100*busy/ticks
         disk_rate = dr*BD_UNIT/MIB/dt
         verified_rate = dv/MIB/dt
         self.tune_metrics = (cpu_pct, disk_rate, verified_rate)
         old = self.readback_threads
-        say(f'TUNE: {old} threads | CPU busy={cpu_pct:.1f}% | backing={disk_rate:.2f} MiB/s | verified={verified_rate:.2f} MiB/s')
-        if cpu_pct >= TUNE_CPU_TARGET:
-            # Stop increasing; back off if CPU remains busy in later windows.
-            self.readback_threads = max(1, old-self.tune_step if old > self.tune_step else old//2)
-            self.tune_locked = True
-            self.tune_state = 'CPU target reached; hold/back off'
-            self.tune_flat = 0
-        elif self.tune_locked:
-            return
-        elif dr == 0 or dv == 0:
-            # Same-element/resident-only work is not a backing speed sample.
-            self.tune_state = 'waiting for backing reads'
-            return
-        elif self.tune_best_rate is None or disk_rate >= self.tune_best_rate*(1+TUNE_MIN_GAIN):
-            self.tune_best_rate = disk_rate
-            self.tune_best_threads = old
-            self.tune_flat = 0
-            self.readback_threads = min(self.tune_limit, old+self.tune_step)
-            self.tune_locked = self.readback_threads <= old
-            self.tune_state = ('page-count limit; hold' if self.tune_locked else 'ramping')
+        previous_best = self.tune_best_rate
+        gain = 100*(verified_rate/previous_best-1) if previous_best else None
+        # A resident/same-element-only window still represents useful work.
+        if dv > 0 or cpu_pct >= TUNE_CPU_TARGET:
+            self.tune_decision(point[0], cpu_pct, verified_rate, dt)
         else:
-            self.tune_flat += 1
-            if self.tune_flat >= TUNE_FLAT_WINDOWS:
-                self.readback_threads = self.tune_best_threads
-                self.tune_locked = True
-                self.tune_state = 'plateau; hold best measured count'
-            else:
-                self.tune_state = 'checking plateau'
-        if self.readback_threads != old:
-            say(f'TUNE: next block {old} -> {self.readback_threads} threads ({self.tune_state})')
-        else:
-            say(f'TUNE: {self.tune_state}')
+            self.tune_state = 'no verified progress; hold'
+            self.tune_trial.clear()
+        gain_text = f'{gain:+.1f}' if gain is not None else '-'
+        emit('TUNE | Thr | CPU% | Read/s | Done/s | Gain% | Next | Decision')
+        emit(f'     |{old:4}|{cpu_pct:5.1f}|{disk_rate:7.2f}|{verified_rate:7.2f}|{gain_text:>6}|{self.readback_threads:5}| {self.tune_state}')
+        if CSV is not None:
+            CSV.writerow(dict(record_type='tuning', phase='READBACK',
+                elapsed_s=f'{point[0]-START:.3f}', verified_bytes=self.verified,
+                discarded_bytes=self.discarded, tune_measured_threads=old,
+                tune_next_threads=self.readback_threads, tune_window_s=dt,
+                tune_cpu_busy_pct=cpu_pct, tune_backing_mib_s=disk_rate,
+                tune_verified_mib_s=verified_rate, tune_gain_pct=gain,
+                tune_best_verified_mib_s=self.tune_best_rate,
+                tune_best_threads=self.tune_best_threads, tune_state=self.tune_state))
 
     def readback(self):
         self.phase = 'READBACK'
@@ -1001,7 +1064,8 @@ class Test:
             f'verify SHA-256 and immediately discard all {self.total/MIB:.1f} MiB.')
         say(f'No overall readback deadline; no-progress timeout {READBACK_STALL_SECONDS}s.')
         say(f'Parallel readback: starts at {self.readback_threads} threads; increase by {self.tune_step} per trial.')
-        say(f'Tuning: >= {TUNE_SECONDS}s windows; {TUNE_CPU_TARGET:.0f}% busy CPU target; plateau after {TUNE_FLAT_WINDOWS} windows below {TUNE_MIN_GAIN*100:.0f}% gain.')
+        say(f'Tuning: >= {TUNE_SECONDS}s windows; {TUNE_CPU_TARGET:.0f}% busy CPU target; verified/discarded MiB/s objective.')
+        say(f'Explore {TUNE_EXTRA_LEVELS} further levels after first plateau; confirm >{TUNE_BAD_DROP*100:.0f}% slowdown twice; retry after {TUNE_RETRY_SECONDS}s hold.')
         self.tune_state = 'ramping'
         if not self.total:
             raise Inconclusive('No cold data allocated')
@@ -1051,7 +1115,7 @@ class Test:
                     last = processed
                     continue
                 if msg.get('match') is not True or msg.get('verified') != block or last != block or msg.get('pages') != block//PAGE:
-                    raise Failure(f'Cold data checksum mismatch or invalid response: {msg}')
+                    raise Failure(f'Data integrity error or invalid verification response: {msg}')
                 break
             self.tune_readback(block)
         self.readback_active = 0
@@ -1154,8 +1218,12 @@ class Test:
                 emit('-'*58)
                 for i, stage in enumerate(STAGES):
                     emit(f'{stage:11} | {self.stage_wall[i]/1e9:10.3f} | {self.stage_cpu[i]/1e9:9.3f} | {self.stage_wall[i]/1000/self.pages_modified:17.2f}')
-                emit(f'Last thread target: {self.readback_threads}; minor faults: {self.readback_faults[0]}; major faults: {self.readback_faults[1]}')
-                emit(f'Adaptive tuning: {self.tune_state}; best sampled backing rate: {self.tune_best_rate if self.tune_best_rate is not None else "unavailable"} MiB/s')
+                emit(f'Last thread target: {self.readback_threads}')
+                emit(f'Memory mapping resolves (minor): {self.readback_faults[0]}')
+                emit(f'Page retrieval events (major): {self.readback_faults[1]}')
+                emit('Page events are normal VM operations, not data integrity or storage errors.')
+                best_text = f'{self.tune_best_rate:.2f} MiB/s' if self.tune_best_rate is not None else 'unavailable'
+                emit(f'Adaptive tuning: {self.tune_state}; recent best verified rate: {best_text}')
                 emit('See TUNE log lines for concurrency, busy CPU and separate backing/verified rates.')
                 emit('Retrieve wall vs CPU includes page faults, I/O, scheduling and kernel work; not isolated NVMe or decompression time.')
                 emit('CSV contains interval backing read latency, queue depth and system CPU steal when available.')
