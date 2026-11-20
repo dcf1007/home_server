@@ -1,5 +1,14 @@
 # Guide provenance and scope
 
+## OMV warning-note layout — 2026-11-20 (Europe/Berlin)
+
+**Nearest user prompt:** “can you put on the left of all the text that corresponds to the omv configuration a big yellow triangle with exlamation mark (in svg) and the text on its right?”
+
+**Implemented:** Reuse [assets/omv-warning.svg](assets/omv-warning.svg) in two-column HTML tables in manual chapters 01–09. The yellow warning triangle is 72 pixels wide/high in the guides, top-aligned in the left cell, with the existing OMV-specific note or subsection on the right. Preserve the main Chapter 07 headings/anchors, Markdown links, inline code, and fenced commands; leave ordinary installation steps outside warning blocks. Include the earlier explicit OMV storage/GUI cautions in Chapter 09. No substantive instruction, policy or executable configuration is changed.
+
+**Validation boundary:** Compared the unwrapped text against the preceding main revision `87983289de76191285cd5e62de460a3bc483aca5`; only layout markup, the shared SVG and this provenance entry were added. A representative mixed HTML/Markdown table was rendered with a local CommonMark parser; GitHub's actual visual rendering and narrow-screen layout were not independently observed.
+
+
 ## OMV-aware manual guide notes — 2026-11-20 (Europe/Berlin)
 
 **Nearest user prompt:** “make notes in the manual steps regarding when omv is installed in the system. i am putting 2 examples below, but double check everyting against omv documentation and online findings.” The supplied examples concern SSH configuration generation/precedence and unattended upgrades.
