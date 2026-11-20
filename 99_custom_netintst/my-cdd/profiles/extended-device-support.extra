@@ -1,3 +1,4 @@
 # extended-device-support: source assets copied by Simple-CDD (not automatically installed).
 installer/extended-device-support.sh
 scripts/firmware-candidates.txt
+tmp/generated/firmware-license-policy

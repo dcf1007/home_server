@@ -196,9 +196,9 @@ report_omission() {
 # Use the existing Debian Installer password-type Debconf questions; never
 # log or write a password to a preseed, the ISO, or a command argument.
 ensure_root_recovery() {
-    # Debian's initial root password should be left blank to give the
-    # first ordinary account sudo. Verify it rather than granting sudo
-    # to an unexpected account silently.
+    # The native passwd/root-login=false preseed grants the first ordinary
+    # account sudo. Verify it rather than granting sudo to an unexpected
+    # account silently.
     db_get passwd/username || fatal 'Cannot read the native installer username'
     recovery_user=$RET
     [ -n "$recovery_user" ] || fatal 'Missing installer-created admin account'
@@ -206,7 +206,7 @@ ensure_root_recovery() {
         fatal 'Installer-created admin account is unavailable'
     case " $(cat "$WORK/output") " in
         *' sudo '*) log 'Verified native sudo administrator account' ;;
-        *) fatal 'Installer-created user is not in sudo group; leave initial root-password fields empty during Debian setup' ;;
+        *) fatal 'Installer-created user is not in sudo group; verify native passwd/root-login=false preseed' ;;
     esac
     capture in-target sh -c 'command -v sudo >/dev/null 2>&1' ||
         fatal 'sudo is not available in the installed target'

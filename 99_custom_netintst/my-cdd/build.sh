@@ -15,6 +15,12 @@ printf >&2 'my-cdd: NOTE: At Software selection, manually uncheck Desktop/GNOME 
 # the single canonical profile_defaults.conf. Do not modify tracked source files.
 . ./profile_defaults.conf
 mkdir -p ./tmp/generated
+case "${AUTO_ACCEPT_FIRMWARE_LICENSES:-}" in
+    true|false) ;;
+    *) printf >&2 '%s\n' 'AUTO_ACCEPT_FIRMWARE_LICENSES must be true or false'; exit 1 ;;
+esac
+# Data only, never a sourced shell file in the installer.
+printf '%s\n' "$AUTO_ACCEPT_FIRMWARE_LICENSES" > ./tmp/generated/firmware-license-policy
 {
     printf '# Generated from profile_defaults.conf; questions remain editable.\n'
     printf 'd-i netcfg/get_hostname string %s\n' "$DEFAULT_HOSTNAME"
@@ -23,6 +29,8 @@ mkdir -p ./tmp/generated
         printf 'd-i netcfg/get_domain string %s\n' "$DEFAULT_DOMAIN"
         printf 'd-i netcfg/get_domain seen false\n'
     fi
+    # Intentionally suppress the initial root question; preserve native sudo setup.
+    printf 'd-i passwd/root-login boolean false\n'
     printf 'd-i passwd/username string %s\n' "$DEFAULT_ADMIN_USERNAME"
     printf 'd-i passwd/username seen false\n'
     printf 'd-i clock-setup/utc boolean %s\n' "$DEFAULT_RTC_UTC"
